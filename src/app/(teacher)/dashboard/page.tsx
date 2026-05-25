@@ -8,21 +8,30 @@ export default async function TeacherDashboard() {
   if (!db) return redirect('/login');
   const teacherId = 'temp-teacher-id';
 
-  const [bookingsSnap, coursesSnap] = await Promise.all([
-    db.collection(COLLECTIONS.BOOKINGS)
-      .where('teacherId', '==', teacherId)
-      .where('status', '==', 'confirmed')
-      .orderBy('bookingDate')
-      .limit(5)
-      .get(),
-    db.collection(COLLECTIONS.COURSES)
-      .where('teacherId', '==', teacherId)
-      .where('isActive', '==', true)
-      .get(),
-  ]);
+  let upcomingBookings: any[] = [];
+  let activeCourses = 0;
+  let setupError = false;
 
-  const upcomingBookings = bookingsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-  const activeCourses = coursesSnap.size;
+  try {
+    const [bookingsSnap, coursesSnap] = await Promise.all([
+      db.collection(COLLECTIONS.BOOKINGS)
+        .where('teacherId', '==', teacherId)
+        .where('status', '==', 'confirmed')
+        .orderBy('bookingDate')
+        .limit(5)
+        .get(),
+      db.collection(COLLECTIONS.COURSES)
+        .where('teacherId', '==', teacherId)
+        .where('isActive', '==', true)
+        .get(),
+    ]);
+
+    upcomingBookings = bookingsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    activeCourses = coursesSnap.size;
+  } catch (error) {
+    if ((error as { code?: number }).code !== 5) throw error;
+    setupError = true;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -40,6 +49,12 @@ export default async function TeacherDashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8">
+        {setupError ? (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            ยังเชื่อมต่อ Cloud Firestore ไม่สำเร็จ กรุณาตรวจว่าเปิดใช้งาน Firestore database ใน Firebase project แล้ว
+          </div>
+        ) : null}
+
         <div className="grid gap-4 md:grid-cols-4">
           {[
             { label: 'นักเรียนทั้งหมด', value: 0, icon: '👨‍🎓' },
