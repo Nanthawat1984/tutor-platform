@@ -1,0 +1,166 @@
+// Firestore Security Rules
+// วางไฟที่: firestore.rules (copy ไปใน Firebase Console)
+//
+// Firebase Console → Firestore Database → Rules → วาง rules ลงไป → Publish
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =============================================
+    // HELPER FUNCTIONS
+    // =============================================
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isTeacher() {
+      return isAuth() && getUserRole() == 'teacher';
+    }
+
+    function isParent() {
+      return isAuth() && getUserRole() == 'parent';
+    }
+
+    function isAdmin() {
+      return isAuth() && getUserRole() == 'admin';
+    }
+
+    function isTeacherOrAdmin() {
+      return isTeacher() || isAdmin();
+    }
+
+    // =============================================
+    // USERS
+    // =============================================
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid);
+      allow delete: if isAdmin();
+    }
+
+    // =============================================
+    // TEACHERS
+    // =============================================
+    match /teachers/{uid} {
+      allow read: if true; // public
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // =============================================
+    // CENTERS
+    // =============================================
+    match /centers/{centerId} {
+      allow read: if true; // public
+      allow write: if isAuth() && (
+        resource.data.teacherId == request.auth.uid || isAdmin()
+      );
+    }
+
+    // =============================================
+    // SUBJECTS (read-only)
+    // =============================================
+    match /subjects/{subjectId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // =============================================
+    // COURSES
+    // =============================================
+    match /courses/{courseId} {
+      allow read: if true; // public
+      allow write: if isAuth() && (
+        resource.data.teacherId == request.auth.uid || isAdmin()
+      );
+    }
+
+    // =============================================
+    // SCHEDULES
+    // =============================================
+    match /schedules/{scheduleId} {
+      allow read: if resource.data.isActive == true;
+      allow write: if isTeacher();
+    }
+
+    // =============================================
+    // BOOKINGS
+    // =============================================
+    match /bookings/{bookingId} {
+      allow read: if isAuth() && (
+        resource.data.parentId == request.auth.uid ||
+        resource.data.teacherId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isParent();
+      allow update: if isAuth() && (
+        resource.data.parentId == request.auth.uid ||
+        resource.data.teacherId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // =============================================
+    // ATTENDANCE
+    // =============================================
+    match /attendance/{attendanceId} {
+      allow read: if isAuth() && (
+        isAdmin()
+      );
+      allow write: if isTeacher();
+    }
+
+    // =============================================
+    // SESSION REPORTS
+    // =============================================
+    match /sessionReports/{reportId} {
+      allow read: if isAuth() && (
+        resource.data.parentId == request.auth.uid ||
+        resource.data.teacherId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isTeacher();
+      allow update: if isTeacher();
+    }
+
+    // =============================================
+    // REVIEWS
+    // =============================================
+    match /reviews/{reviewId} {
+      allow read: if resource.data.isVisible == true;
+      allow create: if isParent();
+      allow update: if isAdmin(); // moderation
+      allow delete: if isAdmin();
+    }
+
+    // =============================================
+    // NOTIFICATIONS
+    // =============================================
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.userId);
+      allow update: if isOwner(resource.data.userId);
+      allow create: if isAuth(); // server-side
+    }
+
+    // =============================================
+    // PAYMENTS
+    // =============================================
+    match /payments/{paymentId} {
+      allow read: if isAuth() && (
+        resource.data.parentId == request.auth.uid || isAdmin()
+      );
+      allow create: if isParent();
+      allow update: if isAdmin(); // webhook uses Admin SDK
+    }
+  }
+}

@@ -1,0 +1,85 @@
+import { getServerDb } from '@/lib/firebase/server';
+import { redirect } from 'next/navigation';
+import { Input, Select } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { COLLECTIONS } from '@/types/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
+
+const dayOptions = [
+  { value: '0', label: 'อาทิตย์' },
+  { value: '1', label: 'จันทร์' },
+  { value: '2', label: 'อังคาร' },
+  { value: '3', label: 'พุธ' },
+  { value: '4', label: 'พฤหัสบดี' },
+  { value: '5', label: 'ศุกร์' },
+  { value: '6', label: 'เสาร์' },
+];
+
+const timeOptions = Array.from({ length: 48 }, (_, i) => {
+  const hour = Math.floor(i / 2) + 6;
+  const minute = (i % 2) * 30;
+  if (hour >= 24) return null;
+  const h = String(hour).padStart(2, '0');
+  const m = String(minute).padStart(2, '0');
+  return { value: `${h}:${m}:00`, label: `${h}:${m} น.` };
+}).filter(Boolean) as { value: string; label: string }[];
+
+export default function NewSchedulePage() {
+  const db = getServerDb();
+  const teacherId = 'temp-teacher-id';
+
+  async function addScheduleAction(formData: FormData) {
+    'use server';
+    const dbRef = getServerDb();
+    if (!dbRef) return;
+
+    await dbRef.collection(COLLECTIONS.SCHEDULES).add({
+      courseId: formData.get('course_id') as string,
+      courseTitle: 'Course Title', // TODO: lookup
+      dayOfWeek: parseInt(formData.get('day_of_week') as string),
+      startTime: formData.get('start_time') as string,
+      endTime: formData.get('end_time') as string,
+      start_date: formData.get('start_date') as string,
+      end_date: formData.get('end_date') as string || null,
+      isRecurring: formData.get('is_recurring') === 'true',
+      isActive: true,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    redirect('/schedule');
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <h1 className="text-2xl font-bold text-gray-900">เพิ่มตารางสอน</h1>
+      <p className="mt-1 text-sm text-gray-500">กำหนดวันและเวลาที่คุณพร้อมสอน</p>
+
+      <form action={addScheduleAction} className="mt-8 space-y-6">
+        <div className="rounded-xl bg-white p-6 shadow-sm space-y-4">
+          <Select label="คอร์สเรียน" name="course_id" options={[{ value: '', label: '-- เลือกคอร์ส --' }]} required />
+          <Select label="วันในสัปดาห์" name="day_of_week" options={dayOptions} required />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select label="เวลาเริ่ม" name="start_time" options={[{ value: '', label: '-- เลือก --' }, ...timeOptions]} required />
+            <Select label="เวลาสิ้นสุด" name="end_time" options={[{ value: '', label: '-- เลือก --' }, ...timeOptions]} required />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="วันที่เริ่ม" name="start_date" type="date" required />
+            <Input label="วันที่สิ้นสุด (ไม่ระบุ = ไม่มีกำหนด)" name="end_date" type="date" />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="is_recurring" value="true" defaultChecked className="rounded" />
+            เป็นตารางซ้ำทุกสัปดาห์
+          </label>
+        </div>
+        <div className="flex gap-3">
+          <Button type="submit">บันทึกตารางสอน</Button>
+          <Button type="button" variant="outline" onClick={() => history.back()}>ยกเลิก</Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+
+export const dynamic = 'force-dynamic';

@@ -1,0 +1,28 @@
+# Dependencies
+node_modules
+.next
+out
+
+# Environment
+.env
+.env.local
+.env.*.local
+*firebase-adminsdk*.json
+
+# Local agent state
+.agent/
+.omx/
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+*.tsbuildinfo
+
+# Supabase
+supabase/.temp

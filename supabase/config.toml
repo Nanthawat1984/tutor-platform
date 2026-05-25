@@ -1,0 +1,10 @@
+{
+  "project_id": "YOUR_PROJECT_ID",
+  "jwt_secret": "your-jwt-secret-here",
+  "services": {
+    "storage": {
+      "enabled": true,
+      "file_size_limit": "50MB"
+    }
+  }
+}
