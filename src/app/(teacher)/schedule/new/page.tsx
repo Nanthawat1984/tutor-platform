@@ -1,5 +1,6 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { COLLECTIONS } from '@/types/firestore';
@@ -74,7 +75,9 @@ export default function NewSchedulePage() {
         </div>
         <div className="flex gap-3">
           <Button type="submit">บันทึกตารางสอน</Button>
-          <Button type="button" variant="outline" onClick={() => history.back()}>ยกเลิก</Button>
+          <Link href="/schedule">
+            <Button type="button" variant="outline">ยกเลิก</Button>
+          </Link>
         </div>
       </form>
     </div>

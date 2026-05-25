@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "emulators": "firebase emulators:start --only auth,firestore",
     "supabase:gen": "supabase gen types typescript --local > src/types/database.ts",
     "supabase:migrate": "supabase migration up",
     "supabase:reset": "supabase db reset"

@@ -22,6 +22,7 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 let storage: FirebaseStorage;
+let emulatorsConnected = false;
 
 function getApp() {
   if (!app) {
@@ -53,13 +54,15 @@ export function getFirebaseStorage() {
 
 // Emulator helpers (สำหรับ local dev)
 export function connectEmulators() {
-  if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_EMULATOR === 'true') {
+  if (emulatorsConnected || process.env.NEXT_PUBLIC_FIREBASE_EMULATOR !== 'true') return;
+
+  if (typeof window !== 'undefined') {
     const firebaseAuth = getFirebaseAuth();
     const firebaseDb = getFirebaseDb();
     const firebaseStorage = getFirebaseStorage();
     connectAuthEmulator(firebaseAuth, 'http://localhost:9099');
     connectFirestoreEmulator(firebaseDb, 'localhost', 8080);
     connectStorageEmulator(firebaseStorage, 'localhost', 9199);
-    console.log('🔥 Firebase emulators connected');
+    emulatorsConnected = true;
   }
 }

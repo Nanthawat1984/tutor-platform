@@ -34,10 +34,10 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
           <h1 className="text-2xl font-bold text-gray-900">เช็คชื่อ</h1>
           <p className="text-sm text-gray-500">บันทึกการเข้าเรียนของนักเรียน</p>
         </div>
-        <form method="get">
+        <form method="get" className="flex items-center gap-2">
           <input type="date" name="date" defaultValue={selectedDate}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            onChange={(e) => e.target.form?.requestSubmit()} />
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          <Button type="submit" size="sm" variant="outline">ดูวันที่</Button>
         </form>
       </div>
 

@@ -32,7 +32,7 @@ import {
   type QuerySnapshot,
   type DocumentData,
 } from 'firebase/firestore';
-import { getFirebaseAuth, getFirebaseDb, getFirebaseStorage } from '@/lib/firebase/client';
+import { connectEmulators, getFirebaseAuth, getFirebaseDb, getFirebaseStorage } from '@/lib/firebase/client';
 import type {
   User, TeacherProfile, Course, Booking, Attendance,
   SessionReport, Review, Notification, Payment, Center, Schedule
@@ -64,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    connectEmulators();
+
     const auth = getFirebaseAuth();
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);

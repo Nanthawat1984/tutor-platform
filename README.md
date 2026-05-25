@@ -97,3 +97,18 @@ Optional local emulator flag:
 npm run typecheck
 npm run build
 ```
+
+## Local Firebase Emulator
+
+Cloud Firestore ยังต้องถูกสร้างใน Firebase project จริงก่อนใช้ production database ได้ หากยังไม่มีสิทธิ์สร้าง Cloud Firestore ให้รันระบบบน local emulator ก่อน:
+
+```bash
+# Terminal 1
+npm run emulators
+
+# Terminal 2
+npm run build
+npm run start
+```
+
+เปิดแอปที่ `http://localhost:3000` และเปิด Emulator UI ที่ `http://127.0.0.1:4000`
