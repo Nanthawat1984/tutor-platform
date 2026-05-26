@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FirebaseError } from 'firebase/app';
@@ -8,6 +8,7 @@ import { Mail } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from '@/hooks/useFirebase';
+import { getPreferredGoogleSignInMethod, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
 import { getPostLoginPath } from '@/lib/auth/redirects';
 
 function getAuthErrorMessage(error: unknown) {
@@ -23,9 +24,14 @@ function getAuthErrorMessage(error: unknown) {
 
 function LoginFormFields() {
   const router = useRouter();
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, signInWithGoogleRedirect, userProfile } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [pendingMethod, setPendingMethod] = useState<'email' | 'google' | null>(null);
+
+  useEffect(() => {
+    if (!userProfile || pendingMethod) return;
+    router.replace(getPostLoginPath(userProfile.role));
+  }, [pendingMethod, router, userProfile]);
 
   async function handleEmailLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,10 +57,19 @@ function LoginFormFields() {
     setPendingMethod('google');
 
     try {
+      if (getPreferredGoogleSignInMethod() === 'redirect') {
+        await signInWithGoogleRedirect();
+        return;
+      }
+
       const profile = await signInWithGoogle();
       router.push(getPostLoginPath(profile.role));
       router.refresh();
     } catch (loginError) {
+      if (shouldFallbackToGoogleRedirect(loginError)) {
+        await signInWithGoogleRedirect();
+        return;
+      }
       setError(getAuthErrorMessage(loginError));
     } finally {
       setPendingMethod(null);

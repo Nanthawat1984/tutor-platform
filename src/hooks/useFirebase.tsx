@@ -9,6 +9,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   updateProfile as firebaseUpdateProfile,
@@ -34,6 +36,7 @@ import {
   type DocumentData,
 } from 'firebase/firestore';
 import { connectEmulators, getFirebaseAuth, getFirebaseDb, getFirebaseStorage } from '@/lib/firebase/client';
+import { isGoogleProviderUser } from '@/lib/auth/google';
 import type {
   User, TeacherProfile, Course, Booking, Attendance,
   SessionReport, Review, Notification, Payment, Center, Schedule
@@ -43,6 +46,38 @@ import { COLLECTIONS } from '@/types/firestore';
 // Re-export for convenience
 export { getFirebaseStorage };
 
+function createGoogleProvider() {
+  const provider = new GoogleAuthProvider();
+  provider.addScope('email');
+  provider.addScope('profile');
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
+}
+
+async function getOrCreateGoogleUserProfile(firebaseUser: FirebaseUser) {
+  const db = getFirebaseDb();
+  const userRef = doc(db, COLLECTIONS.USERS, firebaseUser.uid);
+  const userDoc = await getDoc(userRef);
+
+  if (userDoc.exists()) {
+    return { uid: userDoc.id, ...userDoc.data() } as User;
+  }
+
+  const newProfile = {
+    uid: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    displayName: firebaseUser.displayName || firebaseUser.email || 'Google User',
+    role: 'parent',
+    isVerified: true,
+    verificationLevel: 'basic',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...(firebaseUser.photoURL ? { photoURL: firebaseUser.photoURL } : {}),
+  } as const;
+
+  await setDoc(userRef, newProfile);
+  return newProfile as unknown as User;
+}
 
 // =============================================
 // AUTH CONTEXT
@@ -54,6 +89,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<User | null>;
   signUp: (email: string, password: string, fullName: string, role: 'teacher' | 'parent') => Promise<void>;
   signInWithGoogle: () => Promise<User>;
+  signInWithGoogleRedirect: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -68,6 +104,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     connectEmulators();
 
     const auth = getFirebaseAuth();
+    let isMounted = true;
+
+    void getRedirectResult(auth).then(async (result) => {
+      if (!result?.user || !isMounted) return;
+      const profile = await getOrCreateGoogleUserProfile(result.user);
+      if (isMounted) setUserProfile(profile);
+    }).catch((error) => {
+      console.error('Google redirect sign-in error:', error);
+    });
+
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
 
@@ -77,6 +123,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, firebaseUser.uid));
         if (userDoc.exists()) {
           setUserProfile({ uid: userDoc.id, ...userDoc.data() } as User);
+        } else if (isGoogleProviderUser(firebaseUser.providerData)) {
+          const profile = await getOrCreateGoogleUserProfile(firebaseUser);
+          setUserProfile(profile);
         }
       } else {
         setUserProfile(null);
@@ -85,7 +134,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    return unsub;
+    return () => {
+      isMounted = false;
+      unsub();
+    };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -141,42 +193,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     const auth = getFirebaseAuth();
-    const provider = new GoogleAuthProvider();
-    provider.addScope('email');
-    provider.addScope('profile');
-    provider.setCustomParameters({ prompt: 'select_account' });
-    const db = getFirebaseDb();
-
-    const result = await signInWithPopup(auth, provider);
-    const firebaseUser = result.user;
-
-    // Check if user document exists
-    const userRef = doc(db, COLLECTIONS.USERS, firebaseUser.uid);
-    const userDoc = await getDoc(userRef);
-    let profile: User;
-
-    if (userDoc.exists()) {
-      profile = { uid: userDoc.id, ...userDoc.data() } as User;
-    } else {
-      // Create user document for new Google user
-      const newProfile = {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email || '',
-        displayName: firebaseUser.displayName || firebaseUser.email || 'Google User',
-        role: 'parent', // default
-        isVerified: true,
-        verificationLevel: 'basic',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        ...(firebaseUser.photoURL ? { photoURL: firebaseUser.photoURL } : {}),
-      } as const;
-
-      await setDoc(userRef, newProfile);
-      profile = newProfile as unknown as User;
-    }
-
+    const result = await signInWithPopup(auth, createGoogleProvider());
+    const profile = await getOrCreateGoogleUserProfile(result.user);
     setUserProfile(profile);
     return profile;
+  }, []);
+
+  const signInWithGoogleRedirect = useCallback(async () => {
+    const auth = getFirebaseAuth();
+    await signInWithRedirect(auth, createGoogleProvider());
   }, []);
 
   const logout = useCallback(async () => {
@@ -186,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, signIn, signUp, signInWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, signIn, signUp, signInWithGoogle, signInWithGoogleRedirect, logout }}>
       {children}
     </AuthContext.Provider>
   );
