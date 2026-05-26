@@ -1,7 +1,7 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Edit2, Trash2, Eye } from 'lucide-react';
+import { BookOpen, Plus, Edit2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { COLLECTIONS } from '@/types/firestore';
@@ -42,7 +42,9 @@ export default async function CoursesPage() {
 
       {courses.length === 0 ? (
         <Card className="py-12 text-center">
-          <div className="text-4xl">📚</div>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+            <BookOpen className="h-7 w-7" />
+          </div>
           <h3 className="mt-4 text-lg font-medium text-gray-900">ยังไม่มีคอร์สเรียน</h3>
           <p className="mt-2 text-sm text-gray-500">เริ่มสร้างคอร์สแรกของคุณ</p>
           <Link href="/courses/new" className="mt-4 inline-block">

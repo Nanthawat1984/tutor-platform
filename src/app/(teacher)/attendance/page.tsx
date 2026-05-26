@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Check, X, Clock } from 'lucide-react';
+import { Check, ClipboardCheck, X, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AttendanceStatusBadge } from '@/components/ui/badge';
@@ -36,14 +36,16 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
         </div>
         <form method="get" className="flex items-center gap-2">
           <input type="date" name="date" defaultValue={selectedDate}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            className="rounded-lg border border-blue-200 px-3 py-2 text-sm" />
           <Button type="submit" size="sm" variant="outline">ดูวันที่</Button>
         </form>
       </div>
 
       {bookings.length === 0 ? (
         <Card className="py-12 text-center">
-          <div className="text-4xl">📋</div>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+            <ClipboardCheck className="h-7 w-7" />
+          </div>
           <h3 className="mt-4 text-lg font-medium text-gray-900">ไม่มีเซสชันวันนี้</h3>
         </Card>
       ) : (

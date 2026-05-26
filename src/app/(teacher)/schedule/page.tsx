@@ -1,7 +1,7 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Clock, MapPin } from 'lucide-react';
+import { CalendarDays, Plus, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +52,9 @@ export default async function SchedulePage() {
 
       {schedules.length === 0 ? (
         <Card className="py-12 text-center">
-          <div className="text-4xl">📅</div>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+            <CalendarDays className="h-7 w-7" />
+          </div>
           <h3 className="mt-4 text-lg font-medium text-gray-900">ยังไม่มีตารางสอน</h3>
           <Link href="/schedule/new" className="mt-4 inline-block">
             <Button><Plus className="h-4 w-4" /> เพิ่มตารางสอน</Button>
@@ -68,7 +70,7 @@ export default async function SchedulePage() {
                 <h3 className="mb-3 font-semibold text-gray-900">{dayName}</h3>
                 <div className="space-y-2">
                   {daySchedules.map((s) => (
-                    <div key={s.id} className="rounded-lg border bg-gray-50 p-3">
+                    <div key={s.id} className="rounded-lg border bg-blue-50/70 p-3">
                       <div className="flex items-center justify-between">
                         <p className="font-medium text-sm">{s.courseTitle}</p>
                       </div>

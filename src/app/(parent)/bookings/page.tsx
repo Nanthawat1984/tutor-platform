@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
+import { CalendarDays, Clock } from 'lucide-react';
 
 export default async function BookingsPage() {
   const db = getServerDb();
@@ -51,8 +52,9 @@ export default async function BookingsPage() {
                     <p className="mt-1 text-sm text-gray-500">
                       {b.courseTitle} • ครู{b.teacherName}
                     </p>
-                    <p className="mt-1 text-sm text-gray-400">
-                      📅 {formatDate(b.bookingDate, 'd MMMM yyyy')} • ⏰ {formatTime(b.startTime)} - {formatTime(b.endTime)}
+                    <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-400">
+                      <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {formatDate(b.bookingDate, 'd MMMM yyyy')}</span>
+                      <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {formatTime(b.startTime)} - {formatTime(b.endTime)}</span>
                     </p>
                   </div>
                   <div className="text-right">

@@ -26,25 +26,25 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div
         className={cn(
-          'relative z-10 w-full rounded-xl bg-white shadow-xl',
+          'relative z-10 w-full rounded-2xl border border-blue-100 bg-white/95 shadow-[0_24px_70px_rgba(15,23,42,0.18)] backdrop-blur',
           'mx-4 max-h-[90vh] overflow-y-auto',
           sizeStyles[size]
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex items-center justify-between border-b border-blue-100 px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-            {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
+            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+            {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-xl p-1 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-700"
           >
             <X className="h-5 w-5" />
           </button>

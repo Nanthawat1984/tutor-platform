@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
+import { BarChart3, GraduationCap } from 'lucide-react';
 
 export default async function ProgressPage() {
   const db = getServerDb();
@@ -33,13 +34,17 @@ export default async function ProgressPage() {
 
       {reports.length === 0 ? (
         <Card className="py-12 text-center">
-          <div className="text-4xl">📊</div>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+            <BarChart3 className="h-7 w-7" />
+          </div>
           <h3 className="mt-4 text-lg font-medium text-gray-900">ยังไม่มีรายงานผลการเรียน</h3>
         </Card>
       ) : (
         Object.entries(byStudent).map(([studentName, studentReports]: [string, any]) => (
           <div key={studentName}>
-            <h2 className="mb-4 text-lg font-semibold">👨‍🎓 {studentName}</h2>
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <GraduationCap className="h-5 w-5 text-blue-600" /> {studentName}
+            </h2>
             <div className="space-y-3">
               {studentReports.map((r: any) => (
                 <Card key={r.id}>

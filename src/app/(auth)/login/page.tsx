@@ -13,26 +13,26 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ er
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Link href="/" className="text-3xl font-bold text-blue-600">TutorFinder</Link>
-          <p className="mt-2 text-gray-600">เข้าสู่ระบบ</p>
+          <Link href="/" className="text-3xl font-bold text-blue-700">TutorFinder</Link>
+          <p className="mt-2 text-slate-600">เข้าสู่ระบบ</p>
         </div>
 
-        <form action={login} className="space-y-4 rounded-xl bg-white p-8 shadow-sm">
+        <form action={login} className="space-y-5 rounded-3xl border border-blue-100/80 bg-white/85 p-8 shadow-[0_24px_70px_rgba(37,99,235,0.12)] backdrop-blur">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">อีเมล</label>
+            <label htmlFor="email" className="block text-sm font-semibold text-slate-700">อีเมล</label>
             <Input type="email" name="email" id="email" required placeholder="you@example.com" />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">รหัสผ่าน</label>
+            <label htmlFor="password" className="block text-sm font-semibold text-slate-700">รหัสผ่าน</label>
             <Input type="password" name="password" id="password" required placeholder="••••••••" />
           </div>
           <Button type="submit" className="w-full">เข้าสู่ระบบ</Button>
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-slate-600">
             ยังไม่มีบัญชี?{' '}
-            <Link href="/register" className="font-medium text-blue-600 hover:underline">สมัครใช้งาน</Link>
+            <Link href="/register" className="font-semibold text-blue-700 hover:underline">สมัครใช้งาน</Link>
           </p>
         </form>
       </div>

@@ -8,21 +8,21 @@ interface TableProps {
 
 export function Table({ headers, children, emptyMessage = 'ไม่มีข้อมูล' }: TableProps) {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-2xl border border-blue-100 bg-white/85 shadow-sm">
       <table className="w-full">
         <thead>
-          <tr className="border-b bg-gray-50">
+          <tr className="border-b border-blue-100 bg-blue-50/80">
             {headers.map((header, i) => (
               <th
                 key={i}
-                className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
               >
                 {header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 bg-white">
+        <tbody className="divide-y divide-blue-50 bg-white/70">
           {children}
         </tbody>
       </table>
@@ -35,7 +35,7 @@ export function TableRow({ children, className, onClick }: { children: React.Rea
     <tr
       className={cn(
         'transition-colors',
-        onClick && 'cursor-pointer hover:bg-gray-50',
+        onClick && 'cursor-pointer hover:bg-blue-50/70',
         className
       )}
       onClick={onClick}
@@ -47,7 +47,7 @@ export function TableRow({ children, className, onClick }: { children: React.Rea
 
 export function TableCell({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <td className={cn('px-4 py-3 text-sm text-gray-700', className)}>
+    <td className={cn('px-4 py-3 text-sm text-slate-700', className)}>
       {children}
     </td>
   );
@@ -56,7 +56,7 @@ export function TableCell({ children, className }: { children: React.ReactNode; 
 export function TableEmpty({ colSpan, message }: { colSpan: number; message?: string }) {
   return (
     <tr>
-      <td colSpan={colSpan} className="px-4 py-8 text-center text-sm text-gray-500">
+      <td colSpan={colSpan} className="px-4 py-8 text-center text-sm text-slate-500">
         {message || 'ไม่มีข้อมูล'}
       </td>
     </tr>

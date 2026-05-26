@@ -2,6 +2,7 @@ import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { COLLECTIONS } from '@/types/firestore';
+import { BookOpen, MessageCircle, Star, Users } from 'lucide-react';
 
 export default async function TeacherDashboard() {
   const db = getServerDb();
@@ -34,16 +35,16 @@ export default async function TeacherDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b bg-white">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-          <Link href="/" className="text-xl font-bold text-blue-600">TutorFinder</Link>
-          <nav className="flex items-center gap-6">
-            <Link href="/dashboard" className="text-sm font-medium text-blue-600">แดชบอร์ด</Link>
-            <Link href="/courses" className="text-sm font-medium text-gray-600">คอร์สเรียน</Link>
-            <Link href="/schedule" className="text-sm font-medium text-gray-600">ตารางสอน</Link>
-            <Link href="/attendance" className="text-sm font-medium text-gray-600">เช็คชื่อ</Link>
-            <Link href="/earnings" className="text-sm font-medium text-gray-600">รายได้</Link>
+    <div className="app-shell">
+      <header className="sticky top-0 z-40 border-b border-blue-100/80 bg-white/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 overflow-hidden px-4">
+          <Link href="/" className="shrink-0 whitespace-nowrap text-lg font-bold text-blue-700 sm:text-xl">TutorFinder</Link>
+          <nav className="scrollbar-hidden flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+            <Link href="/dashboard" className="shrink-0 whitespace-nowrap rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">แดชบอร์ด</Link>
+            <Link href="/courses" className="shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700">คอร์สเรียน</Link>
+            <Link href="/schedule" className="shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700">ตารางสอน</Link>
+            <Link href="/attendance" className="shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700">เช็คชื่อ</Link>
+            <Link href="/earnings" className="shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700">รายได้</Link>
           </nav>
         </div>
       </header>
@@ -57,32 +58,37 @@ export default async function TeacherDashboard() {
 
         <div className="grid gap-4 md:grid-cols-4">
           {[
-            { label: 'นักเรียนทั้งหมด', value: 0, icon: '👨‍🎓' },
-            { label: 'คอร์สที่เปิดสอน', value: activeCourses, icon: '📚' },
-            { label: 'ค่าสอนเฉลี่ย', value: '⭐ 0.0', icon: '⭐' },
-            { label: 'รีวิว', value: 0, icon: '💬' },
-          ].map((stat) => (
-            <div key={stat.label} className="rounded-xl bg-white p-6 shadow-sm">
+            { label: 'นักเรียนทั้งหมด', value: 0, icon: Users },
+            { label: 'คอร์สที่เปิดสอน', value: activeCourses, icon: BookOpen },
+            { label: 'ค่าสอนเฉลี่ย', value: '0.0', icon: Star },
+            { label: 'รีวิว', value: 0, icon: MessageCircle },
+          ].map((stat) => {
+            const Icon = stat.icon;
+            return (
+            <div key={stat.label} className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">{stat.label}</p>
                   <p className="mt-1 text-2xl font-bold">{stat.value}</p>
                 </div>
-                <span className="text-2xl">{stat.icon}</span>
+                <span className="rounded-2xl bg-blue-50 p-3 text-blue-600 ring-1 ring-blue-100">
+                  <Icon className="h-5 w-5" />
+                </span>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-2">
-          <div className="rounded-xl bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur">
             <h2 className="text-lg font-semibold">เซสชันวันนี้ / ถัดไป</h2>
             {upcomingBookings.length === 0 ? (
               <p className="mt-4 text-gray-500">ไม่มีเซสชันที่กำลังจะมาถึง</p>
             ) : (
               <div className="mt-4 space-y-3">
                 {upcomingBookings.map((b: any) => (
-                  <div key={b.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
+                  <div key={b.id} className="flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50/70 p-3">
                     <div>
                       <p className="font-medium">{b.studentName}</p>
                       <p className="text-sm text-gray-500">{b.courseTitle} • {b.startTime}</p>
@@ -96,7 +102,7 @@ export default async function TeacherDashboard() {
             )}
           </div>
 
-          <div className="rounded-xl bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur">
             <h2 className="text-lg font-semibold">เช็คชื่อวันนี้</h2>
             <p className="mt-4 text-gray-500">ไม่มีการเช็คชื่อวันนี้</p>
           </div>

@@ -88,7 +88,7 @@ export default async function ReviewPage({
               id="comment"
               name="comment"
               rows={4}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 w-full rounded-lg border border-blue-200 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder="บอกถึงความประทับใจของคุณ..."
             />
           </div>

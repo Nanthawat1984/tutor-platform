@@ -57,7 +57,7 @@ export default function NewSchedulePage() {
       <p className="mt-1 text-sm text-gray-500">กำหนดวันและเวลาที่คุณพร้อมสอน</p>
 
       <form action={addScheduleAction} className="mt-8 space-y-6">
-        <div className="rounded-xl bg-white p-6 shadow-sm space-y-4">
+        <div className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur space-y-4">
           <Select label="คอร์สเรียน" name="course_id" options={[{ value: '', label: '-- เลือกคอร์ส --' }]} required />
           <Select label="วันในสัปดาห์" name="day_of_week" options={dayOptions} required />
           <div className="grid gap-4 sm:grid-cols-2">

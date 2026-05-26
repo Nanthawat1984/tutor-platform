@@ -16,24 +16,24 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, title, navItems, role }: DashboardLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-40 border-b bg-white">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-          <Link href="/" className="text-xl font-bold text-blue-600">TutorFinder</Link>
-          <nav className="flex items-center gap-1">
+    <div className="app-shell">
+      <header className="sticky top-0 z-40 border-b border-blue-100/80 bg-white/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 overflow-hidden px-4">
+          <Link href="/" className="shrink-0 whitespace-nowrap text-lg font-bold text-blue-700 sm:text-xl">TutorFinder</Link>
+          <nav className="scrollbar-hidden flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-blue-600"
+                className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
               >
                 {item.icon}
                 {item.label}
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-3">
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+          <div className="hidden shrink-0 items-center gap-3 sm:flex">
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-200">
               {role === 'teacher' ? 'ครู' : role === 'admin' ? 'แอดมิน' : 'ผู้ปกครอง'}
             </span>
           </div>
@@ -41,7 +41,7 @@ export function DashboardLayout({ children, title, navItems, role }: DashboardLa
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8">
-        {title && <h1 className="mb-6 text-2xl font-bold text-gray-900">{title}</h1>}
+        {title && <h1 className="mb-6 text-2xl font-bold text-slate-900">{title}</h1>}
         {children}
       </main>
     </div>
@@ -58,19 +58,19 @@ interface StatCardProps {
 
 export function StatCard({ label, value, icon, subtext, trend }: StatCardProps) {
   return (
-    <div className="rounded-xl bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-500">{label}</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-          {subtext && <p className="mt-1 text-xs text-gray-400">{subtext}</p>}
+          <p className="text-sm text-slate-500">{label}</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+          {subtext && <p className="mt-1 text-xs text-slate-400">{subtext}</p>}
           {trend && (
             <p className={cn('mt-1 text-xs font-medium', trend.isPositive ? 'text-green-600' : 'text-red-600')}>
               {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
             </p>
           )}
         </div>
-        {icon && <span className="text-3xl">{icon}</span>}
+        {icon && <span className="text-3xl text-blue-500">{icon}</span>}
       </div>
     </div>
   );
@@ -83,12 +83,12 @@ interface EmptyStateProps {
   action?: { label: string; href?: string; onClick?: () => void };
 }
 
-export function EmptyState({ icon = '📭', title, description, action }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="rounded-xl border-2 border-dashed border-gray-200 py-12 text-center">
-      <span className="text-4xl">{icon}</span>
-      <h3 className="mt-4 text-lg font-medium text-gray-900">{title}</h3>
-      {description && <p className="mt-2 text-sm text-gray-500">{description}</p>}
+    <div className="rounded-2xl border-2 border-dashed border-blue-200 bg-white/55 py-12 text-center">
+      {icon && <span className="text-4xl text-blue-500">{icon}</span>}
+      <h3 className="mt-4 text-lg font-semibold text-slate-900">{title}</h3>
+      {description && <p className="mt-2 text-sm text-slate-500">{description}</p>}
       {action && (
         <div className="mt-6">
           {action.href ? (

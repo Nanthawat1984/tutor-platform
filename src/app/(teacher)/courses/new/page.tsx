@@ -59,7 +59,7 @@ export default function NewCoursePage() {
       <p className="mt-1 text-sm text-gray-500">กรอกข้อมูลคอร์สเรียนที่คุณต้องการเปิดสอน</p>
 
       <form action={createCourseAction} className="mt-8 space-y-6">
-        <div className="rounded-xl bg-white p-6 shadow-sm space-y-4">
+        <div className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur space-y-4">
           <h2 className="font-semibold text-gray-900">ข้อมูลคอร์ส</h2>
 
           <Input label="ชื่อคอร์ส" name="title" required placeholder="เช่น คณิตศาสตร์ ป.6 เตรียมสอบ O-NET" />

@@ -4,7 +4,7 @@ import { COLLECTIONS, type User, type TeacherProfile } from '@/types/firestore';
 import { Badge, VerificationBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, Clock3, Users, UserCheck, XCircle } from 'lucide-react';
 import { getServerAuth } from '@/lib/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -57,15 +57,15 @@ export default async function AdminTeachersPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="flex items-center gap-4">
-          <div className="rounded-full bg-blue-100 p-3 text-2xl">👨‍🏫</div>
+          <div className="rounded-2xl bg-blue-50 p-3 text-blue-600 ring-1 ring-blue-100"><Users className="h-5 w-5" /></div>
           <div><p className="text-sm text-gray-500">ครูทั้งหมด</p><p className="text-xl font-bold">{teachers.length}</p></div>
         </Card>
         <Card className="flex items-center gap-4">
-          <div className="rounded-full bg-yellow-100 p-3 text-2xl">⏳</div>
+          <div className="rounded-2xl bg-amber-50 p-3 text-amber-600 ring-1 ring-amber-100"><Clock3 className="h-5 w-5" /></div>
           <div><p className="text-sm text-gray-500">รออนุมัติ</p><p className="text-xl font-bold text-yellow-600">{pendingTeachers.length}</p></div>
         </Card>
         <Card className="flex items-center gap-4">
-          <div className="rounded-full bg-green-100 p-3 text-2xl">✅</div>
+          <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-600 ring-1 ring-emerald-100"><UserCheck className="h-5 w-5" /></div>
           <div><p className="text-sm text-gray-500">อนุมัติแล้ว</p><p className="text-xl font-bold text-green-600">{verifiedTeachers.length}</p></div>
         </Card>
       </div>
