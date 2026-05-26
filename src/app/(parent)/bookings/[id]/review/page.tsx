@@ -55,8 +55,8 @@ export default async function ReviewPage({
   }
 
   return (
-    <div className="mx-auto max-w-lg">
-      <h1 className="text-2xl font-bold text-gray-900">รีวิวครู</h1>
+    <div className="mx-auto max-w-lg px-4 py-6 sm:px-6 sm:py-8 lg:px-0">
+      <h1 className="text-2xl font-bold leading-tight text-gray-900">รีวิวครู</h1>
       <p className="mt-1 text-sm text-gray-500">
         คอร์ส: {booking.courseTitle} • ครู{booking.teacherName}
       </p>
@@ -67,9 +67,9 @@ export default async function ReviewPage({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">ให้คะแนน</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
-                <label key={star} className="cursor-pointer">
+                <label key={star} className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center">
                   <input type="radio" name="rating" value={star} className="sr-only peer" required />
                   <Star
                     className="h-8 w-8 text-gray-300 peer-checked:text-yellow-400 peer-checked:fill-yellow-400 hover:text-yellow-400 transition-colors"
@@ -88,14 +88,14 @@ export default async function ReviewPage({
               id="comment"
               name="comment"
               rows={4}
-              className="mt-1 w-full rounded-lg border border-blue-200 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 min-h-[112px] w-full rounded-xl border border-blue-200 px-4 py-2.5 text-base focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
               placeholder="บอกถึงความประทับใจของคุณ..."
             />
           </div>
 
-          <div className="flex gap-3">
-            <Button type="submit">ส่งรีวิว</Button>
-            <Button type="button" variant="outline" onClick={() => history.back()}>
+          <div className="responsive-actions">
+            <Button type="submit" className="w-full sm:w-auto">ส่งรีวิว</Button>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => history.back()}>
               ยกเลิก
             </Button>
           </div>

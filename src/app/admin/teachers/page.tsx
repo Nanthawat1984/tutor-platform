@@ -49,13 +49,13 @@ export default async function AdminTeachersPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">จัดการครู</h1>
         <p className="text-sm text-gray-500">อนุมัติและจัดการครูพิเศษในระบบ</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card className="flex items-center gap-4">
           <div className="rounded-2xl bg-blue-50 p-3 text-blue-600 ring-1 ring-blue-100"><Users className="h-5 w-5" /></div>
           <div><p className="text-sm text-gray-500">ครูทั้งหมด</p><p className="text-xl font-bold">{teachers.length}</p></div>
@@ -78,26 +78,26 @@ export default async function AdminTeachersPage() {
           <div className="space-y-3">
             {pendingTeachers.map((teacher: any) => (
               <Card key={teacher.uid}>
-                <div className="flex items-center justify-between">
+                <div className="responsive-card-row">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <h3 className="font-semibold text-gray-900">{teacher.displayName}</h3>
                       <VerificationBadge level={teacher.verificationLevel} />
                     </div>
                     <p className="mt-1 text-sm text-gray-500">{teacher.email}</p>
-                    <div className="mt-2 flex gap-4 text-xs text-gray-400">
+                    <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-400">
                       <span>ประสบการณ์: {teacher.experienceYears || 0} ปี</span>
                     </div>
                     {teacher.bio && <p className="mt-2 text-sm text-gray-600 line-clamp-2">{teacher.bio}</p>}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2">
                     <form action={approveTeacher.bind(null, teacher.uid)}>
-                      <Button type="submit" size="sm" className="bg-green-600 hover:bg-green-700">
+                      <Button type="submit" size="sm" className="w-full bg-green-600 hover:bg-green-700">
                         <CheckCircle className="h-4 w-4" /> อนุมัติ
                       </Button>
                     </form>
                     <form action={rejectTeacher.bind(null, teacher.uid)}>
-                      <Button type="submit" size="sm" variant="outline" className="border-red-300 text-red-600">
+                      <Button type="submit" size="sm" variant="outline" className="w-full border-red-300 text-red-600">
                         <XCircle className="h-4 w-4" /> ปฏิเสธ
                       </Button>
                     </form>
@@ -115,9 +115,9 @@ export default async function AdminTeachersPage() {
           <div className="space-y-2">
             {verifiedTeachers.map((teacher: any) => (
               <Card key={teacher.uid} className="opacity-75">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
+                <div className="responsive-card-row">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-sm">{teacher.displayName}</span>
                       <VerificationBadge level={teacher.verificationLevel} />
                     </div>

@@ -19,7 +19,7 @@ export function Input({ label, error, helperText, id, className, ...props }: Inp
       <input
         id={inputId}
         className={cn(
-          'w-full rounded-xl border border-blue-100 bg-white/90 px-4 py-2.5 text-slate-900 shadow-sm transition-colors',
+          'min-h-[44px] w-full rounded-xl border border-blue-100 bg-white/90 px-4 py-2.5 text-base text-slate-900 shadow-sm transition-colors sm:text-sm',
           'placeholder:text-slate-400',
           'focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100',
           'disabled:bg-slate-50 disabled:text-slate-500',
@@ -52,7 +52,7 @@ export function Textarea({ label, error, id, className, ...props }: TextareaProp
       <textarea
         id={textareaId}
         className={cn(
-          'w-full rounded-xl border border-blue-100 bg-white/90 px-4 py-2.5 text-slate-900 shadow-sm transition-colors',
+          'min-h-[96px] w-full rounded-xl border border-blue-100 bg-white/90 px-4 py-2.5 text-base text-slate-900 shadow-sm transition-colors sm:text-sm',
           'placeholder:text-slate-400',
           'focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100',
           'disabled:bg-slate-50 disabled:text-slate-500',
@@ -86,7 +86,7 @@ export function Select({ label, error, id, options, className, ...props }: Selec
       <select
         id={selectId}
         className={cn(
-          'w-full rounded-xl border border-blue-100 bg-white/90 px-4 py-2.5 text-slate-900 shadow-sm transition-colors',
+          'min-h-[44px] w-full rounded-xl border border-blue-100 bg-white/90 px-4 py-2.5 text-base text-slate-900 shadow-sm transition-colors sm:text-sm',
           'focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100',
           'disabled:bg-slate-50 disabled:text-slate-500',
           error && 'border-rose-400 focus:border-rose-400 focus:ring-rose-100',

@@ -33,19 +33,19 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const subjects = subjectsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">ค้นหาครูพิเศษ</h1>
         <p className="text-sm text-gray-500">เลือกครูตามวิชา ระดับชั้น และพื้นที่</p>
       </div>
 
       <Card>
-        <form method="get" className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[200px]">
+        <form method="get" className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto]">
+          <div className="min-w-0">
             <Input name="search" placeholder="ค้นหาชื่อคอร์ส..." defaultValue={params.search || ''} />
           </div>
-          <Select name="level" options={levelOptions} defaultValue={params.level || ''} className="w-36" />
-          <Button type="submit"><Search className="h-4 w-4" /> ค้นหา</Button>
+          <Select name="level" options={levelOptions} defaultValue={params.level || ''} />
+          <Button type="submit" className="w-full md:w-auto"><Search className="h-4 w-4" /> ค้นหา</Button>
         </form>
       </Card>
 
@@ -61,7 +61,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           {courses.map((course: any) => (
             <Card key={course.id} className="flex flex-col hover:shadow-md transition-shadow">
               <div className="flex items-start gap-3">
-                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold">
                   {(course.teacherName?.[0] || 'ค').toUpperCase()}
                 </div>
                 <div className="flex-1">
@@ -78,13 +78,13 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                   <Badge variant="info">{course.subjectName}</Badge>
                   <Badge variant="outline">{course.level}</Badge>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-gray-500">
-                  <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {course.durationMinutes} นาที</span>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                  <span className="flex items-center gap-1 whitespace-nowrap"><Clock className="h-3.5 w-3.5" /> {course.durationMinutes} นาที</span>
                 </div>
               </div>
-              <div className="mt-4 flex items-center justify-between border-t pt-4">
+              <div className="mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-lg font-bold text-blue-600">{formatCurrency(course.pricePerSession)}<span className="text-xs font-normal text-gray-400"> /เซสชัน</span></span>
-                <Link href={`/bookings/new?course_id=${course.id}`}><Button size="sm">จองเลย</Button></Link>
+                <Link href={`/bookings/new?course_id=${course.id}`} className="w-full sm:w-auto"><Button size="sm" className="w-full sm:w-auto">จองเลย</Button></Link>
               </div>
             </Card>
           ))}

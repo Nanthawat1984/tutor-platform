@@ -4,19 +4,19 @@ import { ArrowRight, CalendarCheck, Search, ShieldCheck } from 'lucide-react';
 export default function HomePage() {
   return (
     <div className="app-shell">
-      <header className="mx-auto max-w-7xl px-4 py-6">
+      <header className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <nav className="flex items-center justify-between gap-3">
           <div className="shrink-0 whitespace-nowrap text-lg font-bold text-blue-700 sm:text-2xl">TutorFinder</div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-3">
             <Link
               href="/login"
-              className="whitespace-nowrap rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-700 sm:px-4 sm:text-sm"
+              className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-700 sm:px-4 sm:text-sm"
             >
               เข้าสู่ระบบ
             </Link>
             <Link
               href="/register"
-              className="whitespace-nowrap rounded-xl bg-blue-600 px-2.5 py-2 text-xs font-semibold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 sm:px-4 sm:text-sm"
+              className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-xl bg-blue-600 px-2.5 py-2 text-xs font-semibold text-white shadow-sm shadow-blue-200 transition-colors hover:bg-blue-700 sm:px-4 sm:text-sm"
             >
               <span className="sm:hidden">สมัคร</span>
               <span className="hidden sm:inline">สมัครใช้งาน</span>
@@ -25,11 +25,11 @@ export default function HomePage() {
         </nav>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 pb-16 pt-16 text-center sm:pt-20">
-        <div className="mx-auto inline-flex rounded-full border border-blue-100 bg-white/75 px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm">
+      <main className="mx-auto max-w-7xl px-4 pb-14 pt-12 text-center sm:px-6 sm:pb-16 sm:pt-20 lg:px-8">
+        <div className="mx-auto inline-flex max-w-full rounded-full border border-blue-100 bg-white/75 px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm">
           แพลตฟอร์มเรียนเสริมสำหรับครูและผู้ปกครอง
         </div>
-        <h1 className="mx-auto mt-6 max-w-4xl text-[2.35rem] font-bold leading-tight tracking-normal text-slate-950 sm:text-5xl md:text-6xl">
+        <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-bold leading-tight tracking-normal text-slate-950 sm:text-5xl md:text-6xl">
           <span className="block">ค้นหาครูพิเศษ</span>
           <span className="block text-blue-600">เรียนเสริม</span>
           <span className="block">หลังเลิกเรียน</span>
@@ -54,7 +54,7 @@ export default function HomePage() {
         </div>
       </main>
 
-      <section className="mx-auto max-w-7xl px-4 pb-20">
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8">
         <h2 className="text-center text-2xl font-bold text-slate-950 sm:text-3xl">ทำไมต้อง TutorFinder?</h2>
         <div className="mt-12 grid gap-6 md:grid-cols-3">
           {[
@@ -76,7 +76,7 @@ export default function HomePage() {
           ].map((f) => {
             const Icon = f.icon;
             return (
-            <div key={f.title} className="rounded-2xl border border-blue-100/80 bg-white/85 p-8 text-left shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur">
+            <div key={f.title} className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 text-left shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur sm:p-8">
               <div className="mb-5 inline-flex rounded-2xl bg-blue-50 p-3 text-blue-600 ring-1 ring-blue-100">
                 <Icon className="h-6 w-6" />
               </div>

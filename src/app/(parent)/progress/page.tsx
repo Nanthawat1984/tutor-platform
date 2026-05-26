@@ -26,7 +26,7 @@ export default async function ProgressPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">ผลการเรียน</h1>
         <p className="text-sm text-gray-500">ติดตามความก้าวหน้าของลูกคุณ</p>
@@ -48,9 +48,9 @@ export default async function ProgressPage() {
             <div className="space-y-3">
               {studentReports.map((r: any) => (
                 <Card key={r.id}>
-                  <div className="flex items-start justify-between">
+                  <div className="responsive-card-row sm:items-start">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
                         <span className="font-medium">{r.courseTitle}</span>
                         <span className="text-sm text-gray-400">{formatDate(r.sessionDate, 'd MMM yyyy')}</span>
                       </div>
@@ -59,7 +59,7 @@ export default async function ProgressPage() {
                       {r.notes && <p className="mt-1 text-sm text-gray-500 italic">"{r.notes}"</p>}
                     </div>
                     {r.score !== null && r.score !== undefined && (
-                      <div className="ml-4 text-center">
+                      <div className="w-full text-left sm:ml-4 sm:w-auto sm:text-center">
                         <div className={`text-2xl font-bold ${r.score >= 80 ? 'text-green-600' : r.score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{r.score}</div>
                         <div className="text-xs text-gray-400">คะแนน</div>
                       </div>

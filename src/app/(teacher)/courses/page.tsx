@@ -29,14 +29,14 @@ export default async function CoursesPage() {
   const courses = coursesSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Course));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="responsive-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">คอร์สเรียน</h1>
+          <h1 className="text-2xl font-bold leading-tight text-gray-900">คอร์สเรียน</h1>
           <p className="text-sm text-gray-500">จัดการคอร์สเรียนที่คุณเปิดสอน</p>
         </div>
-        <Link href="/courses/new">
-          <Button><Plus className="h-4 w-4" /> สร้างคอร์สใหม่</Button>
+        <Link href="/courses/new" className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto"><Plus className="h-4 w-4" /> สร้างคอร์สใหม่</Button>
         </Link>
       </div>
 
@@ -55,8 +55,8 @@ export default async function CoursesPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {courses.map((course: any) => (
             <Card key={course.id} className="flex flex-col">
-              <div className="flex items-start justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
                   <h3 className="font-semibold text-gray-900">{course.title}</h3>
                   <p className="mt-1 text-sm text-gray-500">
                     {course.subjectName} • ระดับ {course.level}
@@ -67,20 +67,20 @@ export default async function CoursesPage() {
                 </Badge>
               </div>
               <div className="mt-4 space-y-2 text-sm text-gray-600">
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span>รูปแบบ</span>
                   <span className="font-medium">{formatLabels[course.format] || course.format}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span>ราคาต่อเซสชัน</span>
                   <span className="font-semibold text-blue-600">{formatCurrency(course.pricePerSession)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span>ระยะเวลา</span>
                   <span>{course.durationMinutes} นาที</span>
                 </div>
               </div>
-              <div className="mt-4 flex gap-2 border-t pt-4">
+              <div className="mt-4 grid gap-2 border-t pt-4 sm:grid-cols-2">
                 <Link href={`/courses/${course.id}`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full"><Eye className="h-3.5 w-3.5" /> ดู</Button>
                 </Link>

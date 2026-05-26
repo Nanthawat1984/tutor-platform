@@ -58,11 +58,23 @@
   }
 
   .page-panel {
-    @apply rounded-2xl border border-blue-100/80 bg-white/80 shadow-[0_18px_50px_rgba(37,99,235,0.08)] backdrop-blur;
+    @apply rounded-2xl border border-blue-100/80 bg-white/80 p-4 shadow-[0_18px_50px_rgba(37,99,235,0.08)] backdrop-blur sm:p-6;
   }
 
   .soft-panel {
     @apply rounded-xl border border-blue-100 bg-blue-50/70;
+  }
+
+  .responsive-page-header {
+    @apply flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .responsive-actions {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-center;
+  }
+
+  .responsive-card-row {
+    @apply flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between;
   }
 
   .scrollbar-hidden {

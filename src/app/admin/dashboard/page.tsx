@@ -22,13 +22,13 @@ export default async function AdminDashboard() {
   const totalRevenue = paymentsSnap.docs.reduce((sum: number, d: any) => sum + ((d.data() as any).amount || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
         <p className="text-sm text-gray-500">ภาพรวมระบบ</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="flex items-center gap-4">
           <div className="rounded-full bg-blue-100 p-3"><Users className="h-5 w-5 text-blue-600" /></div>
           <div><p className="text-sm text-gray-500">ครูทั้งหมด</p><p className="text-xl font-bold">{teachers.length}</p></div>
@@ -48,17 +48,17 @@ export default async function AdminDashboard() {
       </div>
 
       <Card>
-        <div className="flex items-center justify-between mb-4">
+        <div className="responsive-page-header mb-4">
           <h2 className="font-semibold text-gray-900">ครูที่รอการอนุมัติ</h2>
-          <Link href="/admin/teachers"><Button variant="outline" size="sm">ดูทั้งหมด</Button></Link>
+          <Link href="/admin/teachers" className="w-full sm:w-auto"><Button variant="outline" size="sm" className="w-full sm:w-auto">ดูทั้งหมด</Button></Link>
         </div>
         {pendingTeachers.length === 0 ? (
           <p className="text-sm text-gray-500">ไม่มีครูที่รอการอนุมัติ</p>
         ) : (
           <div className="space-y-2">
             {pendingTeachers.slice(0, 5).map((t: any) => (
-              <div key={t.uid} className="flex items-center justify-between rounded-lg border p-3">
-                <div><p className="font-medium">{t.displayName}</p><p className="text-sm text-gray-500">{t.email}</p></div>
+              <div key={t.uid} className="responsive-card-row rounded-xl border border-blue-100 p-3">
+                <div className="min-w-0"><p className="font-medium">{t.displayName}</p><p className="text-sm text-gray-500">{t.email}</p></div>
                 <VerificationBadge level={t.verificationLevel} />
               </div>
             ))}

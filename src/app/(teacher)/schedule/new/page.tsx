@@ -52,12 +52,12 @@ export default function NewSchedulePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900">เพิ่มตารางสอน</h1>
+    <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8 lg:px-0">
+      <h1 className="text-2xl font-bold leading-tight text-gray-900">เพิ่มตารางสอน</h1>
       <p className="mt-1 text-sm text-gray-500">กำหนดวันและเวลาที่คุณพร้อมสอน</p>
 
-      <form action={addScheduleAction} className="mt-8 space-y-6">
-        <div className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur space-y-4">
+      <form action={addScheduleAction} className="mt-6 space-y-6 sm:mt-8">
+        <div className="space-y-4 rounded-2xl border border-blue-100/80 bg-white/85 p-4 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur sm:p-6">
           <Select label="คอร์สเรียน" name="course_id" options={[{ value: '', label: '-- เลือกคอร์ส --' }]} required />
           <Select label="วันในสัปดาห์" name="day_of_week" options={dayOptions} required />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -68,15 +68,15 @@ export default function NewSchedulePage() {
             <Input label="วันที่เริ่ม" name="start_date" type="date" required />
             <Input label="วันที่สิ้นสุด (ไม่ระบุ = ไม่มีกำหนด)" name="end_date" type="date" />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="is_recurring" value="true" defaultChecked className="rounded" />
+          <label className="flex min-h-[44px] items-center gap-3 text-sm text-slate-700">
+            <input type="checkbox" name="is_recurring" value="true" defaultChecked className="h-4 w-4 rounded" />
             เป็นตารางซ้ำทุกสัปดาห์
           </label>
         </div>
-        <div className="flex gap-3">
-          <Button type="submit">บันทึกตารางสอน</Button>
-          <Link href="/schedule">
-            <Button type="button" variant="outline">ยกเลิก</Button>
+        <div className="responsive-actions">
+          <Button type="submit" className="w-full sm:w-auto">บันทึกตารางสอน</Button>
+          <Link href="/schedule" className="w-full sm:w-auto">
+            <Button type="button" variant="outline" className="w-full sm:w-auto">ยกเลิก</Button>
           </Link>
         </div>
       </form>

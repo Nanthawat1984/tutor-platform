@@ -28,16 +28,16 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   const bookings = bookingsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="responsive-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">เช็คชื่อ</h1>
+          <h1 className="text-2xl font-bold leading-tight text-gray-900">เช็คชื่อ</h1>
           <p className="text-sm text-gray-500">บันทึกการเข้าเรียนของนักเรียน</p>
         </div>
-        <form method="get" className="flex items-center gap-2">
+        <form method="get" className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(0,1fr)_auto]">
           <input type="date" name="date" defaultValue={selectedDate}
-            className="rounded-lg border border-blue-200 px-3 py-2 text-sm" />
-          <Button type="submit" size="sm" variant="outline">ดูวันที่</Button>
+            className="min-h-[44px] rounded-xl border border-blue-200 bg-white/90 px-3 py-2 text-base text-slate-900 sm:text-sm" />
+          <Button type="submit" size="sm" variant="outline" className="w-full sm:w-auto">ดูวันที่</Button>
         </form>
       </div>
 
@@ -52,9 +52,9 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
         <div className="space-y-3">
           {bookings.map((booking: any) => (
             <Card key={booking.id}>
-              <div className="flex items-center justify-between">
+              <div className="responsive-card-row">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <h3 className="font-semibold text-gray-900">{booking.studentName}</h3>
                     <AttendanceStatusBadge status="pending" />
                   </div>
@@ -62,7 +62,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                     {booking.courseTitle} • {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="grid w-full grid-cols-3 gap-2 sm:w-auto">
                   {['present', 'absent', 'late'].map((status) => (
                     <form key={status} action={async () => {
                       'use server';
@@ -80,7 +80,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                         updatedAt: FieldValue.serverTimestamp(),
                       });
                     }}>
-                      <Button type="submit" size="sm" variant={status === 'present' ? 'primary' : 'outline'}>
+                      <Button type="submit" size="sm" variant={status === 'present' ? 'primary' : 'outline'} className="w-full">
                         {status === 'present' ? <><Check className="h-4 w-4" /> มา</> :
                          status === 'absent' ? <><X className="h-4 w-4" /> ขาด</> :
                          <><Clock className="h-4 w-4" /> สาย</>}

@@ -19,12 +19,12 @@ export default async function EarningsPage() {
   const totalEarnings = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">รายได้</h1>
         <p className="text-sm text-gray-500">สรุปรายได้ของคุณ</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card><p className="text-sm text-gray-500">รายได้รวม</p><p className="text-xl font-bold">{formatCurrency(totalEarnings)}</p></Card>
         <Card><p className="text-sm text-gray-500">ค่าบริการ 20%</p><p className="text-xl font-bold">{formatCurrency(totalEarnings * 0.2)}</p></Card>
         <Card><p className="text-sm text-gray-500">รายได้สุทธิ</p><p className="text-xl font-bold text-green-600">{formatCurrency(totalEarnings * 0.8)}</p></Card>

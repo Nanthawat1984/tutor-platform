@@ -39,14 +39,14 @@ export default async function SchedulePage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="responsive-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">ตารางสอน</h1>
+          <h1 className="text-2xl font-bold leading-tight text-gray-900">ตารางสอน</h1>
           <p className="text-sm text-gray-500">จัดการตารางเวลาเรียนของคุณ</p>
         </div>
-        <Link href="/schedule/new">
-          <Button><Plus className="h-4 w-4" /> เพิ่มตารางสอน</Button>
+        <Link href="/schedule/new" className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto"><Plus className="h-4 w-4" /> เพิ่มตารางสอน</Button>
         </Link>
       </div>
 
@@ -71,11 +71,11 @@ export default async function SchedulePage() {
                 <div className="space-y-2">
                   {daySchedules.map((s) => (
                     <div key={s.id} className="rounded-lg border bg-blue-50/70 p-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-3">
                         <p className="font-medium text-sm">{s.courseTitle}</p>
                       </div>
-                      <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                        <span className="flex items-center gap-1 whitespace-nowrap">
                           <Clock className="h-3 w-3" />
                           {formatTime(s.startTime)} - {formatTime(s.endTime)}
                         </span>

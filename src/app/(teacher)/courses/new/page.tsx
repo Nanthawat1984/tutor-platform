@@ -54,12 +54,12 @@ export default function NewCoursePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900">สร้างคอร์สเรียนใหม่</h1>
+    <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8 lg:px-0">
+      <h1 className="text-2xl font-bold leading-tight text-gray-900">สร้างคอร์สเรียนใหม่</h1>
       <p className="mt-1 text-sm text-gray-500">กรอกข้อมูลคอร์สเรียนที่คุณต้องการเปิดสอน</p>
 
-      <form action={createCourseAction} className="mt-8 space-y-6">
-        <div className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur space-y-4">
+      <form action={createCourseAction} className="mt-6 space-y-6 sm:mt-8">
+        <div className="space-y-4 rounded-2xl border border-blue-100/80 bg-white/85 p-4 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur sm:p-6">
           <h2 className="font-semibold text-gray-900">ข้อมูลคอร์ส</h2>
 
           <Input label="ชื่อคอร์ส" name="title" required placeholder="เช่น คณิตศาสตร์ ป.6 เตรียมสอบ O-NET" />
@@ -82,10 +82,10 @@ export default function NewCoursePage() {
           <Textarea label="รายละเอียดคอร์ส" name="description" placeholder="อธิบายเนื้อหาที่จะสอน วิธีการสอน ฯลฯ" />
         </div>
 
-        <div className="flex gap-3">
-          <Button type="submit">สร้างคอร์ส</Button>
-          <Link href="/courses">
-            <Button type="button" variant="outline">ยกเลิก</Button>
+        <div className="responsive-actions">
+          <Button type="submit" className="w-full sm:w-auto">สร้างคอร์ส</Button>
+          <Link href="/courses" className="w-full sm:w-auto">
+            <Button type="button" variant="outline" className="w-full sm:w-auto">ยกเลิก</Button>
           </Link>
         </div>
       </form>

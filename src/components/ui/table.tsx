@@ -8,14 +8,14 @@ interface TableProps {
 
 export function Table({ headers, children, emptyMessage = 'ไม่มีข้อมูล' }: TableProps) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-blue-100 bg-white/85 shadow-sm">
-      <table className="w-full">
+    <div className="scrollbar-hidden -mx-1 overflow-x-auto rounded-2xl border border-blue-100 bg-white/85 shadow-sm sm:mx-0">
+      <table className="min-w-[640px] w-full">
         <thead>
           <tr className="border-b border-blue-100 bg-blue-50/80">
             {headers.map((header, i) => (
               <th
                 key={i}
-                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-4"
               >
                 {header}
               </th>
@@ -47,7 +47,7 @@ export function TableRow({ children, className, onClick }: { children: React.Rea
 
 export function TableCell({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <td className={cn('px-4 py-3 text-sm text-slate-700', className)}>
+    <td className={cn('px-3 py-3 text-sm text-slate-700 sm:px-4', className)}>
       {children}
     </td>
   );

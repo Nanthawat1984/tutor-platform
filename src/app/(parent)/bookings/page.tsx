@@ -24,7 +24,7 @@ export default async function BookingsPage() {
   const past = bookings.filter((b: any) => b.status === 'completed' || b.status === 'cancelled');
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">การจองเรียน</h1>
         <p className="text-sm text-gray-500">ดูประวัติและสถานะการจองเรียนของลูกคุณ</p>
@@ -43,9 +43,9 @@ export default async function BookingsPage() {
           <div className="space-y-3">
             {upcoming.map((b: any) => (
               <Card key={b.id}>
-                <div className="flex items-center justify-between">
+                <div className="responsive-card-row">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <h3 className="font-semibold text-gray-900">{b.studentName}</h3>
                       <BookingStatusBadge status={b.status} />
                     </div>
@@ -57,7 +57,7 @@ export default async function BookingsPage() {
                       <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {formatTime(b.startTime)} - {formatTime(b.endTime)}</span>
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="w-full text-left sm:w-auto sm:text-right">
                     <p className="font-semibold text-blue-600">{formatCurrency(b.totalPrice)}</p>
                     {b.status === 'pending' && (
                       <form action={async () => {
@@ -69,7 +69,7 @@ export default async function BookingsPage() {
                           updatedAt: FieldValue.serverTimestamp(),
                         });
                       }}>
-                        <Button type="submit" size="sm" variant="outline" className="mt-2 border-red-300 text-red-600">
+                        <Button type="submit" size="sm" variant="outline" className="mt-2 w-full border-red-300 text-red-600 sm:w-auto">
                           ยกเลิก
                         </Button>
                       </form>
@@ -88,9 +88,9 @@ export default async function BookingsPage() {
           <div className="space-y-2">
             {past.map((b: any) => (
               <Card key={b.id} className="opacity-75">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
+                <div className="responsive-card-row">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-sm">{b.studentName}</span>
                       <BookingStatusBadge status={b.status} />
                     </div>
@@ -99,8 +99,8 @@ export default async function BookingsPage() {
                     </p>
                   </div>
                   {b.status === 'completed' && (
-                    <Link href={`/bookings/${b.id}/review`}>
-                      <Button size="sm" variant="outline">รีวิว</Button>
+                    <Link href={`/bookings/${b.id}/review`} className="w-full sm:w-auto">
+                      <Button size="sm" variant="outline" className="w-full sm:w-auto">รีวิว</Button>
                     </Link>
                   )}
                 </div>

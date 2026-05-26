@@ -13,14 +13,14 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ er
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link href="/" className="text-3xl font-bold text-blue-700">TutorFinder</Link>
           <p className="mt-2 text-slate-600">เข้าสู่ระบบ</p>
         </div>
 
-        <form action={login} className="space-y-5 rounded-3xl border border-blue-100/80 bg-white/85 p-8 shadow-[0_24px_70px_rgba(37,99,235,0.12)] backdrop-blur">
+        <form action={login} className="space-y-5 rounded-3xl border border-blue-100/80 bg-white/85 p-5 shadow-[0_24px_70px_rgba(37,99,235,0.12)] backdrop-blur sm:p-8">
           <div>
             <label htmlFor="email" className="block text-sm font-semibold text-slate-700">อีเมล</label>
             <Input type="email" name="email" id="email" required placeholder="you@example.com" />

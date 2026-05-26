@@ -61,15 +61,15 @@ export default async function NewBookingPage({
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900">จองเรียน</h1>
+    <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8 lg:px-0">
+      <h1 className="text-2xl font-bold leading-tight text-gray-900">จองเรียน</h1>
 
       <Card className="mt-6">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl">
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-xl">
             {(course.teacherName?.[0] || 'ค').toUpperCase()}
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="font-semibold text-gray-900">{course.title}</h2>
             <p className="text-sm text-gray-500">
               ครู{course.teacherName} • {course.subjectName} • ระดับ {course.level}
@@ -96,9 +96,9 @@ export default async function NewBookingPage({
           <Textarea label="หมายเหตุถึงครู (ถ้ามี)" name="notes" placeholder="เช่น ต้องการเน้นเรื่อง..." />
         </Card>
 
-        <div className="flex gap-3">
-          <Button type="submit">ยืนยันการจอง</Button>
-          <Button type="button" variant="outline" onClick={() => history.back()}>ยกเลิก</Button>
+        <div className="responsive-actions">
+          <Button type="submit" className="w-full sm:w-auto">ยืนยันการจอง</Button>
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => history.back()}>ยกเลิก</Button>
         </div>
       </form>
     </div>

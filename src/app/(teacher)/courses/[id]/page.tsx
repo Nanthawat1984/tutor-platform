@@ -25,23 +25,23 @@ export default async function CourseDetailPage({
   const isOwner = false; // TODO: check session
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-0">
       {isOwner && (
-        <div className="flex gap-3">
-          <Link href={`/courses/${id}/edit`}>
-            <Button variant="outline">แก้ไขคอร์ส</Button>
+        <div className="responsive-actions">
+          <Link href={`/courses/${id}/edit`} className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto">แก้ไขคอร์ส</Button>
           </Link>
         </div>
       )}
 
       <Card>
-        <div className="flex items-start gap-4">
-          <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-2xl">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-2xl">
             {getInitials(course.teacherName || 'ครู')}
           </div>
-          <div className="flex-1">
-            <div className="flex items-start justify-between">
-              <div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <h1 className="text-2xl font-bold text-gray-900">{course.title}</h1>
                 <p className="mt-1 text-gray-500">ครู{course.teacherName}</p>
               </div>
