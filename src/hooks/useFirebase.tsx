@@ -26,6 +26,7 @@ import {
   getDocs,
   getDoc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   serverTimestamp,
@@ -50,9 +51,9 @@ interface AuthContextType {
   user: FirebaseUser | null;
   userProfile: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<User | null>;
   signUp: (email: string, password: string, fullName: string, role: 'teacher' | 'parent') => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<User>;
   logout: () => Promise<void>;
 }
 
@@ -89,7 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     const auth = getFirebaseAuth();
-    await signInWithEmailAndPassword(auth, email, password);
+    const db = getFirebaseDb();
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, cred.user.uid));
+    if (!userDoc.exists()) return null;
+    const profile = { uid: userDoc.id, ...userDoc.data() } as User;
+    setUserProfile(profile);
+    return profile;
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string, role: 'teacher' | 'parent') => {
@@ -99,7 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
 
     // Create user document
-    await addDoc(collection(db, COLLECTIONS.USERS), {
+    await setDoc(doc(db, COLLECTIONS.USERS, cred.user.uid), {
+      uid: cred.user.uid,
       email,
       displayName: fullName,
       role,
@@ -117,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Create teacher profile if teacher
     if (role === 'teacher') {
-      await addDoc(collection(db, COLLECTIONS.TEACHERS), {
+      await setDoc(doc(db, COLLECTIONS.TEACHERS, cred.user.uid), {
         uid: cred.user.uid,
         experienceYears: 0,
         teachingStyle: [],
@@ -134,26 +142,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     const auth = getFirebaseAuth();
     const provider = new GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+    provider.setCustomParameters({ prompt: 'select_account' });
     const db = getFirebaseDb();
 
     const result = await signInWithPopup(auth, provider);
     const firebaseUser = result.user;
 
     // Check if user document exists
-    const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, firebaseUser.uid));
-    if (!userDoc.exists()) {
+    const userRef = doc(db, COLLECTIONS.USERS, firebaseUser.uid);
+    const userDoc = await getDoc(userRef);
+    let profile: User;
+
+    if (userDoc.exists()) {
+      profile = { uid: userDoc.id, ...userDoc.data() } as User;
+    } else {
       // Create user document for new Google user
-      await addDoc(collection(db, COLLECTIONS.USERS), {
-        email: firebaseUser.email,
-        displayName: firebaseUser.displayName,
-        photoURL: firebaseUser.photoURL,
+      const newProfile = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || firebaseUser.email || 'Google User',
         role: 'parent', // default
         isVerified: true,
         verificationLevel: 'basic',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+        ...(firebaseUser.photoURL ? { photoURL: firebaseUser.photoURL } : {}),
+      } as const;
+
+      await setDoc(userRef, newProfile);
+      profile = newProfile as unknown as User;
     }
+
+    setUserProfile(profile);
+    return profile;
   }, []);
 
   const logout = useCallback(async () => {
