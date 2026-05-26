@@ -25,6 +25,7 @@ firestore-debug.log
 *-debug.log
 
 # Build
+.firebase/
 *.tsbuildinfo
 
 # Supabase
