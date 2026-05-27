@@ -6,6 +6,7 @@ import { initializeApp, getApps, cert, type App } from 'firebase-admin/app';
 import { getAuth as getAdminAuth, type Auth } from 'firebase-admin/auth';
 import { getFirestore as getAdminFirestore, type Firestore } from 'firebase-admin/firestore';
 import { getStorage as getAdminStorage, type Storage } from 'firebase-admin/storage';
+import { getFirebaseAdminEnv } from './admin-env';
 
 let adminApp: App | null = null;
 let adminAuth: Auth | null = null;
@@ -24,9 +25,7 @@ function initAdmin() {
   if (adminApp) return adminApp;
   connectServerEmulators();
   
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const { projectId, clientEmail, privateKey } = getFirebaseAdminEnv();
   
   if (!projectId || !clientEmail || !privateKey || privateKey.includes('YOUR_PRIVATE_KEY')) {
     return null;
