@@ -11,11 +11,13 @@ export default async function ParentDashboard() {
 
   const bookingsSnap = await db.collection(COLLECTIONS.BOOKINGS)
     .where('parentId', '==', parentId)
-    .orderBy('bookingDate', 'desc')
     .limit(10)
     .get();
 
-  const bookings = bookingsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  const bookings = bookingsSnap.docs
+    .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+    .sort((a: any, b: any) => String(b.bookingDate || '').localeCompare(String(a.bookingDate || '')))
+    .slice(0, 10);
 
   return (
     <div className="app-shell">
