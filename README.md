@@ -39,8 +39,8 @@ tutor-platform/
 ## การติดตั้ง
 
 ```bash
-# 1. Install dependencies
-npm install
+# 1. Install dependencies (โปรเจกต์ใช้ pnpm)
+pnpm install
 
 # 2. Setup environment
 cp .env.example .env.local
@@ -50,7 +50,7 @@ cp .env.example .env.local
 # Use a service account for FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.
 
 # 4. Run dev server
-npm run dev
+pnpm dev
 ```
 
 ## Environment
@@ -94,8 +94,8 @@ Optional local emulator flag:
 ## Validation
 
 ```bash
-npm run typecheck
-npm run build
+pnpm typecheck
+pnpm build
 ```
 
 ## Local Firebase Emulator
@@ -104,11 +104,11 @@ Cloud Firestore ยังต้องถูกสร้างใน Firebase pro
 
 ```bash
 # Terminal 1
-npm run emulators
+pnpm emulators
 
 # Terminal 2
-npm run build
-npm run start
+pnpm build
+pnpm start
 ```
 
 เปิดแอปที่ `http://localhost:3000` และเปิด Emulator UI ที่ `http://127.0.0.1:4000`

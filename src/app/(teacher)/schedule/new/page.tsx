@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { DashboardLayout } from '@/components/layout/dashboard';
+import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -52,12 +54,16 @@ export default function NewSchedulePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8 lg:px-0">
-      <h1 className="text-2xl font-bold leading-tight text-gray-900">เพิ่มตารางสอน</h1>
-      <p className="mt-1 text-sm text-gray-500">กำหนดวันและเวลาที่คุณพร้อมสอน</p>
+    <DashboardLayout
+      title="เพิ่มตารางสอน"
+      navItems={TEACHER_NAV_ITEMS}
+      role="teacher"
+      userName="คุณครู"
+    >
+      <p className="mb-6 text-sm text-slate-500">กำหนดวันและเวลาที่คุณพร้อมสอน</p>
 
-      <form action={addScheduleAction} className="mt-6 space-y-6 sm:mt-8">
-        <div className="space-y-4 rounded-2xl border border-blue-100/80 bg-white/85 p-4 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur sm:p-6">
+      <form action={addScheduleAction} className="space-y-6">
+        <div className="form-card p-6 sm:p-8 space-y-5">
           <Select label="คอร์สเรียน" name="course_id" options={[{ value: '', label: '-- เลือกคอร์ส --' }]} required />
           <Select label="วันในสัปดาห์" name="day_of_week" options={dayOptions} required />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -69,7 +75,7 @@ export default function NewSchedulePage() {
             <Input label="วันที่สิ้นสุด (ไม่ระบุ = ไม่มีกำหนด)" name="end_date" type="date" />
           </div>
           <label className="flex min-h-[44px] items-center gap-3 text-sm text-slate-700">
-            <input type="checkbox" name="is_recurring" value="true" defaultChecked className="h-4 w-4 rounded" />
+            <input type="checkbox" name="is_recurring" value="true" defaultChecked className="h-4 w-4 rounded accent-violet-600" />
             เป็นตารางซ้ำทุกสัปดาห์
           </label>
         </div>
@@ -80,9 +86,8 @@ export default function NewSchedulePage() {
           </Link>
         </div>
       </form>
-    </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

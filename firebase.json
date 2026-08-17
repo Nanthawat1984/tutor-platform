@@ -11,7 +11,13 @@
     }
   },
   "firestore": {
-    "rules": "firestore.rules"
+    "databases": [
+      { "database": "(default)", "rules": "firestore.rules" },
+      { "database": "tutor", "rules": "firestore.rules" }
+    ]
+  },
+  "storage": {
+    "rules": "storage.rules"
   },
   "functions": [
     {

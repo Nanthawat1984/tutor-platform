@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { BookOpen, Plus, Edit2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
+import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import type { Course } from '@/types/firestore';
 import { formatCurrency } from '@/lib/utils';
@@ -29,32 +31,30 @@ export default async function CoursesPage() {
   const courses = coursesSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Course));
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <div className="responsive-page-header">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight text-gray-900">คอร์สเรียน</h1>
-          <p className="text-sm text-gray-500">จัดการคอร์สเรียนที่คุณเปิดสอน</p>
-        </div>
+    <DashboardLayout
+      title="คอร์สเรียน"
+      navItems={TEACHER_NAV_ITEMS}
+      role="teacher"
+      userName="คุณครู"
+    >
+      <div className="responsive-page-header mb-6">
+        <p className="text-sm text-slate-500">จัดการคอร์สเรียนที่คุณเปิดสอน</p>
         <Link href="/courses/new" className="w-full sm:w-auto">
           <Button className="w-full sm:w-auto"><Plus className="h-4 w-4" /> สร้างคอร์สใหม่</Button>
         </Link>
       </div>
 
       {courses.length === 0 ? (
-        <Card className="py-12 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
-            <BookOpen className="h-7 w-7" />
-          </div>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">ยังไม่มีคอร์สเรียน</h3>
-          <p className="mt-2 text-sm text-gray-500">เริ่มสร้างคอร์สแรกของคุณ</p>
-          <Link href="/courses/new" className="mt-4 inline-block">
-            <Button><Plus className="h-4 w-4" /> สร้างคอร์สใหม่</Button>
-          </Link>
-        </Card>
+        <EmptyState
+          icon={<BookOpen className="h-7 w-7" />}
+          title="ยังไม่มีคอร์สเรียน"
+          description="เริ่มสร้างคอร์สแรกของคุณ"
+          action={{ label: 'สร้างคอร์สใหม่', href: '/courses/new' }}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {courses.map((course: any) => (
-            <Card key={course.id} className="flex flex-col">
+            <Card key={course.id} className="flex flex-col" hoverable>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="font-semibold text-gray-900">{course.title}</h3>
@@ -73,14 +73,14 @@ export default async function CoursesPage() {
                 </div>
                 <div className="flex justify-between gap-4">
                   <span>ราคาต่อเซสชัน</span>
-                  <span className="font-semibold text-blue-600">{formatCurrency(course.pricePerSession)}</span>
+                  <span className="font-semibold text-violet-700">{formatCurrency(course.pricePerSession)}</span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span>ระยะเวลา</span>
                   <span>{course.durationMinutes} นาที</span>
                 </div>
               </div>
-              <div className="mt-4 grid gap-2 border-t pt-4 sm:grid-cols-2">
+              <div className="mt-4 grid gap-2 border-t border-violet-100/60 pt-4 sm:grid-cols-2">
                 <Link href={`/courses/${course.id}`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full"><Eye className="h-3.5 w-3.5" /> ดู</Button>
                 </Link>
@@ -92,9 +92,8 @@ export default async function CoursesPage() {
           ))}
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

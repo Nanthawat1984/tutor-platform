@@ -56,7 +56,7 @@ export function getServerAuth() {
 export function getServerDb() {
   if (!adminDb) {
     const app = initAdmin();
-    if (app) adminDb = getAdminFirestore(app);
+    if (app) adminDb = getAdminFirestore(app, 'tutor');
   }
   return adminDb;
 }

@@ -3,8 +3,10 @@ const GOOGLE_REDIRECT_FALLBACK_CODES = new Set([
   'auth/operation-not-supported-in-this-environment',
 ]);
 
-export function getPreferredGoogleSignInMethod() {
-  return 'redirect' as const;
+export type GoogleSignInMethod = 'popup' | 'redirect';
+
+export function getPreferredGoogleSignInMethod(): GoogleSignInMethod {
+  return 'popup';
 }
 
 export function isGoogleProviderUser(providerData: ReadonlyArray<{ providerId?: string | null }>) {

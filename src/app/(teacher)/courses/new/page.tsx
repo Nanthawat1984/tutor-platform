@@ -3,6 +3,8 @@ import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import { Input, Textarea, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { DashboardLayout } from '@/components/layout/dashboard';
+import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -54,13 +56,17 @@ export default function NewCoursePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8 lg:px-0">
-      <h1 className="text-2xl font-bold leading-tight text-gray-900">สร้างคอร์สเรียนใหม่</h1>
-      <p className="mt-1 text-sm text-gray-500">กรอกข้อมูลคอร์สเรียนที่คุณต้องการเปิดสอน</p>
+    <DashboardLayout
+      title="สร้างคอร์สเรียนใหม่"
+      navItems={TEACHER_NAV_ITEMS}
+      role="teacher"
+      userName="คุณครู"
+    >
+      <p className="mb-6 text-sm text-slate-500">กรอกข้อมูลคอร์สเรียนที่คุณต้องการเปิดสอน</p>
 
-      <form action={createCourseAction} className="mt-6 space-y-6 sm:mt-8">
-        <div className="space-y-4 rounded-2xl border border-blue-100/80 bg-white/85 p-4 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur sm:p-6">
-          <h2 className="font-semibold text-gray-900">ข้อมูลคอร์ส</h2>
+      <form action={createCourseAction} className="space-y-6">
+        <div className="form-card p-6 sm:p-8 space-y-5">
+          <h2 className="text-lg font-bold text-slate-900">ข้อมูลคอร์ส</h2>
 
           <Input label="ชื่อคอร์ส" name="title" required placeholder="เช่น คณิตศาสตร์ ป.6 เตรียมสอบ O-NET" />
 
@@ -89,9 +95,8 @@ export default function NewCoursePage() {
           </Link>
         </div>
       </form>
-    </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

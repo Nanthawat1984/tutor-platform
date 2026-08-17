@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { CalendarDays, Plus, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
+import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
-import { formatTime, getDayName } from '@/lib/utils';
+import { formatTime } from '@/lib/utils';
 import type { Schedule } from '@/types/firestore';
 
 const dayNames = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
@@ -39,27 +40,26 @@ export default async function SchedulePage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <div className="responsive-page-header">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight text-gray-900">ตารางสอน</h1>
-          <p className="text-sm text-gray-500">จัดการตารางเวลาเรียนของคุณ</p>
-        </div>
+    <DashboardLayout
+      title="ตารางสอน"
+      navItems={TEACHER_NAV_ITEMS}
+      role="teacher"
+      userName="คุณครู"
+    >
+      <div className="responsive-page-header mb-6">
+        <p className="text-sm text-slate-500">จัดการตารางเวลาเรียนของคุณ</p>
         <Link href="/schedule/new" className="w-full sm:w-auto">
           <Button className="w-full sm:w-auto"><Plus className="h-4 w-4" /> เพิ่มตารางสอน</Button>
         </Link>
       </div>
 
       {schedules.length === 0 ? (
-        <Card className="py-12 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
-            <CalendarDays className="h-7 w-7" />
-          </div>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">ยังไม่มีตารางสอน</h3>
-          <Link href="/schedule/new" className="mt-4 inline-block">
-            <Button><Plus className="h-4 w-4" /> เพิ่มตารางสอน</Button>
-          </Link>
-        </Card>
+        <EmptyState
+          icon={<CalendarDays className="h-7 w-7" />}
+          title="ยังไม่มีตารางสอน"
+          description="เพิ่มวันและเวลาที่คุณพร้อมสอน"
+          action={{ label: 'เพิ่มตารางสอน', href: '/schedule/new' }}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {dayNames.map((dayName, dayIndex) => {
@@ -70,7 +70,7 @@ export default async function SchedulePage() {
                 <h3 className="mb-3 font-semibold text-gray-900">{dayName}</h3>
                 <div className="space-y-2">
                   {daySchedules.map((s) => (
-                    <div key={s.id} className="rounded-lg border bg-blue-50/70 p-3">
+                    <div key={s.id} className="rounded-lg border border-violet-100/70 bg-violet-50/40 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <p className="font-medium text-sm">{s.courseTitle}</p>
                       </div>
@@ -88,9 +88,8 @@ export default async function SchedulePage() {
           })}
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

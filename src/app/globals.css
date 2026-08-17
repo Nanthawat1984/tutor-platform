@@ -2,86 +2,395 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
 @layer base {
   :root {
-    --background: 210 60% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --primary: 214 88% 54%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 214 80% 94%;
-    --secondary-foreground: 215 50% 24%;
-    --muted: 210 40% 94%;
-    --muted-foreground: 215 20% 42%;
-    --accent: 190 74% 92%;
-    --accent-foreground: 199 89% 24%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 213 42% 88%;
-    --input: 213 42% 88%;
-    --ring: 214 88% 54%;
-    --radius: 0.75rem;
+    /* ── Brand Palette (Education Indigo-Violet) ── */
+    --brand-50:  248 245 255;
+    --brand-100: 237 233 254;
+    --brand-200: 221 214 254;
+    --brand-300: 196 181 253;
+    --brand-400: 167 139 250;
+    --brand-500: 139 92  246;
+    --brand-600: 124 58  237;
+    --brand-700: 109 40  217;
+    --brand-800: 91  33  182;
+    --brand-900: 76  29  149;
+
+    /* ── Semantic Tokens ── */
+    --background: 248 245 255;
+    --foreground: 30 15 60;
+    --card: 255 255 255;
+    --card-foreground: 30 15 60;
+    --primary: 124 58 237;
+    --primary-foreground: 255 255 255;
+    --secondary: 237 233 254;
+    --secondary-foreground: 91 33 182;
+    --muted: 243 240 255;
+    --muted-foreground: 107 70 155;
+    --accent: 221 214 254;
+    --accent-foreground: 76 29 149;
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+    --success: 16 185 129;
+    --warning: 245 158 11;
+    --border: 221 214 254;
+    --input: 237 233 254;
+    --ring: 124 58 237;
+    --radius: 0.875rem;
+
+    /* ── Layout ── */
+    --sidebar-width: 256px;
+    --header-height: 64px;
+
+    /* ── Shadows ── */
+    --shadow-card: 0 4px 24px -4px rgba(124,58,237,0.12), 0 1px 4px rgba(124,58,237,0.06);
+    --shadow-elevated: 0 16px 48px -8px rgba(124,58,237,0.20), 0 4px 12px rgba(124,58,237,0.08);
+    --shadow-button: 0 4px 12px rgba(124,58,237,0.30);
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border box-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    font-family: 'Sarabun', 'Plus Jakarta Sans', sans-serif;
+    @apply text-foreground antialiased;
     background:
-      radial-gradient(circle at 12% 8%, rgba(147, 197, 253, 0.34), transparent 30rem),
-      radial-gradient(circle at 88% 10%, rgba(186, 230, 253, 0.45), transparent 28rem),
-      linear-gradient(180deg, #f8fbff 0%, #eef7ff 44%, #f8fbff 100%);
+      radial-gradient(ellipse 80% 60% at 20% -10%, rgba(167,139,250,0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 110%, rgba(139,92,246,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 50% 50%, rgba(221,214,254,0.10) 0%, transparent 70%),
+      linear-gradient(160deg, #faf8ff 0%, #f3f0ff 40%, #faf8ff 100%);
     min-height: 100vh;
     overflow-x: hidden;
   }
-  h1,
-  h2,
-  h3,
-  p,
-  label,
-  th,
-  td {
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Sarabun', 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
     overflow-wrap: anywhere;
   }
+
+  p, label, th, td, span, li {
+    overflow-wrap: anywhere;
+  }
+
   ::selection {
-    @apply bg-blue-200 text-slate-950;
+    background: rgba(167,139,250,0.35);
+    color: rgb(76,29,149);
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(124,58,237,0.25);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(124,58,237,0.45);
   }
 }
 
+/* ────────────────────────────────────────────
+   ANIMATIONS
+──────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position: 200% center; }
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.3); }
+  50%       { box-shadow: 0 0 0 8px rgba(124,58,237,0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ────────────────────────────────────────────
+   UTILITY CLASSES
+──────────────────────────────────────────── */
 @layer components {
+
+  /* ── Shell ── */
   .app-shell {
     @apply min-h-screen bg-transparent;
   }
 
+  /* ── Layout: Sidebar + Content ── */
+  .dashboard-shell {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(221,214,254,0.6);
+    box-shadow: 4px 0 24px rgba(124,58,237,0.06);
+    animation: fadeInLeft 0.35s ease both;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .sidebar-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  @media (min-width: 1024px) {
+    .sidebar-content {
+      margin-left: var(--sidebar-width);
+    }
+  }
+
+  .dashboard-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    background: rgba(255,255,255,0.80);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(221,214,254,0.5);
+    box-shadow: 0 1px 12px rgba(124,58,237,0.06);
+  }
+
+  .dashboard-main {
+    padding: 2rem 1.5rem;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  /* ── Sidebar Nav Items ── */
+  .sidebar-nav-item {
+    @apply flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-sm font-semibold;
+    color: rgb(107,70,155);
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .sidebar-nav-item:hover {
+    background: rgba(167,139,250,0.12);
+    color: rgb(124,58,237);
+    transform: translateX(2px);
+  }
+  .sidebar-nav-item.active {
+    background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(139,92,246,0.08));
+    color: rgb(109,40,217);
+    box-shadow: inset 3px 0 0 rgb(124,58,237);
+  }
+  .sidebar-nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: linear-gradient(to bottom, rgb(124,58,237), rgb(139,92,246));
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* ── Glass Card ── */
+  .glass-card {
+    background: rgba(255,255,255,0.80);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(221,214,254,0.70);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+  }
+  .glass-card:hover {
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-2px);
+  }
+
+  /* ── Page Panel ── */
   .page-panel {
-    @apply rounded-2xl border border-blue-100/80 bg-white/80 p-4 shadow-[0_18px_50px_rgba(37,99,235,0.08)] backdrop-blur sm:p-6;
+    @apply glass-card p-5 sm:p-7;
   }
 
+  /* ── Stat Card ── */
+  .stat-card {
+    @apply glass-card p-5 sm:p-6;
+    animation: scaleIn 0.4s ease both;
+  }
+
+  /* ── Edu Gradient ── */
+  .edu-gradient {
+    background: linear-gradient(135deg, rgb(124,58,237) 0%, rgb(139,92,246) 50%, rgb(167,139,250) 100%);
+  }
+  .edu-gradient-text {
+    background: linear-gradient(135deg, rgb(124,58,237), rgb(139,92,246));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Hero Gradient ── */
+  .hero-gradient {
+    background: linear-gradient(135deg,
+      rgb(124,58,237) 0%,
+      rgb(109,40,217) 30%,
+      rgb(76,29,149) 70%,
+      rgb(91,33,182) 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 8s ease infinite;
+  }
+
+  /* ── Shimmer Button ── */
+  .btn-shimmer {
+    background: linear-gradient(90deg,
+      rgb(124,58,237) 0%,
+      rgb(139,92,246) 50%,
+      rgb(124,58,237) 100%);
+    background-size: 200% auto;
+    animation: shimmer 3s linear infinite;
+  }
+
+  /* ── Pill Badge ── */
+  .pill-badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold;
+  }
+  .pill-badge-primary {
+    @apply pill-badge bg-violet-100 text-violet-700;
+  }
+  .pill-badge-success {
+    @apply pill-badge bg-emerald-100 text-emerald-700;
+  }
+  .pill-badge-warning {
+    @apply pill-badge bg-amber-100 text-amber-700;
+  }
+  .pill-badge-danger {
+    @apply pill-badge bg-red-100 text-red-700;
+  }
+  .pill-badge-info {
+    @apply pill-badge bg-sky-100 text-sky-700;
+  }
+
+  /* ── Soft Panel ── */
   .soft-panel {
-    @apply rounded-xl border border-blue-100 bg-blue-50/70;
+    @apply rounded-xl border border-violet-100/60 bg-violet-50/50;
   }
 
+  /* ── Responsive helpers ── */
   .responsive-page-header {
     @apply flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between;
   }
-
   .responsive-actions {
     @apply flex flex-col gap-3 sm:flex-row sm:items-center;
   }
-
   .responsive-card-row {
     @apply flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between;
   }
-
   .scrollbar-hidden {
     scrollbar-width: none;
   }
-
   .scrollbar-hidden::-webkit-scrollbar {
     display: none;
+  }
+
+  /* ── Fade animations ── */
+  .animate-fadeInUp    { animation: fadeInUp    0.5s ease both; }
+  .animate-fadeInLeft  { animation: fadeInLeft  0.4s ease both; }
+  .animate-slideInRight { animation: slideInRight 0.4s ease both; }
+  .animate-scaleIn     { animation: scaleIn     0.4s ease both; }
+  .animate-float       { animation: float       3s ease-in-out infinite; }
+
+  /* ── Stagger delays ── */
+  .delay-100 { animation-delay: 0.1s; }
+  .delay-200 { animation-delay: 0.2s; }
+  .delay-300 { animation-delay: 0.3s; }
+  .delay-400 { animation-delay: 0.4s; }
+  .delay-500 { animation-delay: 0.5s; }
+
+  /* ── Icon Container ── */
+  .icon-container {
+    @apply inline-flex items-center justify-center rounded-2xl p-3;
+    background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(139,92,246,0.08));
+    color: rgb(109,40,217);
+  }
+
+  /* ── Section Divider ── */
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(167,139,250,0.5), transparent);
+    @apply my-8;
+  }
+
+  /* ── Form Card ── */
+  .form-card {
+    background: rgba(255,255,255,0.90);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(221,214,254,0.70);
+    border-radius: 1.25rem;
+    box-shadow: 0 24px 64px rgba(124,58,237,0.14), 0 4px 16px rgba(124,58,237,0.06);
+    animation: scaleIn 0.35s ease both;
+  }
+
+  /* ── Table styles ── */
+  .data-table {
+    @apply w-full text-sm;
+  }
+  .data-table thead tr {
+    background: rgba(237,233,254,0.6);
+    @apply border-b border-violet-100;
+  }
+  .data-table thead th {
+    @apply py-3 px-4 text-left font-semibold text-violet-700 text-xs uppercase tracking-wider;
+  }
+  .data-table tbody tr {
+    @apply border-b border-violet-50 transition-colors;
+  }
+  .data-table tbody tr:hover {
+    background: rgba(237,233,254,0.3);
+  }
+  .data-table tbody td {
+    @apply py-3.5 px-4 text-slate-700;
+  }
+  .data-table tbody tr:last-child {
+    @apply border-b-0;
   }
 }

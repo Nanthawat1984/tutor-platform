@@ -2,7 +2,10 @@ import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { COLLECTIONS } from '@/types/firestore';
-import { BarChart3, CalendarDays, Search } from 'lucide-react';
+import { BarChart3, CalendarCheck, CalendarDays, ClipboardList, GraduationCap, PenLine, Search, Star } from 'lucide-react';
+import { DashboardLayout, StatCard, EmptyState, SectionCard } from '@/components/layout/dashboard';
+import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
+import { BookingStatusBadge } from '@/components/ui/badge';
 
 export default async function ParentDashboard() {
   const db = getServerDb();
@@ -19,69 +22,143 @@ export default async function ParentDashboard() {
     .sort((a: any, b: any) => String(b.bookingDate || '').localeCompare(String(a.bookingDate || '')))
     .slice(0, 10);
 
+  const upcomingCount = bookings.filter((b: any) => b.status === 'confirmed' || b.status === 'pending').length;
+  const completedCount = bookings.filter((b: any) => b.status === 'completed').length;
+
+  const STATS = [
+    {
+      label: 'การจองที่กำลังจะมาถึง',
+      value: upcomingCount,
+      icon: <CalendarCheck className="h-6 w-6" />,
+      iconGradient: 'from-violet-500 to-purple-600',
+    },
+    {
+      label: 'การจองทั้งหมด',
+      value: bookings.length,
+      icon: <ClipboardList className="h-6 w-6" />,
+      iconGradient: 'from-indigo-500 to-blue-600',
+    },
+    {
+      label: 'เซสชันที่เสร็จสิ้น',
+      value: completedCount,
+      icon: <BarChart3 className="h-6 w-6" />,
+      iconGradient: 'from-emerald-500 to-teal-600',
+    },
+    {
+      label: 'ครูที่กำลังเรียน',
+      value: new Set(bookings.map((b: any) => b.teacherName)).size,
+      icon: <Star className="h-6 w-6" />,
+      iconGradient: 'from-amber-500 to-orange-500',
+    },
+  ];
+
   return (
-    <div className="app-shell">
-      <header className="sticky top-0 z-40 border-b border-blue-100/80 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 overflow-hidden px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="shrink-0 whitespace-nowrap text-lg font-bold text-blue-700 sm:text-xl">TutorFinder</Link>
-          <nav className="scrollbar-hidden flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-            <Link href="/my-bookings" className="inline-flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">แดชบอร์ด</Link>
-            <Link href="/explore" className="inline-flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700">ค้นหาครู</Link>
-            <Link href="/bookings" className="inline-flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700">การจอง</Link>
-            <Link href="/progress" className="inline-flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700">ผลการเรียน</Link>
-          </nav>
+    <DashboardLayout
+      title="แดชบอร์ด"
+      navItems={PARENT_NAV_ITEMS}
+      role="parent"
+      userName="ผู้ปกครอง"
+    >
+      {/* ── Greeting ── */}
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-extrabold text-slate-900">
+            สวัสดี คุณพ่อคุณแม่! 👋
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            จัดการการเรียนเสริมของลูกคุณได้ที่นี่
+          </p>
         </div>
-      </header>
+        <Link
+          href="/my-profile"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-edu-gradient px-3.5 py-2 text-xs font-bold text-white shadow-button transition-all hover:-translate-y-0.5 hover:shadow-elevated"
+        >
+          <PenLine className="h-3.5 w-3.5" />
+          แก้ไขโปรไฟล์
+        </Link>
+      </div>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <h1 className="text-2xl font-bold text-slate-950">สวัสดี</h1>
-        <p className="mt-1 text-slate-600">จัดการการเรียนเสริมของลูกคุณได้ที่นี่</p>
+      {/* ── Stats Grid ── */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {STATS.map((stat) => (
+          <StatCard
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            icon={stat.icon}
+            iconGradient={stat.iconGradient}
+          />
+        ))}
+      </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <Link href="/explore" className="rounded-2xl bg-blue-600 p-6 text-white shadow-lg shadow-blue-200 transition-colors hover:bg-blue-700">
-            <Search className="h-7 w-7" />
-            <h3 className="mt-2 font-semibold">ค้นหาครู</h3>
-            <p className="mt-1 text-sm text-blue-100">เลือกครูตามวิชา ระดับ และพื้นที่</p>
-          </Link>
-          <Link href="/bookings" className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur transition-shadow hover:shadow-md">
-            <CalendarDays className="h-7 w-7 text-blue-600" />
-            <h3 className="mt-2 font-semibold text-gray-900">ดูตารางเรียน</h3>
-            <p className="mt-1 text-sm text-gray-500">เซสชันที่กำลังจะมาถึง</p>
-          </Link>
-          <Link href="/progress" className="rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur transition-shadow hover:shadow-md">
-            <BarChart3 className="h-7 w-7 text-blue-600" />
-            <h3 className="mt-2 font-semibold text-gray-900">ผลการเรียน</h3>
-            <p className="mt-1 text-sm text-gray-500">ติดตามความก้าวหน้า</p>
-          </Link>
-        </div>
-
-        <div className="mt-8 rounded-2xl border border-blue-100/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur">
-          <h2 className="text-lg font-semibold">การจองล่าสุด</h2>
-          {bookings.length === 0 ? (
-            <div className="mt-4 text-center">
-              <p className="text-gray-500">ยังไม่มีการจอง</p>
-              <Link href="/explore" className="mt-3 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">เริ่มค้นหาครู</Link>
-            </div>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {bookings.map((b: any) => (
-                <div key={b.id} className="responsive-card-row rounded-xl border border-blue-100 p-4">
-                  <div className="min-w-0">
-                    <p className="font-medium">{b.studentName}</p>
-                    <p className="text-sm text-gray-500">{b.courseTitle} • ครู{b.teacherName}</p>
+      {/* ── Quick Actions ── */}
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <SectionCard title="ดำเนินการด่วน">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { icon: Search, label: 'ค้นหาครู', href: '/explore', gradient: 'from-violet-500 to-purple-600' },
+              { icon: CalendarDays, label: 'การจอง', href: '/bookings', gradient: 'from-indigo-500 to-blue-600' },
+              { icon: BarChart3, label: 'ผลการเรียน', href: '/progress', gradient: 'from-emerald-500 to-teal-600' },
+              { icon: GraduationCap, label: 'นักเรียนของฉัน', href: '/my-students', gradient: 'from-amber-500 to-orange-500' },
+            ].map((action) => {
+              const Icon = action.icon;
+              return (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  className="flex flex-col items-center gap-2.5 rounded-2xl border border-violet-100/60 bg-white/60 p-4 text-center transition-all hover:bg-violet-50/60 hover:-translate-y-0.5 hover:shadow-card"
+                >
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${action.gradient} shadow-sm`}>
+                    <Icon className="h-5 w-5 text-white" />
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                    {b.status === 'confirmed' ? 'ยืนยันแล้ว' : 'รอยืนยัน'}
-                  </span>
+                  <span className="text-xs font-bold text-slate-700 leading-tight">{action.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </SectionCard>
+
+        {/* Recent Bookings */}
+        <SectionCard
+          title="การจองล่าสุด"
+          action={
+            <Link href="/bookings" className="text-xs font-bold text-violet-600 hover:underline">
+              ดูทั้งหมด →
+            </Link>
+          }
+        >
+          {bookings.length === 0 ? (
+            <EmptyState
+              icon={<CalendarDays className="h-7 w-7" />}
+              title="ยังไม่มีการจอง"
+              description="ค้นหาครูพิเศษให้ลูกของคุณได้เลย"
+              action={{ label: 'เริ่มค้นหาครู', href: '/explore' }}
+            />
+          ) : (
+            <div className="space-y-3">
+              {bookings.map((b: any) => (
+                <div
+                  key={b.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-violet-100/60 bg-violet-50/40 p-3.5 transition-colors hover:bg-violet-50"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-sm font-bold text-violet-700">
+                      {b.studentName?.charAt(0) ?? 'น'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-slate-900 text-sm">{b.studentName}</p>
+                      <p className="truncate text-xs text-slate-500">{b.courseTitle} • ครู{b.teacherName}</p>
+                    </div>
+                  </div>
+                  <BookingStatusBadge status={b.status} />
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </main>
-    </div>
+        </SectionCard>
+      </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

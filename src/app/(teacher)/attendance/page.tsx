@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Check, ClipboardCheck, X, Clock } from 'lucide-react';
+import { Check, ClipboardCheck, GraduationCap, X, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AttendanceStatusBadge } from '@/components/ui/badge';
+import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
+import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { formatTime } from '@/lib/utils';
 import { getServerDb } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
@@ -28,26 +30,27 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   const bookings = bookingsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <div className="responsive-page-header">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight text-gray-900">เช็คชื่อ</h1>
-          <p className="text-sm text-gray-500">บันทึกการเข้าเรียนของนักเรียน</p>
-        </div>
+    <DashboardLayout
+      title="เช็คชื่อ"
+      navItems={TEACHER_NAV_ITEMS}
+      role="teacher"
+      userName="คุณครู"
+    >
+      <div className="responsive-page-header mb-6">
+        <p className="text-sm text-slate-500">บันทึกการเข้าเรียนของนักเรียน</p>
         <form method="get" className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(0,1fr)_auto]">
           <input type="date" name="date" defaultValue={selectedDate}
-            className="min-h-[44px] rounded-xl border border-blue-200 bg-white/90 px-3 py-2 text-base text-slate-900 sm:text-sm" />
+            className="min-h-[44px] rounded-xl border border-violet-100 bg-white/90 px-3 py-2 text-base text-slate-900 shadow-inner-lg focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100/60 sm:text-sm" />
           <Button type="submit" size="sm" variant="outline" className="w-full sm:w-auto">ดูวันที่</Button>
         </form>
       </div>
 
       {bookings.length === 0 ? (
-        <Card className="py-12 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
-            <ClipboardCheck className="h-7 w-7" />
-          </div>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">ไม่มีเซสชันวันนี้</h3>
-        </Card>
+        <EmptyState
+          icon={<ClipboardCheck className="h-7 w-7" />}
+          title="ไม่มีเซสชันวันนี้"
+          description="เลือกวันที่อื่นเพื่อดูตารางเช็คชื่อ"
+        />
       ) : (
         <div className="space-y-3">
           {bookings.map((booking: any) => (
@@ -56,6 +59,12 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-3">
                     <h3 className="font-semibold text-gray-900">{booking.studentName}</h3>
+                    {booking.studentLevel && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                        <GraduationCap className="h-3 w-3" />
+                        {booking.studentLevel}
+                      </span>
+                    )}
                     <AttendanceStatusBadge status="pending" />
                   </div>
                   <p className="mt-1 text-sm text-gray-500">
@@ -93,9 +102,8 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
           ))}
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

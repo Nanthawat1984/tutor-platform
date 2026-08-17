@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatDate } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
+import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
+import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { BarChart3, GraduationCap } from 'lucide-react';
 
 export default async function ProgressPage() {
@@ -26,32 +28,34 @@ export default async function ProgressPage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">ผลการเรียน</h1>
-        <p className="text-sm text-gray-500">ติดตามความก้าวหน้าของลูกคุณ</p>
-      </div>
-
+    <DashboardLayout
+      title="ผลการเรียน"
+      navItems={PARENT_NAV_ITEMS}
+      role="parent"
+      userName="ผู้ปกครอง"
+    >
       {reports.length === 0 ? (
-        <Card className="py-12 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
-            <BarChart3 className="h-7 w-7" />
-          </div>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">ยังไม่มีรายงานผลการเรียน</h3>
-        </Card>
+        <EmptyState
+          icon={<BarChart3 className="h-7 w-7" />}
+          title="ยังไม่มีรายงานผลการเรียน"
+          description="รายงานจากครูจะแสดงที่นี่หลังแต่ละเซสชันเรียน"
+        />
       ) : (
         Object.entries(byStudent).map(([studentName, studentReports]: [string, any]) => (
-          <div key={studentName}>
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
-              <GraduationCap className="h-5 w-5 text-blue-600" /> {studentName}
+          <div key={studentName} className="mb-8 last:mb-0">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                <GraduationCap className="h-4.5 w-4.5" />
+              </span>
+              {studentName}
             </h2>
             <div className="space-y-3">
               {studentReports.map((r: any) => (
-                <Card key={r.id}>
+                <Card key={r.id} hoverable>
                   <div className="responsive-card-row sm:items-start">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-3">
-                        <span className="font-medium">{r.courseTitle}</span>
+                        <span className="font-semibold text-slate-900">{r.courseTitle}</span>
                         <span className="text-sm text-gray-400">{formatDate(r.sessionDate, 'd MMM yyyy')}</span>
                       </div>
                       {r.topicsCovered && <p className="mt-2 text-sm text-gray-600"><span className="font-medium">เรื่องที่สอน:</span> {r.topicsCovered}</p>}
@@ -60,7 +64,7 @@ export default async function ProgressPage() {
                     </div>
                     {r.score !== null && r.score !== undefined && (
                       <div className="w-full text-left sm:ml-4 sm:w-auto sm:text-center">
-                        <div className={`text-2xl font-bold ${r.score >= 80 ? 'text-green-600' : r.score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{r.score}</div>
+                        <div className={`text-2xl font-bold ${r.score >= 80 ? 'text-emerald-600' : r.score >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{r.score}</div>
                         <div className="text-xs text-gray-400">คะแนน</div>
                       </div>
                     )}
@@ -71,9 +75,8 @@ export default async function ProgressPage() {
           </div>
         ))
       )}
-    </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

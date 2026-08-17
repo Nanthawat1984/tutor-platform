@@ -9,6 +9,13 @@ out
 .env.*.local
 *firebase-adminsdk*.json
 
+# Generated service account / local DB helper scripts (contain real keys)
+.firebase-sa.json
+/*.cjs
+
+# Functions build output
+functions/lib/
+
 # Local agent state
 .agent/
 .omx/
@@ -28,5 +35,3 @@ firestore-debug.log
 .firebase/
 *.tsbuildinfo
 
-# Supabase
-supabase/.temp

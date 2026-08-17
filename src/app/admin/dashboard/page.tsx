@@ -2,10 +2,11 @@ import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency } from '@/lib/utils';
-import { Card } from '@/components/ui/card';
 import { Users, Clock, BookOpen, Star } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { DashboardLayout, StatCard, SectionCard } from '@/components/layout/dashboard';
+import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { VerificationBadge } from '@/components/ui/badge';
 
 export default async function AdminDashboard() {
@@ -21,53 +22,98 @@ export default async function AdminDashboard() {
   const pendingTeachers = teachers.filter((t: any) => !t.isVerified);
   const totalRevenue = paymentsSnap.docs.reduce((sum: number, d: any) => sum + ((d.data() as any).amount || 0), 0);
 
+  const STATS = [
+    {
+      label: 'ครูทั้งหมด',
+      value: teachers.length,
+      icon: <Users className="h-6 w-6" />,
+      iconGradient: 'from-violet-500 to-purple-600',
+    },
+    {
+      label: 'รออนุมัติ',
+      value: pendingTeachers.length,
+      icon: <Clock className="h-6 w-6" />,
+      iconGradient: 'from-amber-500 to-orange-500',
+    },
+    {
+      label: 'การจองทั้งหมด',
+      value: bookingsSnap.size,
+      icon: <BookOpen className="h-6 w-6" />,
+      iconGradient: 'from-emerald-500 to-teal-600',
+    },
+    {
+      label: 'รายได้รวม',
+      value: formatCurrency(totalRevenue),
+      icon: <Star className="h-6 w-6" />,
+      iconGradient: 'from-indigo-500 to-blue-600',
+    },
+  ];
+
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-sm text-gray-500">ภาพรวมระบบ</p>
+    <DashboardLayout
+      title="Admin Dashboard"
+      navItems={ADMIN_NAV_ITEMS}
+      role="admin"
+      userName="แอดมิน"
+    >
+      <p className="mb-6 text-sm text-slate-500">ภาพรวมระบบ</p>
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { href: '/admin/teachers', label: 'จัดการครู', gradient: 'from-violet-500 to-purple-600' },
+          { href: '/admin/parents', label: 'ผู้ปกครอง', gradient: 'from-indigo-500 to-blue-600' },
+          { href: '/admin/students', label: 'นักเรียน', gradient: 'from-emerald-500 to-teal-600' },
+        ].map((action) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className={`group flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br ${action.gradient} px-4 py-3 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-card`}
+          >
+            {action.label}
+          </Link>
+        ))}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="flex items-center gap-4">
-          <div className="rounded-full bg-blue-100 p-3"><Users className="h-5 w-5 text-blue-600" /></div>
-          <div><p className="text-sm text-gray-500">ครูทั้งหมด</p><p className="text-xl font-bold">{teachers.length}</p></div>
-        </Card>
-        <Card className="flex items-center gap-4">
-          <div className="rounded-full bg-yellow-100 p-3"><Clock className="h-5 w-5 text-yellow-600" /></div>
-          <div><p className="text-sm text-gray-500">รออนุมัติ</p><p className="text-xl font-bold text-yellow-600">{pendingTeachers.length}</p></div>
-        </Card>
-        <Card className="flex items-center gap-4">
-          <div className="rounded-full bg-green-100 p-3"><BookOpen className="h-5 w-5 text-green-600" /></div>
-          <div><p className="text-sm text-gray-500">การจองทั้งหมด</p><p className="text-xl font-bold">{bookingsSnap.size}</p></div>
-        </Card>
-        <Card className="flex items-center gap-4">
-          <div className="rounded-full bg-purple-100 p-3"><Star className="h-5 w-5 text-purple-600" /></div>
-          <div><p className="text-sm text-gray-500">รายได้รวม</p><p className="text-xl font-bold">{formatCurrency(totalRevenue)}</p></div>
-        </Card>
+        {STATS.map((stat) => (
+          <StatCard
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            icon={stat.icon}
+            iconGradient={stat.iconGradient}
+          />
+        ))}
       </div>
 
-      <Card>
-        <div className="responsive-page-header mb-4">
-          <h2 className="font-semibold text-gray-900">ครูที่รอการอนุมัติ</h2>
-          <Link href="/admin/teachers" className="w-full sm:w-auto"><Button variant="outline" size="sm" className="w-full sm:w-auto">ดูทั้งหมด</Button></Link>
-        </div>
-        {pendingTeachers.length === 0 ? (
-          <p className="text-sm text-gray-500">ไม่มีครูที่รอการอนุมัติ</p>
-        ) : (
-          <div className="space-y-2">
-            {pendingTeachers.slice(0, 5).map((t: any) => (
-              <div key={t.uid} className="responsive-card-row rounded-xl border border-blue-100 p-3">
-                <div className="min-w-0"><p className="font-medium">{t.displayName}</p><p className="text-sm text-gray-500">{t.email}</p></div>
-                <VerificationBadge level={t.verificationLevel} />
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
+      <div className="mt-6">
+        <SectionCard
+          title="ครูที่รอการอนุมัติ"
+          action={
+            <Link href="/admin/teachers" className="text-xs font-bold text-violet-600 hover:underline">
+              ดูทั้งหมด →
+            </Link>
+          }
+        >
+          {pendingTeachers.length === 0 ? (
+            <p className="text-sm text-slate-500">ไม่มีครูที่รอการอนุมัติ</p>
+          ) : (
+            <div className="space-y-2">
+              {pendingTeachers.slice(0, 5).map((t: any) => (
+                <div key={t.uid} className="responsive-card-row rounded-xl border border-violet-100/60 bg-violet-50/40 p-3.5">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900">{t.displayName}</p>
+                    <p className="text-sm text-gray-500">{t.email}</p>
+                  </div>
+                  <VerificationBadge level={t.verificationLevel} />
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

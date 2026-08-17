@@ -46,6 +46,8 @@ import { COLLECTIONS } from '@/types/firestore';
 // Re-export for convenience
 export { getFirebaseStorage };
 
+type AuthRole = 'teacher' | 'parent';
+
 function createGoogleProvider() {
   const provider = new GoogleAuthProvider();
   provider.addScope('email');
@@ -54,29 +56,54 @@ function createGoogleProvider() {
   return provider;
 }
 
-async function getOrCreateGoogleUserProfile(firebaseUser: FirebaseUser) {
-  const db = getFirebaseDb();
-  const userRef = doc(db, COLLECTIONS.USERS, firebaseUser.uid);
-  const userDoc = await getDoc(userRef);
+function getPendingGoogleRole(): AuthRole {
+  if (typeof window === 'undefined') return 'parent';
+  const role = window.sessionStorage.getItem('pendingGoogleRole');
+  window.sessionStorage.removeItem('pendingGoogleRole');
+  return role === 'teacher' ? 'teacher' : 'parent';
+}
 
-  if (userDoc.exists()) {
-    return { uid: userDoc.id, ...userDoc.data() } as User;
+function setPendingGoogleRole(role: AuthRole) {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem('pendingGoogleRole', role);
+}
+
+async function fetchUserProfile(firebaseUser: FirebaseUser) {
+  const token = await firebaseUser.getIdToken();
+  const response = await fetch('/api/auth/profile', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('profile-read-failed');
+
+  const data = await response.json();
+  return data.user as User | null;
+}
+
+async function ensureUserProfile(firebaseUser: FirebaseUser, role: AuthRole = 'parent') {
+  const token = await firebaseUser.getIdToken();
+  const response = await fetch('/api/auth/profile', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      role,
+      displayName: firebaseUser.displayName || firebaseUser.email || undefined,
+      photoURL: firebaseUser.photoURL || undefined,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('profile-create-failed');
   }
 
-  const newProfile = {
-    uid: firebaseUser.uid,
-    email: firebaseUser.email || '',
-    displayName: firebaseUser.displayName || firebaseUser.email || 'Google User',
-    role: 'parent',
-    isVerified: true,
-    verificationLevel: 'basic',
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    ...(firebaseUser.photoURL ? { photoURL: firebaseUser.photoURL } : {}),
-  } as const;
-
-  await setDoc(userRef, newProfile);
-  return newProfile as unknown as User;
+  const data = await response.json();
+  return data.user as User;
 }
 
 // =============================================
@@ -87,9 +114,9 @@ interface AuthContextType {
   userProfile: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<User | null>;
-  signUp: (email: string, password: string, fullName: string, role: 'teacher' | 'parent') => Promise<void>;
-  signInWithGoogle: () => Promise<User>;
-  signInWithGoogleRedirect: () => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, role: AuthRole) => Promise<void>;
+  signInWithGoogle: (role?: AuthRole) => Promise<User>;
+  signInWithGoogleRedirect: (role?: AuthRole) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -108,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void getRedirectResult(auth).then(async (result) => {
       if (!result?.user || !isMounted) return;
-      const profile = await getOrCreateGoogleUserProfile(result.user);
+      const profile = await ensureUserProfile(result.user, getPendingGoogleRole());
       if (isMounted) setUserProfile(profile);
     }).catch((error) => {
       console.error('Google redirect sign-in error:', error);
@@ -117,21 +144,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
 
-      if (firebaseUser) {
-        // Fetch user profile from Firestore
-        const db = getFirebaseDb();
-        const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, firebaseUser.uid));
-        if (userDoc.exists()) {
-          setUserProfile({ uid: userDoc.id, ...userDoc.data() } as User);
-        } else if (isGoogleProviderUser(firebaseUser.providerData)) {
-          const profile = await getOrCreateGoogleUserProfile(firebaseUser);
+      try {
+        if (firebaseUser) {
+          const profile = isGoogleProviderUser(firebaseUser.providerData)
+            ? await ensureUserProfile(firebaseUser, getPendingGoogleRole())
+            : await fetchUserProfile(firebaseUser);
           setUserProfile(profile);
+        } else {
+          setUserProfile(null);
         }
-      } else {
+      } catch (error) {
+        console.error('Auth profile load error:', error);
         setUserProfile(null);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
     return () => {
@@ -142,65 +169,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     const auth = getFirebaseAuth();
-    const db = getFirebaseDb();
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, cred.user.uid));
-    if (!userDoc.exists()) return null;
-    const profile = { uid: userDoc.id, ...userDoc.data() } as User;
+    const profile = await fetchUserProfile(cred.user);
     setUserProfile(profile);
     return profile;
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, fullName: string, role: 'teacher' | 'parent') => {
+  const signUp = useCallback(async (email: string, password: string, fullName: string, role: AuthRole) => {
     const auth = getFirebaseAuth();
-    const db = getFirebaseDb();
-
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-
-    // Create user document
-    await setDoc(doc(db, COLLECTIONS.USERS, cred.user.uid), {
-      uid: cred.user.uid,
-      email,
-      displayName: fullName,
-      role,
-      isVerified: false,
-      verificationLevel: 'none',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
 
     // Update Firebase Auth profile
     await firebaseUpdateProfile(cred.user, { displayName: fullName });
+    await ensureUserProfile(cred.user, role);
 
     // Send email verification
     await sendEmailVerification(cred.user);
-
-    // Create teacher profile if teacher
-    if (role === 'teacher') {
-      await setDoc(doc(db, COLLECTIONS.TEACHERS, cred.user.uid), {
-        uid: cred.user.uid,
-        experienceYears: 0,
-        teachingStyle: [],
-        rating: 0,
-        totalReviews: 0,
-        totalStudents: 0,
-        isActive: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    }
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (role: AuthRole = 'parent') => {
     const auth = getFirebaseAuth();
+    setPendingGoogleRole(role);
     const result = await signInWithPopup(auth, createGoogleProvider());
-    const profile = await getOrCreateGoogleUserProfile(result.user);
+    const profile = await ensureUserProfile(result.user, role);
     setUserProfile(profile);
     return profile;
   }, []);
 
-  const signInWithGoogleRedirect = useCallback(async () => {
+  const signInWithGoogleRedirect = useCallback(async (role: AuthRole = 'parent') => {
     const auth = getFirebaseAuth();
+    setPendingGoogleRole(role);
     await signInWithRedirect(auth, createGoogleProvider());
   }, []);
 

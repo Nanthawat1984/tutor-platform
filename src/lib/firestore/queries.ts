@@ -1,9 +1,9 @@
-// Firestore query/mutation helpers — ย้ายจาก Supabase data layer
+// Firestore query/mutation helpers
 // ใช้ใน server actions และ API routes (server-side only)
 
 import { getServerDb } from '../firebase/server';
 import { COLLECTIONS } from '../../types/firestore';
-import type { User, TeacherProfile, Course, Booking, Attendance, SessionReport, Review, Notification, Payment, Subject } from '../../types/firestore';
+import type { User, TeacherProfile, Course, Booking, Attendance, SessionReport, Review, Notification, Payment, Subject, Student } from '../../types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 
 const serverTimestamp = () => FieldValue.serverTimestamp();
@@ -78,6 +78,13 @@ export async function getTeacherProfile(uid: string): Promise<TeacherProfile | n
   const snap = await docRef(COLLECTIONS.TEACHERS, uid).get();
   if (!snap.exists) return null;
   return { uid: snap.id, ...snap.data() } as TeacherProfile;
+}
+
+export async function updateTeacherProfile(uid: string, data: Partial<TeacherProfile>) {
+  await docRef(COLLECTIONS.TEACHERS, uid).update({
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function updateTeacherRating(teacherId: string) {
@@ -340,6 +347,38 @@ export async function getReviewsByTeacher(teacherId: string): Promise<Review[]> 
     .get();
 
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Review));
+}
+
+// =============================================
+// STUDENTS
+// =============================================
+export async function getStudentsByParent(parentId: string): Promise<Student[]> {
+  const snap = await db().collection(COLLECTIONS.STUDENTS)
+    .where('parentId', '==', parentId)
+    .orderBy('createdAt', 'asc')
+    .get();
+
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Student));
+}
+
+export async function createStudent(data: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>) {
+  const ref = await db().collection(COLLECTIONS.STUDENTS).add({
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  } as any);
+  return ref.id;
+}
+
+export async function updateStudent(id: string, data: Partial<Student>) {
+  await docRef(COLLECTIONS.STUDENTS, id).update({
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteStudent(id: string) {
+  await docRef(COLLECTIONS.STUDENTS, id).delete();
 }
 
 // =============================================

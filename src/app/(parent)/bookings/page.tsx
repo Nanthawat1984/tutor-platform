@@ -5,6 +5,8 @@ import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
 import { BookingStatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
+import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { CalendarDays, Clock } from 'lucide-react';
@@ -24,25 +26,25 @@ export default async function BookingsPage() {
   const past = bookings.filter((b: any) => b.status === 'completed' || b.status === 'cancelled');
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <DashboardLayout
+      title="การจองเรียน"
+      navItems={PARENT_NAV_ITEMS}
+      role="parent"
+      userName="ผู้ปกครอง"
+    >
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">การจองเรียน</h1>
-        <p className="text-sm text-gray-500">ดูประวัติและสถานะการจองเรียนของลูกคุณ</p>
-      </div>
-
-      <div>
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">กำลังจะมาถึง / รอยืนยัน</h2>
+        <h2 className="mb-4 text-lg font-bold text-slate-900">กำลังจะมาถึง / รอยืนยัน</h2>
         {upcoming.length === 0 ? (
-          <Card className="py-8 text-center">
-            <p className="text-gray-500">ไม่มีการจองที่กำลังจะมาถึง</p>
-            <Link href="/explore" className="mt-3 inline-block">
-              <Button size="sm">ค้นหาครู</Button>
-            </Link>
-          </Card>
+          <EmptyState
+            icon={<CalendarDays className="h-7 w-7" />}
+            title="ไม่มีการจองที่กำลังจะมาถึง"
+            description="ค้นหาครูพิเศษและจองเรียนได้เลย"
+            action={{ label: 'ค้นหาครู', href: '/explore' }}
+          />
         ) : (
           <div className="space-y-3">
             {upcoming.map((b: any) => (
-              <Card key={b.id}>
+              <Card key={b.id} hoverable>
                 <div className="responsive-card-row">
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3">
@@ -58,7 +60,7 @@ export default async function BookingsPage() {
                     </p>
                   </div>
                   <div className="w-full text-left sm:w-auto sm:text-right">
-                    <p className="font-semibold text-blue-600">{formatCurrency(b.totalPrice)}</p>
+                    <p className="font-semibold text-violet-700">{formatCurrency(b.totalPrice)}</p>
                     {b.status === 'pending' && (
                       <form action={async () => {
                         'use server';
@@ -69,7 +71,7 @@ export default async function BookingsPage() {
                           updatedAt: FieldValue.serverTimestamp(),
                         });
                       }}>
-                        <Button type="submit" size="sm" variant="outline" className="mt-2 w-full border-red-300 text-red-600 sm:w-auto">
+                        <Button type="submit" size="sm" variant="outline" className="mt-2 w-full border-rose-300 text-rose-600 sm:w-auto">
                           ยกเลิก
                         </Button>
                       </form>
@@ -83,8 +85,8 @@ export default async function BookingsPage() {
       </div>
 
       {past.length > 0 && (
-        <div>
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">ประวัติ</h2>
+        <div className="mt-8">
+          <h2 className="mb-4 text-lg font-bold text-slate-900">ประวัติ</h2>
           <div className="space-y-2">
             {past.map((b: any) => (
               <Card key={b.id} className="opacity-75">
@@ -109,9 +111,8 @@ export default async function BookingsPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

@@ -1,11 +1,16 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { Input, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DashboardLayout } from '@/components/layout/dashboard';
+import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
+import { StudentPicker } from '@/components/booking/student-picker';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
-import { formatCurrency, formatTime } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
+import { Users } from 'lucide-react';
 
 export default async function NewBookingPage({
   searchParams,
@@ -15,6 +20,7 @@ export default async function NewBookingPage({
   const db = getServerDb();
   if (!db) return redirect('/login');
   const userId = 'temp-user-id';
+  const parentId = 'temp-parent-id';
 
   const params = await searchParams;
   const courseId = params.course_id;
@@ -25,19 +31,52 @@ export default async function NewBookingPage({
 
   if (!courseSnap.exists) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">ไม่พบคอร์สเรียน</p>
-        <a href="/explore" className="text-blue-600 hover:underline">กลับไปค้นหาครู</a>
-      </div>
+      <DashboardLayout title="จองเรียน" navItems={PARENT_NAV_ITEMS} role="parent" userName="ผู้ปกครอง">
+        <div className="text-center py-12">
+          <p className="text-gray-500">ไม่พบคอร์สเรียน</p>
+          <a href="/explore" className="text-violet-600 hover:underline">กลับไปค้นหาครู</a>
+        </div>
+      </DashboardLayout>
     );
   }
 
   const course = { id: courseSnap.id, ...courseSnap.data() } as any;
 
+  const studentsSnap = await db.collection(COLLECTIONS.STUDENTS)
+    .where('parentId', '==', parentId)
+    .orderBy('createdAt', 'asc')
+    .get();
+  const students = studentsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+
   async function createBooking(formData: FormData) {
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+
+    const studentId = formData.get('student_id') as string;
+    const isNewStudent = studentId === '__new__';
+
+    let studentName = formData.get('student_name') as string;
+    let studentLevel = formData.get('student_level') as string || null;
+
+    // เลือกจากรายชื่อที่มีอยู่ → ดึงข้อมูลจากรายการ
+    if (studentId && !isNewStudent) {
+      const studentSnap = await dbRef.collection(COLLECTIONS.STUDENTS).doc(studentId).get();
+      if (studentSnap.exists) {
+        const student = studentSnap.data() as any;
+        studentName = student.name;
+        studentLevel = student.level || null;
+      }
+    } else if (isNewStudent) {
+      // นักเรียนใหม่ → บันทึกลงรายชื่อผู้ปกครองด้วย (เพื่อใช้ครั้งหน้า)
+      await dbRef.collection(COLLECTIONS.STUDENTS).add({
+        parentId,
+        name: studentName,
+        level: studentLevel,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
 
     await dbRef.collection(COLLECTIONS.BOOKINGS).add({
       courseId,
@@ -45,8 +84,9 @@ export default async function NewBookingPage({
       teacherId: course.teacherId,
       teacherName: course.teacherName,
       parentId: userId,
-      studentName: formData.get('student_name') as string,
-      studentLevel: formData.get('student_level') as string || null,
+      studentId: studentId && !isNewStudent ? studentId : null,
+      studentName,
+      studentLevel,
       bookingDate: formData.get('booking_date') as string,
       startTime: formData.get('start_time') as string,
       endTime: formData.get('end_time') as string,
@@ -61,12 +101,10 @@ export default async function NewBookingPage({
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8 lg:px-0">
-      <h1 className="text-2xl font-bold leading-tight text-gray-900">จองเรียน</h1>
-
-      <Card className="mt-6">
+    <DashboardLayout title="จองเรียน" navItems={PARENT_NAV_ITEMS} role="parent" userName="ผู้ปกครอง">
+      <Card className="mb-6">
         <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-xl">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-100 to-purple-100 font-bold text-xl text-violet-700">
             {(course.teacherName?.[0] || 'ค').toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -74,16 +112,22 @@ export default async function NewBookingPage({
             <p className="text-sm text-gray-500">
               ครู{course.teacherName} • {course.subjectName} • ระดับ {course.level}
             </p>
-            <p className="text-sm font-semibold text-blue-600">{formatCurrency(course.pricePerSession)} / เซสชัน</p>
+            <p className="text-sm font-semibold text-violet-700">{formatCurrency(course.pricePerSession)} / เซสชัน</p>
           </div>
         </div>
       </Card>
 
-      <form action={createBooking} className="mt-6 space-y-6">
+      <form action={createBooking} className="space-y-6">
         <Card className="space-y-4">
-          <h3 className="font-semibold text-gray-900">ข้อมูลนักเรียน</h3>
-          <Input label="ชื่อ-นามสกุล นักเรียน" name="student_name" required placeholder="ชื่อลูกคุณ" />
-          <Input label="ระดับชั้น" name="student_level" placeholder="เช่น ป.4, ม.2" />
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900">ข้อมูลนักเรียน</h3>
+            <Link href="/my-students" className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 hover:underline">
+              <Users className="h-3.5 w-3.5" />
+              จัดการรายชื่อลูก
+            </Link>
+          </div>
+
+          <StudentPicker students={students} />
         </Card>
 
         <Card className="space-y-4">
@@ -101,9 +145,8 @@ export default async function NewBookingPage({
           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => history.back()}>ยกเลิก</Button>
         </div>
       </form>
-    </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

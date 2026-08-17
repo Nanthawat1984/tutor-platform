@@ -1,0 +1,172 @@
+import Link from 'next/link';
+import { getServerDb } from '@/lib/firebase/server';
+import { redirect } from 'next/navigation';
+import { Input, Textarea } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { DashboardLayout } from '@/components/layout/dashboard';
+import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
+import { COLLECTIONS } from '@/types/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
+import { GraduationCap, Video, Sparkles } from 'lucide-react';
+import { ProfilePhotoUploader } from '@/components/teacher/profile-photo-uploader';
+
+const TEACHING_STYLE_OPTIONS = [
+  { value: 'fun', label: 'เน้นสนุก', desc: 'เรียนสนุก ไม่เครียด' },
+  { value: 'exam_focused', label: 'เน้นข้อสอบ', desc: 'เน้นแนวข้อสอบ/คะแนน' },
+  { value: 'concept_based', label: 'เน้นความเข้าใจ', desc: 'ปูพื้นฐาน เข้าใจแก่นแท้' },
+];
+
+export default async function EditProfilePage() {
+  const db = getServerDb();
+  if (!db) return redirect('/login');
+  const teacherId = 'temp-teacher-id'; // TODO: from session
+
+  const teacherSnap = await db.collection(COLLECTIONS.TEACHERS).doc(teacherId).get();
+  const teacher = teacherSnap.exists ? { id: teacherSnap.id, ...teacherSnap.data() } as any : null;
+
+  const userSnap = await db.collection(COLLECTIONS.USERS).doc(teacherId).get();
+  const user = userSnap.exists ? { id: userSnap.id, ...userSnap.data() } as any : null;
+
+  const teachingStyles: string[] = teacher?.teachingStyle ?? [];
+
+  async function updateProfileAction(formData: FormData) {
+    'use server';
+    const dbRef = getServerDb();
+    if (!dbRef) return;
+
+    const teachingStyle = formData.getAll('teaching_style').map(String);
+    const experienceYears = parseInt(formData.get('experience_years') as string) || 0;
+
+    await dbRef.collection(COLLECTIONS.TEACHERS).doc(teacherId).set({
+      uid: teacherId,
+      bio: formData.get('bio') as string || null,
+      education: formData.get('education') as string || null,
+      videoIntroURL: formData.get('video_intro_url') as string || null,
+      experienceYears,
+      teachingStyle,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    const displayName = (formData.get('display_name') as string || '').trim();
+    const photoUrl = (formData.get('photo_url') as string || '').trim();
+
+    const userUpdates: Record<string, unknown> = {
+      // photo_url สะท้อนสถานะปัจจุบันเสมอ (อัปโหลดใหม่ = URL, ลบรูป = ว่าง → ลบ photoURL)
+      photoURL: photoUrl || null,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (displayName) userUpdates.displayName = displayName;
+
+    await dbRef.collection(COLLECTIONS.USERS).doc(teacherId).update(userUpdates);
+
+    redirect('/dashboard?profile=updated');
+  }
+
+  return (
+    <DashboardLayout
+      title="แก้ไขโปรไฟล์"
+      navItems={TEACHER_NAV_ITEMS}
+      role="teacher"
+      userName="คุณครู"
+    >
+      <p className="mb-6 text-sm text-slate-500">
+        ข้อมูลนี้จะแสดงบนโปรไฟล์สาธารณะของคุณ ({`/teachers/${teacherId}`})
+      </p>
+
+      <form action={updateProfileAction} className="space-y-6">
+        <div className="form-card p-6 sm:p-8 space-y-5">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+              <GraduationCap className="h-4 w-4" />
+            </span>
+            ข้อมูลทั่วไป
+          </h2>
+
+          <ProfilePhotoUploader userId={teacherId} currentPhotoURL={user?.photoURL} />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="ชื่อ-นามสกุล"
+              name="display_name"
+              defaultValue={user?.displayName || ''}
+              placeholder="ชื่อ นามสกุล"
+            />
+            <Input
+              label="ประสบการณ์สอน (ปี)"
+              name="experience_years"
+              type="number"
+              min="0"
+              max="60"
+              defaultValue={teacher?.experienceYears ?? 0}
+            />
+          </div>
+
+          <Input
+            label="การศึกษา"
+            name="education"
+            defaultValue={teacher?.education || ''}
+            placeholder="เช่น คณะวิศวกรรมศาสตร์ จุฬาฯ"
+          />
+
+          <Textarea
+            label="แนะนำตัวเอง (bio)"
+            name="bio"
+            defaultValue={teacher?.bio || ''}
+            placeholder="เล่าถึงตัวคุณ ประสบการณ์สอน วิชาที่ถนัด ฯลฯ"
+            helperText="จะแสดงบนโปรไฟล์สาธารณะของคุณ"
+          />
+
+          <Input
+            label="ลิงก์วิดีโอแนะนำตัว (YouTube)"
+            name="video_intro_url"
+            type="url"
+            defaultValue={teacher?.videoIntroURL || ''}
+            placeholder="https://youtube.com/..."
+            leftIcon={<Video className="h-4 w-4" />}
+          />
+        </div>
+
+        <div className="form-card p-6 sm:p-8 space-y-4">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            รูปแบบการสอน
+          </h2>
+          <p className="text-sm text-slate-500">เลือกได้มากกว่า 1 แบบ</p>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            {TEACHING_STYLE_OPTIONS.map((style) => (
+              <label
+                key={style.value}
+                className="relative flex cursor-pointer flex-col gap-1 rounded-xl border-2 border-violet-100 bg-white/70 p-4 transition-all has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50 hover:border-violet-300"
+              >
+                <input
+                  type="checkbox"
+                  name="teaching_style"
+                  value={style.value}
+                  defaultChecked={teachingStyles.includes(style.value)}
+                  className="sr-only"
+                />
+                <p className="font-bold text-slate-800">{style.label}</p>
+                <p className="text-xs text-slate-500">{style.desc}</p>
+                <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border-2 border-violet-200 bg-white transition-all [label:has(:checked)_&]:border-violet-500">
+                  <div className="h-2.5 w-2.5 rounded-full bg-violet-500 opacity-0 [label:has(:checked)_&]:opacity-100" />
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="responsive-actions">
+          <Button type="submit" className="w-full sm:w-auto">บันทึกโปรไฟล์</Button>
+          <Link href="/dashboard" className="w-full sm:w-auto">
+            <Button type="button" variant="outline" className="w-full sm:w-auto">ยกเลิก</Button>
+          </Link>
+        </div>
+      </form>
+    </DashboardLayout>
+  );
+}
+
+export const dynamic = 'force-dynamic';

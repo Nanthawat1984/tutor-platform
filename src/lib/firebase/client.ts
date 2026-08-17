@@ -40,7 +40,7 @@ export function getFirebaseAuth() {
 
 export function getFirebaseDb() {
   if (!db) {
-    db = getFirestore(getApp());
+    db = getFirestore(getApp(), 'tutor');
   }
   return db;
 }

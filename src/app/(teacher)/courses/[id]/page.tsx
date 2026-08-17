@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DashboardLayout } from '@/components/layout/dashboard';
+import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency, getInitials } from '@/lib/utils';
 
@@ -25,9 +27,14 @@ export default async function CourseDetailPage({
   const isOwner = false; // TODO: check session
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-0">
+    <DashboardLayout
+      title="รายละเอียดคอร์ส"
+      navItems={TEACHER_NAV_ITEMS}
+      role="teacher"
+      userName="คุณครู"
+    >
       {isOwner && (
-        <div className="responsive-actions">
+        <div className="responsive-actions mb-6">
           <Link href={`/courses/${id}/edit`} className="w-full sm:w-auto">
             <Button variant="outline" className="w-full sm:w-auto">แก้ไขคอร์ส</Button>
           </Link>
@@ -36,7 +43,7 @@ export default async function CourseDetailPage({
 
       <Card>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-2xl">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-100 to-purple-100 font-bold text-2xl text-violet-700">
             {getInitials(course.teacherName || 'ครู')}
           </div>
           <div className="min-w-0 flex-1">
@@ -63,7 +70,7 @@ export default async function CourseDetailPage({
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <div>
                 <p className="text-sm text-gray-500">ราคาต่อเซสชัน</p>
-                <p className="text-xl font-bold text-blue-600">{formatCurrency(course.pricePerSession)}</p>
+                <p className="text-xl font-bold text-violet-700">{formatCurrency(course.pricePerSession)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">ระยะเวลา</p>
@@ -79,14 +86,13 @@ export default async function CourseDetailPage({
       </Card>
 
       {course.description && (
-        <Card>
+        <Card className="mt-6">
           <h2 className="font-semibold text-gray-900">รายละเอียดคอร์ส</h2>
           <p className="mt-2 text-gray-600 whitespace-pre-wrap">{course.description}</p>
         </Card>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

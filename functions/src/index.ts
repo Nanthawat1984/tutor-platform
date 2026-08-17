@@ -6,12 +6,12 @@
 //   npm install
 //   firebase deploy --only functions
 
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 admin.initializeApp();
-const db = admin.firestore();
+const db = admin.firestore('tutor');
 
 // =============================================
 // HELPER: Send LINE notification
@@ -88,7 +88,8 @@ const Templates = {
 // =============================================
 
 // 1. เมื่อ booking status เปลี่ยน → ส่ง notification
-export const onBookingStatusChange = functions.firestore
+// ต้องอยู่ region เดียวกับ Firestore database (asia-southeast1)
+export const onBookingStatusChange = functions.region('asia-southeast1').firestore
   .document('bookings/{bookingId}')
   .onUpdate(async (change, context) => {
     const before = change.before.data();
@@ -154,7 +155,7 @@ export const onBookingStatusChange = functions.firestore
   });
 
 // 2. เมื่อ attendance ถูกบันทึก → แจ้งผู้ปกครอง
-export const onAttendanceCreated = functions.firestore
+export const onAttendanceCreated = functions.region('asia-southeast1').firestore
   .document('attendance/{attendanceId}')
   .onCreate(async (snap, context) => {
     const data = snap.data();
@@ -179,7 +180,7 @@ export const onAttendanceCreated = functions.firestore
   });
 
 // 3. เมื่อ session report ถูกสร้าง → แจ้งผู้ปกครอง
-export const onSessionReportCreated = functions.firestore
+export const onSessionReportCreated = functions.region('asia-southeast1').firestore
   .document('sessionReports/{reportId}')
   .onCreate(async (snap, context) => {
     const data = snap.data();
@@ -197,7 +198,7 @@ export const onSessionReportCreated = functions.firestore
   });
 
 // 4. เมื่อ review ถูกสร้าง → แจ้งครู
-export const onReviewCreated = functions.firestore
+export const onReviewCreated = functions.region('asia-southeast1').firestore
   .document('reviews/{reviewId}')
   .onCreate(async (snap, context) => {
     const data = snap.data();
@@ -208,14 +209,14 @@ export const onReviewCreated = functions.firestore
       type: 'review',
       title: 'ได้รับรีวิวใหม่',
       body: `คุณได้รับรีวิว ${rating} ดาว${comment ? `: "${comment}"` : ''}`,
-      data: { reviewId: context.params.reportId, rating },
+      data: { reviewId: context.params.reviewId, rating },
       isRead: false,
       createdAt: FieldValue.serverTimestamp(),
     });
   });
 
 // 5. เมื่อ payment status เปลี่ยน → อัปเดต booking + แจ้ง
-export const onPaymentStatusChange = functions.firestore
+export const onPaymentStatusChange = functions.region('asia-southeast1').firestore
   .document('payments/{paymentId}')
   .onUpdate(async (change, context) => {
     const before = change.before.data();

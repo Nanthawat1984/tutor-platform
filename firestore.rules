@@ -134,6 +134,18 @@ service cloud.firestore {
     }
 
     // =============================================
+    // STUDENTS (ลูกของผู้ปกครอง)
+    // =============================================
+    match /students/{studentId} {
+      allow read: if isAuth() && (
+        resource.data.parentId == request.auth.uid || isAdmin()
+      );
+      allow create: if isParent() && request.resource.data.parentId == request.auth.uid;
+      allow update: if isParent() && resource.data.parentId == request.auth.uid;
+      allow delete: if isParent() && resource.data.parentId == request.auth.uid;
+    }
+
+    // =============================================
     // REVIEWS
     // =============================================
     match /reviews/{reviewId} {

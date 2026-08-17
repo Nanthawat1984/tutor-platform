@@ -164,6 +164,7 @@ export interface Booking {
   teacherName: string;       // denormalized
   parentId: string;
   parentName: string;        // denormalized
+  studentId?: string;        // อ้างอิง students/{id} (ถ้าจองด้วยรายชื่อที่บันทึก)
   studentName: string;
   studentLevel?: string;
   bookingDate: string;       // "2025-06-15"
@@ -232,6 +233,20 @@ export interface Review {
 }
 
 // =============================================
+// STUDENT (ลูกของแต่ละผู้ปกครอง)
+// =============================================
+export interface Student {
+  id: string;
+  parentId: string;
+  name: string;
+  level?: string;          // 'ป.4', 'ม.2' ...
+  school?: string;
+  notes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// =============================================
 // NOTIFICATION
 // =============================================
 export interface Notification {
@@ -275,6 +290,7 @@ export const COLLECTIONS = {
   BOOKINGS: 'bookings',
   ATTENDANCE: 'attendance',
   SESSION_REPORTS: 'sessionReports',
+  STUDENTS: 'students',
   REVIEWS: 'reviews',
   NOTIFICATIONS: 'notifications',
   PAYMENTS: 'payments',

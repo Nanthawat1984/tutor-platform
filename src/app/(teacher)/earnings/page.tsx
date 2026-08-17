@@ -2,7 +2,9 @@ import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency } from '@/lib/utils';
-import { Card } from '@/components/ui/card';
+import { Wallet, Receipt, PiggyBank } from 'lucide-react';
+import { DashboardLayout, StatCard, SectionCard } from '@/components/layout/dashboard';
+import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 
 export default async function EarningsPage() {
   const db = getServerDb();
@@ -17,21 +19,64 @@ export default async function EarningsPage() {
 
   const payments = paymentsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
   const totalEarnings = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+  const thisMonthEarnings = payments
+    .filter((p: any) => p.paidAt && new Date(p.paidAt.toDate?.() || p.paidAt) >= new Date(firstOfMonth))
+    .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+
+  const STATS = [
+    {
+      label: 'รายได้รวม',
+      value: formatCurrency(totalEarnings),
+      icon: <Wallet className="h-6 w-6" />,
+      iconGradient: 'from-violet-500 to-purple-600',
+    },
+    {
+      label: 'รายได้เดือนนี้',
+      value: formatCurrency(thisMonthEarnings),
+      icon: <Receipt className="h-6 w-6" />,
+      iconGradient: 'from-indigo-500 to-blue-600',
+    },
+    {
+      label: 'รายได้สุทธิ (หลังค่าบริการ 20%)',
+      value: formatCurrency(totalEarnings * 0.8),
+      icon: <PiggyBank className="h-6 w-6" />,
+      iconGradient: 'from-emerald-500 to-teal-600',
+    },
+  ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">รายได้</h1>
-        <p className="text-sm text-gray-500">สรุปรายได้ของคุณ</p>
+    <DashboardLayout
+      title="รายได้"
+      navItems={TEACHER_NAV_ITEMS}
+      role="teacher"
+      userName="คุณครู"
+    >
+      <p className="mb-6 text-sm text-slate-500">สรุปรายได้ของคุณ</p>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {STATS.map((stat) => (
+          <StatCard
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            icon={stat.icon}
+            iconGradient={stat.iconGradient}
+          />
+        ))}
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card><p className="text-sm text-gray-500">รายได้รวม</p><p className="text-xl font-bold">{formatCurrency(totalEarnings)}</p></Card>
-        <Card><p className="text-sm text-gray-500">ค่าบริการ 20%</p><p className="text-xl font-bold">{formatCurrency(totalEarnings * 0.2)}</p></Card>
-        <Card><p className="text-sm text-gray-500">รายได้สุทธิ</p><p className="text-xl font-bold text-green-600">{formatCurrency(totalEarnings * 0.8)}</p></Card>
+
+      <div className="mt-6">
+        <SectionCard title="การจ่ายเงิน">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-500">
+              ค่าบริการแพลตฟอร์มคิด 20% ของรายได้ต่อเซสชัน รายได้สุทธิจะถูกโอนเข้าบัญชีของคุณ
+            </p>
+            <span className="pill-badge-info shrink-0">โอนทุกวันที่ 1 ของเดือน</span>
+          </div>
+        </SectionCard>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
-
 
 export const dynamic = 'force-dynamic';

@@ -8,10 +8,10 @@ interface TableProps {
 
 export function Table({ headers, children, emptyMessage = 'ไม่มีข้อมูล' }: TableProps) {
   return (
-    <div className="scrollbar-hidden -mx-1 overflow-x-auto rounded-2xl border border-blue-100 bg-white/85 shadow-sm sm:mx-0">
+    <div className="scrollbar-hidden -mx-1 overflow-x-auto rounded-2xl border border-violet-100 bg-white/85 shadow-sm sm:mx-0">
       <table className="min-w-[640px] w-full">
         <thead>
-          <tr className="border-b border-blue-100 bg-blue-50/80">
+          <tr className="border-b border-violet-100 bg-violet-50/80">
             {headers.map((header, i) => (
               <th
                 key={i}
@@ -22,7 +22,7 @@ export function Table({ headers, children, emptyMessage = 'ไม่มีข้
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-blue-50 bg-white/70">
+        <tbody className="divide-y divide-violet-50 bg-white/70">
           {children}
         </tbody>
       </table>
@@ -35,7 +35,7 @@ export function TableRow({ children, className, onClick }: { children: React.Rea
     <tr
       className={cn(
         'transition-colors',
-        onClick && 'cursor-pointer hover:bg-blue-50/70',
+        onClick && 'cursor-pointer hover:bg-violet-50/70',
         className
       )}
       onClick={onClick}
