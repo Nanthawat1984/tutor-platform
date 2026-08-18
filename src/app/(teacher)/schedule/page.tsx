@@ -70,7 +70,7 @@ export default async function SchedulePage() {
                 <h3 className="mb-3 font-semibold text-gray-900">{dayName}</h3>
                 <div className="space-y-2">
                   {daySchedules.map((s) => (
-                    <div key={s.id} className="rounded-lg border border-violet-100/70 bg-violet-50/40 p-3">
+                    <div key={s.id} className="rounded-lg border border-pink-100/70 bg-pink-50/40 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <p className="font-medium text-sm">{s.courseTitle}</p>
                       </div>

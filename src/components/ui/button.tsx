@@ -12,17 +12,17 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<string, string> = {
   primary:
-    'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-button ' +
-    'hover:from-violet-700 hover:to-purple-700 hover:shadow-elevated hover:-translate-y-0.5 ' +
-    'active:translate-y-0 focus:ring-violet-500',
+    'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-button ' +
+    'hover:from-pink-600 hover:to-rose-600 hover:shadow-elevated hover:-translate-y-0.5 ' +
+    'active:translate-y-1 focus:ring-pink-400',
   secondary:
-    'bg-violet-100 text-violet-800 ' +
-    'hover:bg-violet-200 hover:-translate-y-0.5 focus:ring-violet-400',
+    'bg-pink-100 text-pink-700 ' +
+    'hover:bg-pink-200 hover:-translate-y-0.5 focus:ring-pink-300',
   outline:
-    'border border-violet-200 bg-white/85 text-violet-700 shadow-card backdrop-blur ' +
-    'hover:border-violet-300 hover:bg-violet-50 hover:-translate-y-0.5 hover:shadow-elevated focus:ring-violet-400',
+    'border-2 border-pink-200 bg-white/85 text-pink-600 shadow-card backdrop-blur ' +
+    'hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 hover:shadow-elevated focus:ring-pink-300',
   ghost:
-    'text-slate-600 hover:bg-violet-50 hover:text-violet-700 focus:ring-violet-400',
+    'text-slate-600 hover:bg-pink-50 hover:text-pink-600 focus:ring-pink-300',
   danger:
     'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-sm ' +
     'hover:from-rose-700 hover:to-red-700 hover:-translate-y-0.5 focus:ring-rose-500',

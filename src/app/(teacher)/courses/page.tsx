@@ -73,14 +73,14 @@ export default async function CoursesPage() {
                 </div>
                 <div className="flex justify-between gap-4">
                   <span>ราคาต่อเซสชัน</span>
-                  <span className="font-semibold text-violet-700">{formatCurrency(course.pricePerSession)}</span>
+                  <span className="font-semibold text-pink-700">{formatCurrency(course.pricePerSession)}</span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span>ระยะเวลา</span>
                   <span>{course.durationMinutes} นาที</span>
                 </div>
               </div>
-              <div className="mt-4 grid gap-2 border-t border-violet-100/60 pt-4 sm:grid-cols-2">
+              <div className="mt-4 grid gap-2 border-t border-pink-100/60 pt-4 sm:grid-cols-2">
                 <Link href={`/courses/${course.id}`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full"><Eye className="h-3.5 w-3.5" /> ดู</Button>
                 </Link>

@@ -20,9 +20,9 @@ const ROLES = [
     emoji: '👨‍👩‍👧',
     title: 'ผู้ปกครอง',
     desc: 'ค้นหาครูให้ลูกหลาน ติดตามผลการเรียน',
-    gradient: 'from-violet-500 to-purple-600',
-    ring: 'peer-checked:ring-violet-500 peer-checked:border-violet-500',
-    bg: 'peer-checked:bg-violet-50',
+    gradient: 'from-pink-500 to-rose-500',
+    ring: 'peer-checked:ring-pink-500 peer-checked:border-pink-500',
+    bg: 'peer-checked:bg-pink-50',
   },
   {
     value: 'teacher',
@@ -30,9 +30,9 @@ const ROLES = [
     emoji: '📚',
     title: 'ครูพิเศษ',
     desc: 'เปิดสอน จัดการตาราง รับรายได้',
-    gradient: 'from-indigo-500 to-blue-600',
-    ring: 'peer-checked:ring-indigo-500 peer-checked:border-indigo-500',
-    bg: 'peer-checked:bg-indigo-50',
+    gradient: 'from-pink-500 to-rose-500',
+    ring: 'peer-checked:ring-pink-500 peer-checked:border-pink-500',
+    bg: 'peer-checked:bg-pink-50',
   },
 ];
 
@@ -124,20 +124,20 @@ function RegisterFields() {
     <div className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
       {/* Background decorations */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-violet-300/15 blur-3xl" />
-        <div className="absolute bottom-0 -left-20 h-72 w-72 rounded-full bg-indigo-300/12 blur-3xl" />
+        <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-pink-200/40 blur-3xl" />
+        <div className="absolute bottom-0 -left-20 h-72 w-72 rounded-full bg-sky-200/40 blur-3xl" />
       </div>
 
       <div className="relative w-full max-w-lg animate-scaleIn">
         {/* Header */}
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-edu-gradient shadow-button">
+            <div className="animate-bounce-soft flex h-12 w-12 items-center justify-center rounded-2xl bg-edu-gradient shadow-button">
               <GraduationCap className="h-6 w-6 text-white" />
             </div>
-            <span className="text-2xl font-extrabold text-violet-700 tracking-tight">TutorFinder</span>
+            <span className="font-display text-2xl font-extrabold text-pink-600 tracking-tight">TutorFinder</span>
           </Link>
-          <h1 className="mt-5 text-2xl font-extrabold text-slate-900">สร้างบัญชีใหม่</h1>
+          <h1 className="mt-5 font-display text-2xl font-extrabold text-slate-900">สร้างบัญชีใหม่ <span className="inline-block animate-wiggle">🎉</span></h1>
           <p className="mt-2 text-sm text-slate-500">เริ่มใช้งานฟรี ไม่มีค่าสมัคร</p>
         </div>
 
@@ -151,7 +151,7 @@ function RegisterFields() {
           {/* Role Selector */}
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-3">
-              <Sparkles className="inline h-4 w-4 text-violet-500 mr-1.5" />
+              <Sparkles className="inline h-4 w-4 text-pink-500 mr-1.5" />
               สมัครในฐานะ
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -160,7 +160,7 @@ function RegisterFields() {
                 return (
                   <label
                     key={role.value}
-                    className="relative flex cursor-pointer flex-col gap-2 overflow-hidden rounded-2xl border-2 border-violet-100 bg-white/70 p-4 text-left transition-all has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50 hover:border-violet-300 hover:bg-violet-50/50"
+                    className="relative flex cursor-pointer flex-col gap-2 overflow-hidden rounded-3xl border-2 border-pink-100 bg-white/80 p-4 text-left transition-all has-[:checked]:border-pink-500 has-[:checked]:bg-pink-50 hover:border-pink-300 hover:bg-pink-50/60"
                   >
                     <input
                       type="radio"
@@ -178,8 +178,8 @@ function RegisterFields() {
                       <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{role.desc}</p>
                     </div>
                     {/* Check indicator */}
-                    <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border-2 border-violet-200 bg-white transition-all has-checked:border-violet-500">
-                      <div className="h-2.5 w-2.5 rounded-full bg-violet-500 opacity-0 [label:has(:checked)_&]:opacity-100" />
+                    <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border-2 border-pink-200 bg-white transition-all has-checked:border-pink-500">
+                      <div className="h-2.5 w-2.5 rounded-full bg-pink-500 opacity-0 [label:has(:checked)_&]:opacity-100" />
                     </div>
                   </label>
                 );
@@ -191,7 +191,7 @@ function RegisterFields() {
             type="button"
             disabled={isPending}
             onClick={handleGoogleRegister}
-            className="relative flex min-h-[48px] w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:-translate-y-0.5 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
+            className="relative flex min-h-[48px] w-full items-center justify-center gap-3 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pendingMethod === 'google' ? (
               <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -206,9 +206,9 @@ function RegisterFields() {
 
           {/* Divider */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-200 to-transparent" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-pink-200 to-transparent" />
             <span className="text-xs font-bold text-slate-400">หรือ</span>
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-200 to-transparent" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-pink-200 to-transparent" />
           </div>
 
           {/* Form Fields */}
@@ -232,16 +232,16 @@ function RegisterFields() {
 
           <p className="text-center text-sm text-slate-600">
             มีบัญชีอยู่แล้ว?{' '}
-            <Link href="/login" className="font-bold text-violet-700 hover:underline">
+            <Link href="/login" className="font-bold text-pink-600 hover:underline">
               เข้าสู่ระบบ
             </Link>
           </p>
 
           <p className="text-center text-xs text-slate-400 leading-relaxed">
             การสมัครถือว่าคุณยอมรับ{' '}
-            <span className="text-violet-600 hover:underline cursor-pointer">ข้อกำหนดการใช้งาน</span>
+            <span className="text-pink-500 hover:underline cursor-pointer">ข้อกำหนดการใช้งาน</span>
             {' '}และ{' '}
-            <span className="text-violet-600 hover:underline cursor-pointer">นโยบายความเป็นส่วนตัว</span>
+            <span className="text-pink-500 hover:underline cursor-pointer">นโยบายความเป็นส่วนตัว</span>
           </p>
         </form>
       </div>

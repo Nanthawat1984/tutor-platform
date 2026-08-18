@@ -72,7 +72,7 @@ export default async function StudentsPage() {
           {students.map((student) => (
             <Card key={student.id} hoverable className="flex flex-col">
               <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-100 to-purple-100 font-bold text-violet-700">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-100 to-rose-100 font-bold text-pink-700">
                   {student.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -91,16 +91,16 @@ export default async function StudentsPage() {
 
               {/* Student profile details */}
               {(student.level || student.school || student.notes) && (
-                <div className="mt-4 space-y-2 border-t border-violet-100/60 pt-4 text-sm">
+                <div className="mt-4 space-y-2 border-t border-pink-100/60 pt-4 text-sm">
                   {student.school && (
                     <p className="flex items-center gap-2 text-slate-600">
-                      <School className="h-4 w-4 shrink-0 text-violet-400" />
+                      <School className="h-4 w-4 shrink-0 text-pink-400" />
                       <span className="truncate">{student.school}</span>
                     </p>
                   )}
                   {student.notes && (
                     <p className="flex items-start gap-2 text-slate-500">
-                      <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" />
+                      <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-pink-400" />
                       <span className="leading-relaxed">{student.notes}</span>
                     </p>
                   )}
@@ -108,7 +108,7 @@ export default async function StudentsPage() {
               )}
 
               {!student.level && !student.school && !student.notes && (
-                <p className="mt-4 flex items-center gap-2 border-t border-violet-100/60 pt-4 text-xs text-slate-400">
+                <p className="mt-4 flex items-center gap-2 border-t border-pink-100/60 pt-4 text-xs text-slate-400">
                   <GraduationCap className="h-3.5 w-3.5" />
                   ไม่มีข้อมูลเพิ่มเติมจากผู้ปกครอง
                 </p>

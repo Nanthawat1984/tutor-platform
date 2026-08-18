@@ -51,7 +51,7 @@ export default async function MyProfilePage() {
       <form action={updateProfileAction} className="max-w-2xl space-y-6">
         <div className="form-card p-6 sm:p-8 space-y-5">
           <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-600">
               <UserRound className="h-4 w-4" />
             </span>
             ข้อมูลส่วนตัว
@@ -79,7 +79,7 @@ export default async function MyProfilePage() {
           {/* Email — อ่านอย่างเดียว (ผูกกับบัญชี) */}
           <div>
             <p className="mb-1.5 text-sm font-semibold text-slate-700">อีเมล</p>
-            <div className="flex min-h-[44px] w-full items-center gap-2.5 rounded-xl border border-violet-100 bg-slate-50/70 px-4 py-2.5 text-sm text-slate-400">
+            <div className="flex min-h-[44px] w-full items-center gap-2.5 rounded-xl border border-pink-100 bg-slate-50/70 px-4 py-2.5 text-sm text-slate-400">
               <Mail className="h-4 w-4" />
               {user?.email || '—'}
             </div>

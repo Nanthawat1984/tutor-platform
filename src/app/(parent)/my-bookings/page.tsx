@@ -30,7 +30,7 @@ export default async function ParentDashboard() {
       label: 'การจองที่กำลังจะมาถึง',
       value: upcomingCount,
       icon: <CalendarCheck className="h-6 w-6" />,
-      iconGradient: 'from-violet-500 to-purple-600',
+      iconGradient: 'from-pink-500 to-rose-600',
     },
     {
       label: 'การจองทั้งหมด',
@@ -96,7 +96,7 @@ export default async function ParentDashboard() {
         <SectionCard title="ดำเนินการด่วน">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { icon: Search, label: 'ค้นหาครู', href: '/explore', gradient: 'from-violet-500 to-purple-600' },
+              { icon: Search, label: 'ค้นหาครู', href: '/explore', gradient: 'from-pink-500 to-rose-600' },
               { icon: CalendarDays, label: 'การจอง', href: '/bookings', gradient: 'from-indigo-500 to-blue-600' },
               { icon: BarChart3, label: 'ผลการเรียน', href: '/progress', gradient: 'from-emerald-500 to-teal-600' },
               { icon: GraduationCap, label: 'นักเรียนของฉัน', href: '/my-students', gradient: 'from-amber-500 to-orange-500' },
@@ -106,7 +106,7 @@ export default async function ParentDashboard() {
                 <Link
                   key={action.href}
                   href={action.href}
-                  className="flex flex-col items-center gap-2.5 rounded-2xl border border-violet-100/60 bg-white/60 p-4 text-center transition-all hover:bg-violet-50/60 hover:-translate-y-0.5 hover:shadow-card"
+                  className="flex flex-col items-center gap-2.5 rounded-2xl border border-pink-100/60 bg-white/60 p-4 text-center transition-all hover:bg-pink-50/60 hover:-translate-y-0.5 hover:shadow-card"
                 >
                   <div className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${action.gradient} shadow-sm`}>
                     <Icon className="h-5 w-5 text-white" />
@@ -122,7 +122,7 @@ export default async function ParentDashboard() {
         <SectionCard
           title="การจองล่าสุด"
           action={
-            <Link href="/bookings" className="text-xs font-bold text-violet-600 hover:underline">
+            <Link href="/bookings" className="text-xs font-bold text-pink-600 hover:underline">
               ดูทั้งหมด →
             </Link>
           }
@@ -139,10 +139,10 @@ export default async function ParentDashboard() {
               {bookings.map((b: any) => (
                 <div
                   key={b.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-violet-100/60 bg-violet-50/40 p-3.5 transition-colors hover:bg-violet-50"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-pink-100/60 bg-pink-50/40 p-3.5 transition-colors hover:bg-pink-50"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-sm font-bold text-violet-700">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-100 text-sm font-bold text-pink-700">
                       {b.studentName?.charAt(0) ?? 'น'}
                     </div>
                     <div className="min-w-0">

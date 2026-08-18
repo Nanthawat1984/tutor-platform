@@ -141,7 +141,7 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
       label: 'ครูทั้งหมด',
       value: teachers.length,
       icon: <Users className="h-6 w-6" />,
-      iconGradient: 'from-violet-500 to-purple-600',
+      iconGradient: 'from-pink-500 to-rose-600',
     },
     {
       label: 'รออนุมัติ',
@@ -182,7 +182,7 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-slate-900">ครูทั้งหมด ({sortedTeachers.length})</h2>
           {hasFilters && (
-            <Link href="/admin/teachers" className="inline-flex items-center gap-1 text-sm font-semibold text-violet-600 hover:underline">
+            <Link href="/admin/teachers" className="inline-flex items-center gap-1 text-sm font-semibold text-pink-600 hover:underline">
               <X className="h-4 w-4" />
               ล้างตัวกรอง
             </Link>
@@ -190,7 +190,7 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
         </div>
 
         {/* ── Filter bar ── */}
-        <form method="GET" action="/admin/teachers" className="mb-5 grid gap-3 rounded-2xl border border-violet-100 bg-white/70 p-4 backdrop-blur sm:grid-cols-2 lg:grid-cols-[1fr_180px_220px_auto]">
+        <form method="GET" action="/admin/teachers" className="mb-5 grid gap-3 rounded-2xl border border-pink-100 bg-white/70 p-4 backdrop-blur sm:grid-cols-2 lg:grid-cols-[1fr_180px_220px_auto]">
           <Input
             name="q"
             defaultValue={q}
@@ -249,7 +249,7 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
                       <TableRow key={teacher.uid}>
                         <TableCell>
                           <div className="flex items-center gap-2.5">
-                            <Link href={`/admin/teachers/${teacher.uid}`} className="font-semibold text-slate-900 hover:text-violet-600 hover:underline">
+                            <Link href={`/admin/teachers/${teacher.uid}`} className="font-semibold text-slate-900 hover:text-pink-600 hover:underline">
                               {teacher.displayName}
                             </Link>
                             <VerificationBadge level={teacher.verificationLevel} />
@@ -315,7 +315,7 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
                     <TableRow key={teacher.uid} className="opacity-75">
                       <TableCell>
                         <div className="flex items-center gap-2.5">
-                          <Link href={`/admin/teachers/${teacher.uid}`} className="font-medium text-slate-900 hover:text-violet-600 hover:underline">
+                          <Link href={`/admin/teachers/${teacher.uid}`} className="font-medium text-slate-900 hover:text-pink-600 hover:underline">
                             {teacher.displayName}
                           </Link>
                           <VerificationBadge level={teacher.verificationLevel} />

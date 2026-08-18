@@ -49,7 +49,7 @@ export function Input({
             'focus:outline-none focus:ring-2 focus:ring-offset-1',
             error
               ? 'border-rose-300 bg-rose-50/30 focus:border-rose-400 focus:ring-rose-100'
-              : 'border-violet-100 focus:border-violet-400 focus:ring-violet-100/60',
+              : 'border-pink-100 focus:border-pink-400 focus:ring-pink-100/60',
             'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
             leftIcon && 'pl-10',
             rightIcon && 'pr-10',
@@ -104,7 +104,7 @@ export function Textarea({ label, error, helperText, id, className, ...props }: 
           'resize-y',
           error
             ? 'border-rose-300 bg-rose-50/30 focus:border-rose-400 focus:ring-rose-100'
-            : 'border-violet-100 focus:border-violet-400 focus:ring-violet-100/60',
+            : 'border-pink-100 focus:border-pink-400 focus:ring-pink-100/60',
           'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
           className
         )}
@@ -152,7 +152,7 @@ export function Select({ label, error, helperText, id, options, className, ...pr
           'focus:outline-none focus:ring-2 focus:ring-offset-1',
           error
             ? 'border-rose-300 focus:border-rose-400 focus:ring-rose-100'
-            : 'border-violet-100 focus:border-violet-400 focus:ring-violet-100/60',
+            : 'border-pink-100 focus:border-pink-400 focus:ring-pink-100/60',
           'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
           className
         )}

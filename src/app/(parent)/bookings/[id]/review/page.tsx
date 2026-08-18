@@ -91,7 +91,7 @@ export default async function ReviewPage({
               id="comment"
               name="comment"
               rows={4}
-              className="mt-1 min-h-[112px] w-full rounded-xl border border-violet-100 bg-white/90 px-4 py-2.5 text-base shadow-inner-lg transition-all focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100/60 sm:text-sm"
+              className="mt-1 min-h-[112px] w-full rounded-xl border border-pink-100 bg-white/90 px-4 py-2.5 text-base shadow-inner-lg transition-all focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-100/60 sm:text-sm"
               placeholder="บอกถึงความประทับใจของคุณ..."
             />
           </div>

@@ -80,7 +80,7 @@ export default async function MyStudentsPage() {
       {/* ── Add Student Form ── */}
       <Card className="mb-6">
         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-600">
             <Plus className="h-4 w-4" />
           </span>
           เพิ่มนักเรียนใหม่
@@ -113,7 +113,7 @@ export default async function MyStudentsPage() {
             <Card key={student.id} className="overflow-hidden">
               <div className="flex flex-col gap-4 md:flex-row md:items-start">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 font-bold text-violet-700">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-pink-100 to-rose-100 font-bold text-pink-700">
                     <GraduationCap className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
@@ -129,11 +129,11 @@ export default async function MyStudentsPage() {
 
                 <div className="flex items-center gap-2 md:ml-auto">
                   <details className="group relative">
-                    <summary className="inline-flex min-h-[40px] cursor-pointer list-none items-center gap-1.5 rounded-xl border border-violet-200 bg-white/70 px-3.5 py-2 text-sm font-bold text-violet-700 transition-colors hover:bg-violet-50">
+                    <summary className="inline-flex min-h-[40px] cursor-pointer list-none items-center gap-1.5 rounded-xl border border-pink-200 bg-white/70 px-3.5 py-2 text-sm font-bold text-pink-700 transition-colors hover:bg-pink-50">
                       <Pencil className="h-4 w-4" />
                       แก้ไข
                     </summary>
-                    <div className="absolute right-0 top-full z-10 mt-2 w-72 rounded-2xl border border-violet-100 bg-white p-4 shadow-elevated">
+                    <div className="absolute right-0 top-full z-10 mt-2 w-72 rounded-2xl border border-pink-100 bg-white p-4 shadow-elevated">
                       <form action={updateStudentAction} className="space-y-3">
                         <input type="hidden" name="id" value={student.id} />
                         <Input name="name" defaultValue={student.name} required placeholder="ชื่อ-นามสกุล" />
@@ -174,7 +174,7 @@ export default async function MyStudentsPage() {
       <div className="mt-8">
         <Link
           href="/explore"
-          className="text-sm font-semibold text-violet-600 hover:underline"
+          className="text-sm font-semibold text-pink-600 hover:underline"
         >
           ← กลับไปค้นหาครู
         </Link>

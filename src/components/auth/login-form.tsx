@@ -119,9 +119,9 @@ function LoginFormFields() {
 
       {/* Divider */}
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-200 to-transparent" />
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-pink-200 to-transparent" />
         <span className="text-xs font-bold text-slate-400">หรือ</span>
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-200 to-transparent" />
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-pink-200 to-transparent" />
       </div>
 
       {/* Email + Password */}
@@ -144,7 +144,7 @@ function LoginFormFields() {
 
       {/* Forgot password */}
       <div className="text-right">
-        <button type="button" className="text-xs font-semibold text-violet-600 hover:underline">
+        <button type="button" className="text-xs font-semibold text-pink-500 hover:underline">
           ลืมรหัสผ่าน?
         </button>
       </div>
@@ -164,7 +164,7 @@ function LoginFormFields() {
       {/* Register link */}
       <p className="text-center text-sm text-slate-600">
         ยังไม่มีบัญชี?{' '}
-        <Link href="/register" className="font-bold text-violet-700 hover:underline">
+        <Link href="/register" className="font-bold text-pink-600 hover:underline">
           สมัครใช้งาน
         </Link>
       </p>

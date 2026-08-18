@@ -76,7 +76,7 @@ export default async function EditProfilePage() {
       <form action={updateProfileAction} className="space-y-6">
         <div className="form-card p-6 sm:p-8 space-y-5">
           <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-600">
               <GraduationCap className="h-4 w-4" />
             </span>
             ข้อมูลทั่วไป
@@ -128,7 +128,7 @@ export default async function EditProfilePage() {
 
         <div className="form-card p-6 sm:p-8 space-y-4">
           <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-600">
               <Sparkles className="h-4 w-4" />
             </span>
             รูปแบบการสอน
@@ -139,7 +139,7 @@ export default async function EditProfilePage() {
             {TEACHING_STYLE_OPTIONS.map((style) => (
               <label
                 key={style.value}
-                className="relative flex cursor-pointer flex-col gap-1 rounded-xl border-2 border-violet-100 bg-white/70 p-4 transition-all has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50 hover:border-violet-300"
+                className="relative flex cursor-pointer flex-col gap-1 rounded-xl border-2 border-pink-100 bg-white/70 p-4 transition-all has-[:checked]:border-pink-500 has-[:checked]:bg-pink-50 hover:border-pink-300"
               >
                 <input
                   type="checkbox"
@@ -150,8 +150,8 @@ export default async function EditProfilePage() {
                 />
                 <p className="font-bold text-slate-800">{style.label}</p>
                 <p className="text-xs text-slate-500">{style.desc}</p>
-                <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border-2 border-violet-200 bg-white transition-all [label:has(:checked)_&]:border-violet-500">
-                  <div className="h-2.5 w-2.5 rounded-full bg-violet-500 opacity-0 [label:has(:checked)_&]:opacity-100" />
+                <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border-2 border-pink-200 bg-white transition-all [label:has(:checked)_&]:border-pink-500">
+                  <div className="h-2.5 w-2.5 rounded-full bg-pink-500 opacity-0 [label:has(:checked)_&]:opacity-100" />
                 </div>
               </label>
             ))}

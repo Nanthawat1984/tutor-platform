@@ -43,7 +43,7 @@ export default async function CourseDetailPage({
 
       <Card>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-100 to-purple-100 font-bold text-2xl text-violet-700">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-100 to-rose-100 font-bold text-2xl text-pink-700">
             {getInitials(course.teacherName || 'ครู')}
           </div>
           <div className="min-w-0 flex-1">
@@ -70,7 +70,7 @@ export default async function CourseDetailPage({
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <div>
                 <p className="text-sm text-gray-500">ราคาต่อเซสชัน</p>
-                <p className="text-xl font-bold text-violet-700">{formatCurrency(course.pricePerSession)}</p>
+                <p className="text-xl font-bold text-pink-700">{formatCurrency(course.pricePerSession)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">ระยะเวลา</p>

@@ -27,7 +27,7 @@ export default async function AdminDashboard() {
       label: 'ครูทั้งหมด',
       value: teachers.length,
       icon: <Users className="h-6 w-6" />,
-      iconGradient: 'from-violet-500 to-purple-600',
+      iconGradient: 'from-pink-500 to-rose-600',
     },
     {
       label: 'รออนุมัติ',
@@ -60,7 +60,7 @@ export default async function AdminDashboard() {
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { href: '/admin/teachers', label: 'จัดการครู', gradient: 'from-violet-500 to-purple-600' },
+          { href: '/admin/teachers', label: 'จัดการครู', gradient: 'from-pink-500 to-rose-600' },
           { href: '/admin/parents', label: 'ผู้ปกครอง', gradient: 'from-indigo-500 to-blue-600' },
           { href: '/admin/students', label: 'นักเรียน', gradient: 'from-emerald-500 to-teal-600' },
         ].map((action) => (
@@ -90,7 +90,7 @@ export default async function AdminDashboard() {
         <SectionCard
           title="ครูที่รอการอนุมัติ"
           action={
-            <Link href="/admin/teachers" className="text-xs font-bold text-violet-600 hover:underline">
+            <Link href="/admin/teachers" className="text-xs font-bold text-pink-600 hover:underline">
               ดูทั้งหมด →
             </Link>
           }
@@ -100,7 +100,7 @@ export default async function AdminDashboard() {
           ) : (
             <div className="space-y-2">
               {pendingTeachers.slice(0, 5).map((t: any) => (
-                <div key={t.uid} className="responsive-card-row rounded-xl border border-violet-100/60 bg-violet-50/40 p-3.5">
+                <div key={t.uid} className="responsive-card-row rounded-xl border border-pink-100/60 bg-pink-50/40 p-3.5">
                   <div className="min-w-0">
                     <p className="font-semibold text-slate-900">{t.displayName}</p>
                     <p className="text-sm text-gray-500">{t.email}</p>

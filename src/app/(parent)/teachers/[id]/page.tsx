@@ -46,7 +46,7 @@ export default async function TeacherProfilePage({
       <DashboardLayout title="โปรไฟล์ครู" navItems={PARENT_NAV_ITEMS} role="parent" userName="ผู้ปกครอง">
         <div className="py-16 text-center">
           <p className="text-slate-500">ไม่พบโปรไฟล์ครูนี้</p>
-          <Link href="/explore" className="mt-2 inline-block text-sm font-semibold text-violet-600 hover:underline">
+          <Link href="/explore" className="mt-2 inline-block text-sm font-semibold text-pink-600 hover:underline">
             กลับไปค้นหาครู
           </Link>
         </div>
@@ -102,7 +102,7 @@ export default async function TeacherProfilePage({
     >
       {/* ── Header Card ── */}
       <Card className="mb-6 overflow-hidden">
-        <div className="h-24 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 sm:h-28" />
+        <div className="h-24 bg-gradient-to-r from-pink-600 via-rose-600 to-indigo-600 sm:h-28" />
         <div className="px-5 pb-5 sm:px-7 sm:pb-7">
           <div className="-mt-10 flex flex-col gap-4 sm:-mt-12 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-end gap-4">
@@ -114,7 +114,7 @@ export default async function TeacherProfilePage({
                   className="h-20 w-20 shrink-0 rounded-2xl border-4 border-white bg-white object-cover shadow-elevated sm:h-24 sm:w-24"
                 />
               ) : (
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-gradient-to-br from-violet-100 to-purple-100 text-2xl font-extrabold text-violet-700 shadow-elevated sm:h-24 sm:w-24">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-gradient-to-br from-pink-100 to-rose-100 text-2xl font-extrabold text-pink-700 shadow-elevated sm:h-24 sm:w-24">
                   {getInitials(displayName)}
                 </div>
               )}
@@ -154,8 +154,8 @@ export default async function TeacherProfilePage({
             ].map((s) => {
               const Icon = s.icon;
               return (
-                <div key={s.label} className="rounded-xl border border-violet-100/70 bg-violet-50/40 p-3 text-center">
-                  <Icon className="mx-auto h-4 w-4 text-violet-500" />
+                <div key={s.label} className="rounded-xl border border-pink-100/70 bg-pink-50/40 p-3 text-center">
+                  <Icon className="mx-auto h-4 w-4 text-pink-500" />
                   <p className="mt-1.5 text-lg font-extrabold text-slate-900">{s.value}</p>
                   <p className="text-[11px] font-semibold text-slate-500">{s.label}</p>
                 </div>
@@ -170,7 +170,7 @@ export default async function TeacherProfilePage({
         {/* About */}
         <Card>
           <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-600">
               <BookOpen className="h-4 w-4" />
             </span>
             เกี่ยวกับครู
@@ -182,7 +182,7 @@ export default async function TeacherProfilePage({
 
           {teacher?.education && (
             <div className="mt-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-violet-400">การศึกษา</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-pink-400">การศึกษา</p>
               <p className="mt-1 text-sm font-medium text-slate-700">{teacher.education}</p>
             </div>
           )}
@@ -192,7 +192,7 @@ export default async function TeacherProfilePage({
               href={teacher.videoIntroURL}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-5 inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-bold text-violet-700 transition-colors hover:bg-violet-100"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-pink-50 px-4 py-2.5 text-sm font-bold text-pink-700 transition-colors hover:bg-pink-100"
             >
               <Video className="h-4 w-4" />
               ดูวิดีโอแนะนำตัว
@@ -201,7 +201,7 @@ export default async function TeacherProfilePage({
 
           {teacher?.teachingStyle && teacher.teachingStyle.length > 0 && (
             <div className="mt-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-violet-400">รูปแบบการสอน</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-pink-400">รูปแบบการสอน</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {teacher.teachingStyle.map((style: string) => (
                   <Badge key={style} variant="primary">
@@ -217,7 +217,7 @@ export default async function TeacherProfilePage({
         <Card>
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-600">
                 <Clock className="h-4 w-4" />
               </span>
               คอร์สเรียน ({courses.length})
@@ -231,7 +231,7 @@ export default async function TeacherProfilePage({
               {courses.map((course: any) => (
                 <div
                   key={course.id}
-                  className="rounded-xl border border-violet-100/70 bg-white/60 p-4 transition-all hover:bg-violet-50/50 hover:shadow-card"
+                  className="rounded-xl border border-pink-100/70 bg-white/60 p-4 transition-all hover:bg-pink-50/50 hover:shadow-card"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -242,13 +242,13 @@ export default async function TeacherProfilePage({
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="font-extrabold text-violet-700">{formatCurrency(course.pricePerSession)}</p>
+                      <p className="font-extrabold text-pink-700">{formatCurrency(course.pricePerSession)}</p>
                       <p className="text-[11px] text-slate-400">/เซสชัน • {course.durationMinutes} นาที</p>
                     </div>
                   </div>
                   <Link
                     href={`/bookings/new?course_id=${course.id}`}
-                    className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-violet-600 hover:text-violet-800 hover:underline"
+                    className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-pink-600 hover:text-pink-800 hover:underline"
                   >
                     จองคอร์สนี้ →
                   </Link>
@@ -262,21 +262,21 @@ export default async function TeacherProfilePage({
       {/* ── Reviews ── */}
       <Card className="mt-6">
         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-600">
             <MessageSquare className="h-4 w-4" />
           </span>
           รีวิวจากผู้ปกครอง ({totalReviews})
         </h2>
 
         {reviews.length === 0 ? (
-          <div className="mt-6 rounded-xl border-2 border-dashed border-violet-200/60 bg-violet-50/30 px-6 py-10 text-center">
+          <div className="mt-6 rounded-xl border-2 border-dashed border-pink-200/60 bg-pink-50/30 px-6 py-10 text-center">
             <p className="text-sm font-semibold text-slate-600">ยังไม่มีรีวิว</p>
             <p className="mt-1 text-xs text-slate-400">รีวิวจะแสดงหลังผู้ปกครองเรียนจบและให้คะแนน</p>
           </div>
         ) : (
           <div className="mt-6 grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
             {/* Summary */}
-            <div className="text-center lg:border-r lg:border-violet-100/60 lg:pr-6">
+            <div className="text-center lg:border-r lg:border-pink-100/60 lg:pr-6">
               <p className="text-5xl font-extrabold text-slate-900">{rating.toFixed(1)}</p>
               <RatingStars rating={rating} size="lg" className="mt-2 justify-center" />
               <p className="mt-1 text-xs text-slate-500">{totalReviews} รีวิว</p>
@@ -300,10 +300,10 @@ export default async function TeacherProfilePage({
             {/* List — show 20 most recent, but summary counts all */}
             <div className="space-y-4">
               {reviews.slice(0, 20).map((review: any) => (
-                <div key={review.id} className="rounded-xl border border-violet-100/60 bg-white/60 p-4">
+                <div key={review.id} className="rounded-xl border border-pink-100/60 bg-white/60 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pink-100 text-xs font-bold text-pink-700">
                         {getInitials(review.parentName || 'ผู้ปกครอง')}
                       </div>
                       <div className="min-w-0">

@@ -28,7 +28,7 @@ export default async function EarningsPage() {
       label: 'รายได้รวม',
       value: formatCurrency(totalEarnings),
       icon: <Wallet className="h-6 w-6" />,
-      iconGradient: 'from-violet-500 to-purple-600',
+      iconGradient: 'from-pink-500 to-rose-600',
     },
     {
       label: 'รายได้เดือนนี้',

@@ -40,7 +40,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
         <p className="text-sm text-slate-500">บันทึกการเข้าเรียนของนักเรียน</p>
         <form method="get" className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(0,1fr)_auto]">
           <input type="date" name="date" defaultValue={selectedDate}
-            className="min-h-[44px] rounded-xl border border-violet-100 bg-white/90 px-3 py-2 text-base text-slate-900 shadow-inner-lg focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100/60 sm:text-sm" />
+            className="min-h-[44px] rounded-xl border border-pink-100 bg-white/90 px-3 py-2 text-base text-slate-900 shadow-inner-lg focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-100/60 sm:text-sm" />
           <Button type="submit" size="sm" variant="outline" className="w-full sm:w-auto">ดูวันที่</Button>
         </form>
       </div>
@@ -60,7 +60,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                   <div className="flex flex-wrap items-center gap-3">
                     <h3 className="font-semibold text-gray-900">{booking.studentName}</h3>
                     {booking.studentLevel && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-700">
                         <GraduationCap className="h-3 w-3" />
                         {booking.studentLevel}
                       </span>

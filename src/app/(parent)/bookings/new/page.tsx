@@ -34,7 +34,7 @@ export default async function NewBookingPage({
       <DashboardLayout title="จองเรียน" navItems={PARENT_NAV_ITEMS} role="parent" userName="ผู้ปกครอง">
         <div className="text-center py-12">
           <p className="text-gray-500">ไม่พบคอร์สเรียน</p>
-          <a href="/explore" className="text-violet-600 hover:underline">กลับไปค้นหาครู</a>
+          <a href="/explore" className="text-pink-600 hover:underline">กลับไปค้นหาครู</a>
         </div>
       </DashboardLayout>
     );
@@ -104,7 +104,7 @@ export default async function NewBookingPage({
     <DashboardLayout title="จองเรียน" navItems={PARENT_NAV_ITEMS} role="parent" userName="ผู้ปกครอง">
       <Card className="mb-6">
         <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-100 to-purple-100 font-bold text-xl text-violet-700">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-100 to-rose-100 font-bold text-xl text-pink-700">
             {(course.teacherName?.[0] || 'ค').toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -112,7 +112,7 @@ export default async function NewBookingPage({
             <p className="text-sm text-gray-500">
               ครู{course.teacherName} • {course.subjectName} • ระดับ {course.level}
             </p>
-            <p className="text-sm font-semibold text-violet-700">{formatCurrency(course.pricePerSession)} / เซสชัน</p>
+            <p className="text-sm font-semibold text-pink-700">{formatCurrency(course.pricePerSession)} / เซสชัน</p>
           </div>
         </div>
       </Card>
@@ -121,7 +121,7 @@ export default async function NewBookingPage({
         <Card className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">ข้อมูลนักเรียน</h3>
-            <Link href="/my-students" className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 hover:underline">
+            <Link href="/my-students" className="inline-flex items-center gap-1 text-xs font-bold text-pink-600 hover:underline">
               <Users className="h-3.5 w-3.5" />
               จัดการรายชื่อลูก
             </Link>

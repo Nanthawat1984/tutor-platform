@@ -60,7 +60,7 @@ export default async function BookingsPage() {
                     </p>
                   </div>
                   <div className="w-full text-left sm:w-auto sm:text-right">
-                    <p className="font-semibold text-violet-700">{formatCurrency(b.totalPrice)}</p>
+                    <p className="font-semibold text-pink-700">{formatCurrency(b.totalPrice)}</p>
                     {b.status === 'pending' && (
                       <form action={async () => {
                         'use server';

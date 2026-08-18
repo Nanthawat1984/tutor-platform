@@ -36,21 +36,21 @@ interface DashboardLayoutProps {
 const ROLE_CONFIG = {
   teacher: {
     label: 'ครูพิเศษ',
-    gradient: 'from-violet-600 to-purple-700',
+    gradient: 'from-violet-500 to-purple-500',
     color: 'text-violet-700',
     bg: 'bg-violet-100',
   },
   parent: {
     label: 'ผู้ปกครอง',
-    gradient: 'from-indigo-600 to-blue-700',
-    color: 'text-indigo-700',
-    bg: 'bg-indigo-100',
+    gradient: 'from-pink-500 to-rose-500',
+    color: 'text-pink-700',
+    bg: 'bg-pink-100',
   },
   admin: {
     label: 'แอดมิน',
-    gradient: 'from-slate-600 to-slate-800',
-    color: 'text-slate-700',
-    bg: 'bg-slate-100',
+    gradient: 'from-amber-500 to-orange-500',
+    color: 'text-amber-700',
+    bg: 'bg-amber-100',
   },
 };
 
@@ -68,12 +68,12 @@ export function DashboardLayout({
   const SidebarContent = () => (
     <>
       {/* Logo */}
-      <div className="flex h-16 shrink-0 items-center gap-3 border-b border-violet-100/60 px-5">
+      <div className="flex h-16 shrink-0 items-center gap-3 border-b-2 border-pink-100/80 px-5">
         <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${config.gradient} shadow-button`}>
           <GraduationCap className="h-5 w-5 text-white" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-base font-extrabold text-violet-700 tracking-tight">TutorFinder</p>
+          <p className="truncate text-base font-extrabold text-pink-600 tracking-tight">TutorFinder</p>
           <span className={`rounded-full ${config.bg} ${config.color} px-2 py-0.5 text-[10px] font-bold`}>
             {config.label}
           </span>
@@ -82,7 +82,7 @@ export function DashboardLayout({
 
       {/* Nav Items */}
       <nav className="flex-1 overflow-y-auto px-2 py-4">
-        <p className="mb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-violet-400">เมนูหลัก</p>
+        <p className="mb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-pink-400">เมนูหลัก</p>
         <ul className="space-y-0.5">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -100,14 +100,14 @@ export function DashboardLayout({
                     <span className={cn(
                       'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors',
                       isActive
-                        ? 'bg-violet-600 text-white shadow-sm'
-                        : 'bg-violet-50 text-violet-500 group-hover:bg-violet-100'
+                        ? 'bg-pink-500 text-white shadow-sm'
+                        : 'bg-pink-50 text-pink-500 group-hover:bg-pink-100'
                     )}>
                       {item.icon}
                     </span>
                   )}
                   <span className="flex-1 truncate">{item.label}</span>
-                  {isActive && <ChevronRight className="h-4 w-4 shrink-0 text-violet-500" />}
+                  {isActive && <ChevronRight className="h-4 w-4 shrink-0 text-pink-500" />}
                 </Link>
               </li>
             );
@@ -116,9 +116,9 @@ export function DashboardLayout({
       </nav>
 
       {/* User & Logout */}
-      <div className="shrink-0 border-t border-violet-100/60 p-4">
+      <div className="shrink-0 border-t-2 border-pink-100/80 p-4">
         {userName && (
-          <div className="mb-3 flex items-center gap-3 rounded-xl bg-violet-50/60 px-3 py-2.5">
+          <div className="mb-3 flex items-center gap-3 rounded-2xl bg-pink-50/70 px-3 py-2.5">
             <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${config.gradient} text-sm font-bold text-white shadow-sm`}>
               {userName.charAt(0).toUpperCase()}
             </div>
@@ -171,7 +171,7 @@ export function DashboardLayout({
           <header className="dashboard-header">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="mr-3 flex h-9 w-9 items-center justify-center rounded-xl hover:bg-violet-50 lg:hidden"
+              className="mr-3 flex h-9 w-9 items-center justify-center rounded-xl hover:bg-pink-50 lg:hidden"
             >
               <Menu className="h-5 w-5 text-slate-600" />
             </button>
@@ -213,7 +213,7 @@ export function StatCard({
   label,
   value,
   icon,
-  iconGradient = 'from-violet-500 to-purple-600',
+  iconGradient = 'from-pink-500 to-rose-500',
   subtext,
   trend,
 }: StatCardProps) {
@@ -258,9 +258,9 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-violet-200/60 bg-violet-50/30 px-6 py-14 text-center">
+    <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-pink-200/70 bg-pink-50/40 px-6 py-14 text-center">
       {icon && (
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-100 text-violet-500 shadow-sm animate-float">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-pink-100 text-pink-500 shadow-sm animate-float">
           {icon}
         </div>
       )}
@@ -305,7 +305,7 @@ export function SectionCard({
 }) {
   return (
     <div className="glass-card overflow-hidden">
-      <div className="flex items-center justify-between border-b border-violet-100/60 px-5 py-4 sm:px-6">
+      <div className="flex items-center justify-between border-b-2 border-pink-100/80 px-5 py-4 sm:px-6">
         <h2 className="text-base font-bold text-slate-900">{title}</h2>
         {action}
       </div>

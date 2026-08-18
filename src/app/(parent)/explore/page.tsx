@@ -89,7 +89,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               <Card key={course.id} className="flex flex-col hoverable">
                 {/* Teacher header — links to profile */}
                 <Link href={`/teachers/${course.teacherId}`} className="group flex items-start gap-3">
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-violet-100 to-purple-100">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-pink-100 to-rose-100">
                     {photoURL ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -98,17 +98,17 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center font-bold text-violet-700">
+                      <div className="flex h-full w-full items-center justify-center font-bold text-pink-700">
                         {getInitials(course.teacherName || 'ครู')}
                       </div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <h3 className="truncate font-semibold text-gray-900 group-hover:text-violet-700">
+                      <h3 className="truncate font-semibold text-gray-900 group-hover:text-pink-700">
                         ครู{course.teacherName}
                       </h3>
-                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-violet-400 opacity-0 transition-opacity group-hover:opacity-100" />
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-pink-400 opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
                     <RatingStars rating={rating} showValue reviewCount={totalReviews} size="sm" className="mt-0.5" />
                     {profile?.experienceYears != null && (
@@ -131,8 +131,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-col gap-3 border-t border-violet-100/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-lg font-bold text-violet-700">{formatCurrency(course.pricePerSession)}<span className="text-xs font-normal text-gray-400"> /เซสชัน</span></span>
+                <div className="mt-4 flex flex-col gap-3 border-t border-pink-100/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-lg font-bold text-pink-700">{formatCurrency(course.pricePerSession)}<span className="text-xs font-normal text-gray-400"> /เซสชัน</span></span>
                   <div className="flex w-full gap-2 sm:w-auto">
                     <Link href={`/teachers/${course.teacherId}`} className="w-full sm:w-auto">
                       <Button variant="outline" size="sm" className="w-full sm:w-auto">โปรไฟล์</Button>

@@ -124,7 +124,7 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
       label: 'ผู้ปกครองทั้งหมด',
       value: parents.length,
       icon: <Users className="h-6 w-6" />,
-      iconGradient: 'from-violet-500 to-purple-600',
+      iconGradient: 'from-pink-500 to-rose-600',
     },
     {
       label: 'นักเรียนทั้งหมด',
@@ -165,7 +165,7 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-slate-900">ผู้ปกครองทั้งหมด ({filteredParents.length})</h2>
           {hasFilters && (
-            <Link href="/admin/parents" className="inline-flex items-center gap-1 text-sm font-semibold text-violet-600 hover:underline">
+            <Link href="/admin/parents" className="inline-flex items-center gap-1 text-sm font-semibold text-pink-600 hover:underline">
               <X className="h-4 w-4" />
               ล้างตัวกรอง
             </Link>
@@ -173,7 +173,7 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
         </div>
 
         {/* ── Filter bar ── */}
-        <form method="GET" action="/admin/parents" className="mb-5 grid gap-3 rounded-2xl border border-violet-100 bg-white/70 p-4 backdrop-blur sm:grid-cols-2 lg:grid-cols-[1fr_160px_160px_180px_auto]">
+        <form method="GET" action="/admin/parents" className="mb-5 grid gap-3 rounded-2xl border border-pink-100 bg-white/70 p-4 backdrop-blur sm:grid-cols-2 lg:grid-cols-[1fr_160px_160px_180px_auto]">
           <Input
             name="q"
             defaultValue={q}
@@ -233,7 +233,7 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
                 <TableRow key={parent.uid}>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-xs font-bold text-white">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-rose-600 text-xs font-bold text-white">
                         {parent.displayName?.charAt(0) ?? 'ผ'}
                       </div>
                       <span className="font-semibold text-slate-900">{parent.displayName || 'ไม่ระบุชื่อ'}</span>
@@ -242,7 +242,7 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
                   <TableCell className="text-slate-500">{parent.email}</TableCell>
                   <TableCell className="text-slate-500">{parent.phone || '—'}</TableCell>
                   <TableCell>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-100">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-pink-50 px-2.5 py-0.5 text-xs font-semibold text-pink-700 ring-1 ring-pink-100">
                       <GraduationCap className="h-3 w-3" />
                       {studentCount}
                     </span>

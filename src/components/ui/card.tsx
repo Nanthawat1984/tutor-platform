@@ -12,13 +12,13 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const variantStyles: Record<CardVariant, string> = {
   default:
-    'bg-white/85 backdrop-blur border border-violet-100/70 shadow-card',
+    'bg-white/85 backdrop-blur border-2 border-pink-100/80 shadow-card',
   gradient:
-    'bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-200/60 shadow-card',
+    'bg-gradient-to-br from-pink-50 to-rose-50 border-2 border-pink-200/70 shadow-card',
   glass:
-    'bg-white/60 backdrop-blur-xl border border-white/60 shadow-elevated',
+    'bg-white/65 backdrop-blur-xl border-2 border-white/80 shadow-elevated',
   bordered:
-    'bg-white border-2 border-violet-200 shadow-sm',
+    'bg-white border-2 border-pink-200 shadow-sm',
 };
 
 const paddingStyles = {
@@ -39,7 +39,7 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-2xl transition-all duration-250',
+        'rounded-3xl transition-all duration-250',
         variantStyles[variant],
         paddingStyles[padding],
         hoverable && 'cursor-pointer hover:-translate-y-1 hover:shadow-elevated',
@@ -102,7 +102,7 @@ export function CardFooter({
   className?: string;
 }) {
   return (
-    <div className={cn('mt-5 flex items-center gap-3 border-t border-violet-100/60 pt-5', className)}>
+    <div className={cn('mt-5 flex items-center gap-3 border-t-2 border-pink-100/80 pt-5', className)}>
       {children}
     </div>
   );
@@ -118,7 +118,7 @@ export function CardBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700',
+        'inline-flex items-center rounded-full bg-pink-100 px-2.5 py-0.5 text-xs font-bold text-pink-600',
         className
       )}
     >

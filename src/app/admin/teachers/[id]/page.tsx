@@ -75,7 +75,7 @@ export default async function AdminTeacherDetailPage({ params }: TeacherDetailPr
       label: 'คอร์สทั้งหมด',
       value: courses.length,
       icon: <BookOpen className="h-6 w-6" />,
-      iconGradient: 'from-violet-500 to-purple-600',
+      iconGradient: 'from-pink-500 to-rose-600',
       subtext: `เปิดสอน ${activeCourses} คอร์ส`,
     },
     {
@@ -112,14 +112,14 @@ export default async function AdminTeacherDetailPage({ params }: TeacherDetailPr
     >
       <Link
         href="/admin/teachers"
-        className="mb-5 inline-flex items-center gap-1.5 text-sm font-semibold text-violet-600 hover:underline"
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-semibold text-pink-600 hover:underline"
       >
         <ArrowLeft className="h-4 w-4" />
         กลับไปจัดการครู
       </Link>
 
       {/* ── Teacher Header ── */}
-      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-violet-100 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-pink-100 bg-white/80 p-5 shadow-sm backdrop-blur">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-edu-gradient text-xl font-extrabold text-white shadow-button">
           {teacher.photoURL ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -213,7 +213,7 @@ export default async function AdminTeacherDetailPage({ params }: TeacherDetailPr
                 return (
                   <div
                     key={payment.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-100/60 bg-violet-50/40 p-3.5"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-pink-100/60 bg-pink-50/40 p-3.5"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-slate-900">{booking?.courseTitle ?? '—'}</p>

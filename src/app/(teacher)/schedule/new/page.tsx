@@ -75,7 +75,7 @@ export default function NewSchedulePage() {
             <Input label="วันที่สิ้นสุด (ไม่ระบุ = ไม่มีกำหนด)" name="end_date" type="date" />
           </div>
           <label className="flex min-h-[44px] items-center gap-3 text-sm text-slate-700">
-            <input type="checkbox" name="is_recurring" value="true" defaultChecked className="h-4 w-4 rounded accent-violet-600" />
+            <input type="checkbox" name="is_recurring" value="true" defaultChecked className="h-4 w-4 rounded accent-pink-600" />
             เป็นตารางซ้ำทุกสัปดาห์
           </label>
         </div>

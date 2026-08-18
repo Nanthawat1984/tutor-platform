@@ -12,23 +12,23 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const variantStyles: Record<BadgeVariant, string> = {
   default:  'bg-slate-100 text-slate-700 ring-1 ring-slate-200/50',
-  primary:  'bg-violet-100 text-violet-700 ring-1 ring-violet-200',
+  primary:  'bg-pink-100 text-pink-600 ring-1 ring-pink-200',
   success:  'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200',
   warning:  'bg-amber-100 text-amber-700 ring-1 ring-amber-200',
   danger:   'bg-rose-100 text-rose-700 ring-1 ring-rose-200',
   info:     'bg-sky-100 text-sky-700 ring-1 ring-sky-200',
-  outline:  'border border-violet-200 bg-white/70 text-violet-700',
+  outline:  'border-2 border-pink-200 bg-white/80 text-pink-600',
   ghost:    'bg-transparent text-slate-600 border border-slate-200',
 };
 
 const dotColors: Record<BadgeVariant, string> = {
   default: 'bg-slate-400',
-  primary: 'bg-violet-500',
+  primary: 'bg-pink-500',
   success: 'bg-emerald-500',
   warning: 'bg-amber-500',
   danger:  'bg-rose-500',
   info:    'bg-sky-500',
-  outline: 'bg-violet-500',
+  outline: 'bg-pink-500',
   ghost:   'bg-slate-400',
 };
 

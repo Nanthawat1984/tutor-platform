@@ -44,7 +44,7 @@ export default async function ProgressPage() {
         Object.entries(byStudent).map(([studentName, studentReports]: [string, any]) => (
           <div key={studentName} className="mb-8 last:mb-0">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-900">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-700">
                 <GraduationCap className="h-4.5 w-4.5" />
               </span>
               {studentName}
