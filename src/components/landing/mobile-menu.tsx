@@ -4,7 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Menu, X, LogIn, Sparkles, GraduationCap } from 'lucide-react';
 
-const NAV_ITEMS = ['คอร์สเรียน', 'ครูพิเศษ', 'ราคา', 'เกี่ยวกับเรา'];
+const NAV_ITEMS = [
+  { label: 'คอร์สเรียน', href: '/explore' },
+  { label: 'ครูพิเศษ', href: '/explore' },
+  { label: 'ราคา', href: '#pricing' },
+  { label: 'เกี่ยวกับเรา', href: '#features' },
+];
 
 export default function MobileMenu() {
   const [open, setOpen] = useState(false);
@@ -61,13 +66,14 @@ export default function MobileMenu() {
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="space-y-1">
             {NAV_ITEMS.map((item) => (
-              <li key={item}>
-                <button
+              <li key={item.label}>
+                <Link
+                  href={item.href}
                   onClick={close}
-                  className="w-full rounded-2xl px-4 py-3 text-left text-base font-semibold text-slate-600 transition-colors hover:bg-pink-50 hover:text-pink-600"
+                  className="block w-full rounded-2xl px-4 py-3 text-left text-base font-semibold text-slate-600 transition-colors hover:bg-pink-50 hover:text-pink-600"
                 >
-                  {item}
-                </button>
+                  {item.label}
+                </Link>
               </li>
             ))}
           </ul>

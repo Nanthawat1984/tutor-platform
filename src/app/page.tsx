@@ -118,13 +118,19 @@ export default function HomePage() {
           </div>
 
           <nav className="hidden items-center gap-1 md:flex">
-            {['คอร์สเรียน', 'ครูพิเศษ', 'ราคา', 'เกี่ยวกับเรา'].map((item) => (
-              <button
-                key={item}
+            {[
+              { label: 'คอร์สเรียน', href: '/explore' },
+              { label: 'ครูพิเศษ', href: '/explore' },
+              { label: 'ราคา', href: '#pricing' },
+              { label: 'เกี่ยวกับเรา', href: '#features' },
+            ].map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
                 className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-pink-50 hover:text-pink-600"
               >
-                {item}
-              </button>
+                {item.label}
+              </Link>
             ))}
           </nav>
 
@@ -236,7 +242,7 @@ export default function HomePage() {
       </section>
 
       {/* ── FEATURES ── */}
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+      <section id="features" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
         <div className="text-center">
           <span className="pill-badge-primary mb-4">✨ ทำไมต้อง TutorFinder?</span>
           <h2 className="mt-3 font-display text-3xl font-extrabold text-slate-900 sm:text-4xl">
@@ -276,7 +282,7 @@ export default function HomePage() {
       </section>
 
       {/* ── ROLE CTA ── */}
-      <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 sm:pb-24 lg:px-8">
+      <section id="pricing" className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 sm:pb-24 lg:px-8">
         <div className="sticker overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-pink-500 via-rose-500 to-rose-600 p-1 shadow-elevated">
           <div className="rounded-[2.2rem] bg-gradient-to-br from-pink-900/50 to-rose-900/50 px-8 py-12 backdrop-blur sm:px-12 sm:py-16">
             <div className="text-center">
@@ -339,13 +345,17 @@ export default function HomePage() {
               © 2025 TutorFinder — แพลตฟอร์มการศึกษาไทย
             </p>
             <div className="flex items-center gap-1">
-              {['นโยบายความเป็นส่วนตัว', 'ข้อกำหนด'].map((item) => (
-                <button
-                  key={item}
+              {[
+                { label: 'นโยบายความเป็นส่วนตัว', href: '/privacy' },
+                { label: 'ข้อกำหนด', href: '/terms' },
+              ].map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
                   className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-pink-50 hover:text-pink-600"
                 >
-                  {item}
-                </button>
+                  {item.label}
+                </Link>
               ))}
             </div>
           </div>
