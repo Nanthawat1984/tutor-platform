@@ -158,6 +158,28 @@
   0%, 100% { opacity: 0.4; transform: scale(0.8) rotate(0deg); }
   50%      { opacity: 1;   transform: scale(1.15) rotate(20deg); }
 }
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes overlayFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes sidebarSlideIn {
+  from { transform: translateX(-100%); opacity: 0.5; }
+  60%  { transform: translateX(3%); opacity: 1; }
+  80%  { transform: translateX(-1%); }
+  to   { transform: translateX(0); }
+}
+@keyframes sidebarSlideOut {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); opacity: 0; }
+}
+@keyframes navItemStagger {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
 
 /* ────────────────────────────────────────────
    UTILITY CLASSES
@@ -183,15 +205,40 @@
     left: 0;
     height: 100vh;
     z-index: 50;
-    display: flex;
-    flex-direction: column;
     background: rgba(255,255,255,0.90);
     backdrop-filter: blur(20px);
     border-right: 2px solid rgba(255,199,224,0.7);
     box-shadow: 4px 0 24px rgba(244,90,150,0.08);
-    animation: fadeInLeft 0.35s ease both;
     overflow-y: auto;
     overflow-x: hidden;
+  }
+
+  .sidebar-animate {
+    animation: fadeInLeft 0.35s ease both;
+  }
+
+  /* Force hide desktop sidebar on mobile (< lg) */
+  @media (max-width: 1023px) {
+    .sidebar-animate {
+      display: none !important;
+    }
+  }
+
+  /* ── Mobile Sidebar Animations ── */
+  .sidebar-overlay-open {
+    animation: overlayFadeIn 0.3s ease forwards;
+  }
+  .sidebar-overlay-close {
+    animation: overlayFadeOut 0.3s ease forwards;
+  }
+  .sidebar-mobile-open {
+    animation: sidebarSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .sidebar-mobile-close {
+    animation: sidebarSlideOut 0.3s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  }
+  .sidebar-nav-item-animate {
+    animation: navItemStagger 0.35s ease both;
   }
 
   .sidebar-content {

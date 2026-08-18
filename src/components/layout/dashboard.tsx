@@ -63,7 +63,25 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarAnimating, setSidebarAnimating] = useState<'open' | 'close' | null>(null);
+  const [overlayAnimating, setOverlayAnimating] = useState<'open' | 'close' | null>(null);
   const config = ROLE_CONFIG[role];
+
+  const openSidebar = () => {
+    setSidebarAnimating('open');
+    setOverlayAnimating('open');
+    setSidebarOpen(true);
+  };
+
+  const closeSidebar = () => {
+    setSidebarAnimating('close');
+    setOverlayAnimating('close');
+    setTimeout(() => {
+      setSidebarOpen(false);
+      setSidebarAnimating(null);
+      setOverlayAnimating(null);
+    }, 300);
+  };
 
   // Lock body scroll when mobile sidebar is open
   useEffect(() => {
@@ -90,8 +108,8 @@ export function DashboardLayout({
         </div>
         {/* Close button — visible on mobile only */}
         <button
-          onClick={() => setSidebarOpen(false)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl hover:bg-pink-100 lg:hidden"
+          onClick={closeSidebar}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl hover:bg-pink-100 lg:hidden transition-transform hover:rotate-90"
           aria-label="ปิดเมนู"
         >
           <X className="h-5 w-5 text-slate-500" />
@@ -102,13 +120,13 @@ export function DashboardLayout({
       <nav className="flex-1 overflow-y-auto px-2 py-4">
         <p className="mb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-pink-400">เมนูหลัก</p>
         <ul className="space-y-0.5">
-          {navItems.map((item) => {
+          {navItems.map((item, index) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             return (
-              <li key={item.href}>
+              <li key={item.href} className="sidebar-nav-item-animate" style={{ animationDelay: `${60 * index}ms` }}>
                 <Link
                   href={item.href}
-                  onClick={() => setSidebarOpen(false)}
+                  onClick={closeSidebar}
                   className={cn(
                     'sidebar-nav-item',
                     isActive && 'active'
@@ -171,36 +189,40 @@ export function DashboardLayout({
       {/* ── MOBILE OVERLAY ── */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          className={cn(
+            'fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden',
+            overlayAnimating === 'open' && 'sidebar-overlay-open',
+            overlayAnimating === 'close' && 'sidebar-overlay-close'
+          )}
+          onClick={closeSidebar}
         />
       )}
 
       {/* ── SIDEBAR (Desktop) ── */}
-      <aside className="sidebar hidden lg:flex lg:flex-col">
+      <aside className="sidebar sidebar-animate hidden lg:flex lg:flex-col">
         <SidebarContent />
       </aside>
 
       {/* ── SIDEBAR (Mobile Drawer) ── */}
-      <aside
-        className={cn(
-          'sidebar lg:hidden transition-all duration-300',
-          sidebarOpen
-            ? 'translate-x-0 pointer-events-auto'
-            : '-translate-x-full pointer-events-none'
-        )}
-        style={{ display: 'flex', flexDirection: 'column' }}
-      >
-        <SidebarContent />
-      </aside>
+      {(sidebarOpen || sidebarAnimating === 'close') && (
+        <aside
+          className={cn(
+            'sidebar lg:hidden flex flex-col',
+            sidebarAnimating === 'open' && 'sidebar-mobile-open pointer-events-auto',
+            sidebarAnimating === 'close' && 'sidebar-mobile-close pointer-events-none'
+          )}
+        >
+          <SidebarContent />
+        </aside>
+      )}
 
       {/* ── MAIN CONTENT ── */}
       <div className="sidebar-content flex flex-1 flex-col">
           {/* Header */}
           <header className="dashboard-header">
             <button
-              onClick={() => setSidebarOpen(true)}
-              className="mr-3 flex h-9 w-9 items-center justify-center rounded-xl hover:bg-pink-50 lg:hidden"
+              onClick={openSidebar}
+              className="mr-3 flex h-9 w-9 items-center justify-center rounded-xl hover:bg-pink-50 lg:hidden transition-transform hover:scale-110"
             >
               <Menu className="h-5 w-5 text-slate-600" />
             </button>
