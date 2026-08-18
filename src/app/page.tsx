@@ -12,6 +12,7 @@ import {
   Star,
   Users,
 } from 'lucide-react';
+import MobileMenu from '@/components/landing/mobile-menu';
 
 const STATS = [
   { value: '2,400+', label: 'ครูพิเศษ', emoji: '🧑‍🏫' },
@@ -128,6 +129,7 @@ export default function HomePage() {
           </nav>
 
           <div className="flex shrink-0 items-center gap-2">
+            <MobileMenu />
             <Link
               href="/login"
               className="hidden min-h-[40px] items-center rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-pink-50 hover:text-pink-600 sm:inline-flex"
