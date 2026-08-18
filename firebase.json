@@ -10,12 +10,10 @@
       "region": "asia-east1"
     }
   },
-  "firestore": {
-    "databases": [
-      { "database": "(default)", "rules": "firestore.rules" },
-      { "database": "tutor", "rules": "firestore.rules" }
-    ]
-  },
+  "firestore": [
+    { "database": "(default)", "rules": "firestore.rules" },
+    { "database": "tutor", "rules": "firestore.rules", "indexes": "firestore.indexes.json" }
+  ],
   "storage": {
     "rules": "storage.rules"
   },
