@@ -17,7 +17,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface NavItem {
   href: string;
@@ -65,6 +65,16 @@ export function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const config = ROLE_CONFIG[role];
 
+  // Lock body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [sidebarOpen]);
+
   const SidebarContent = () => (
     <>
       {/* Logo */}
@@ -72,12 +82,20 @@ export function DashboardLayout({
         <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${config.gradient} shadow-button`}>
           <GraduationCap className="h-5 w-5 text-white" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-base font-extrabold text-pink-600 tracking-tight">TutorFinder</p>
           <span className={`rounded-full ${config.bg} ${config.color} px-2 py-0.5 text-[10px] font-bold`}>
             {config.label}
           </span>
         </div>
+        {/* Close button — visible on mobile only */}
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl hover:bg-pink-100 lg:hidden"
+          aria-label="ปิดเมนู"
+        >
+          <X className="h-5 w-5 text-slate-500" />
+        </button>
       </div>
 
       {/* Nav Items */}
@@ -166,8 +184,10 @@ export function DashboardLayout({
       {/* ── SIDEBAR (Mobile Drawer) ── */}
       <aside
         className={cn(
-          'sidebar lg:hidden transition-transform duration-300',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          'sidebar lg:hidden transition-all duration-300',
+          sidebarOpen
+            ? 'translate-x-0 pointer-events-auto'
+            : '-translate-x-full pointer-events-none'
         )}
         style={{ display: 'flex', flexDirection: 'column' }}
       >
