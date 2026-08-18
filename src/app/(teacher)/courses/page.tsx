@@ -10,6 +10,7 @@ import { COLLECTIONS } from '@/types/firestore';
 import type { Course } from '@/types/firestore';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { requireSessionUser } from '@/lib/auth/session';
 
 const formatLabels: Record<string, string> = {
   one_on_one: '1-on-1',
@@ -21,7 +22,8 @@ const formatLabels: Record<string, string> = {
 export default async function CoursesPage() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const teacherId = 'temp-teacher-id';
+  const session = await requireSessionUser();
+  const teacherId = session.uid;
 
   const coursesSnap = await db.collection(COLLECTIONS.COURSES)
     .where('teacherId', '==', teacherId)
@@ -35,7 +37,7 @@ export default async function CoursesPage() {
       title="คอร์สเรียน"
       navItems={TEACHER_NAV_ITEMS}
       role="teacher"
-      userName="คุณครู"
+      userName={session.displayName || 'คุณครู'}
     >
       <div className="responsive-page-header mb-6">
         <p className="text-sm text-slate-500">จัดการคอร์สเรียนที่คุณเปิดสอน</p>

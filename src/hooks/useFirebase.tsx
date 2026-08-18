@@ -68,6 +68,27 @@ function setPendingGoogleRole(role: AuthRole) {
   window.sessionStorage.setItem('pendingGoogleRole', role);
 }
 
+async function setSessionCookie(firebaseUser: FirebaseUser) {
+  try {
+    const idToken = await firebaseUser.getIdToken();
+    await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+  } catch (error) {
+    console.error('Failed to set session cookie:', error);
+  }
+}
+
+async function clearSessionCookie() {
+  try {
+    await fetch('/api/auth/session', { method: 'DELETE' });
+  } catch {
+    // ignore
+  }
+}
+
 async function fetchUserProfile(firebaseUser: FirebaseUser) {
   const token = await firebaseUser.getIdToken();
   const response = await fetch('/api/auth/profile', {
@@ -150,8 +171,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? await ensureUserProfile(firebaseUser, getPendingGoogleRole())
             : await fetchUserProfile(firebaseUser);
           setUserProfile(profile);
+          // Set session cookie for server-side auth
+          await setSessionCookie(firebaseUser);
         } else {
           setUserProfile(null);
+          await clearSessionCookie();
         }
       } catch (error) {
         console.error('Auth profile load error:', error);
@@ -172,6 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const profile = await fetchUserProfile(cred.user);
     setUserProfile(profile);
+    await setSessionCookie(cred.user);
     return profile;
   }, []);
 
@@ -193,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await signInWithPopup(auth, createGoogleProvider());
     const profile = await ensureUserProfile(result.user, role);
     setUserProfile(profile);
+    await setSessionCookie(result.user);
     return profile;
   }, []);
 
@@ -206,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     await firebaseSignOut(auth);
     setUserProfile(null);
+    await clearSessionCookie();
   }, []);
 
   return (

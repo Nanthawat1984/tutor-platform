@@ -10,11 +10,13 @@ import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { CalendarDays, Clock } from 'lucide-react';
+import { requireSessionUser } from '@/lib/auth/session';
 
 export default async function BookingsPage() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const parentId = 'temp-parent-id';
+  const session = await requireSessionUser();
+  const parentId = session.uid;
 
   const bookingsSnap = await db.collection(COLLECTIONS.BOOKINGS)
     .where('parentId', '==', parentId)
@@ -30,7 +32,7 @@ export default async function BookingsPage() {
       title="การจองเรียน"
       navItems={PARENT_NAV_ITEMS}
       role="parent"
-      userName="ผู้ปกครอง"
+      userName={session.displayName || 'ผู้ปกครอง'}
     >
       <div>
         <h2 className="mb-4 text-lg font-bold text-slate-900">กำลังจะมาถึง / รอยืนยัน</h2>

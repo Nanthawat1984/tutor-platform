@@ -5,11 +5,13 @@ import { formatCurrency } from '@/lib/utils';
 import { Wallet, Receipt, PiggyBank } from 'lucide-react';
 import { DashboardLayout, StatCard, SectionCard } from '@/components/layout/dashboard';
 import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
+import { requireSessionUser } from '@/lib/auth/session';
 
 export default async function EarningsPage() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const teacherId = 'temp-teacher-id';
+  const session = await requireSessionUser();
+  const teacherId = session.uid;
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
 
@@ -49,7 +51,7 @@ export default async function EarningsPage() {
       title="รายได้"
       navItems={TEACHER_NAV_ITEMS}
       role="teacher"
-      userName="คุณครู"
+      userName={session.displayName || 'คุณครู'}
     >
       <p className="mb-6 text-sm text-slate-500">สรุปรายได้ของคุณ</p>
 

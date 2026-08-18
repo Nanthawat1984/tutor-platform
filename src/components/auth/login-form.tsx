@@ -55,6 +55,7 @@ function LoginFormFields() {
       const email = String(formData.get('email') || '');
       const password = String(formData.get('password') || '');
       const profile = await signIn(email, password);
+      // signIn already calls setSessionCookie inside useFirebase
       router.push(profile ? getPostLoginPath(profile.role) : '/dashboard');
       router.refresh();
     } catch (loginError) {
@@ -75,6 +76,7 @@ function LoginFormFields() {
       }
 
       const profile = await signInWithGoogle();
+      // signInWithGoogle already calls setSessionCookie inside useFirebase
       router.push(getPostLoginPath(profile.role));
       router.refresh();
     } catch (loginError) {

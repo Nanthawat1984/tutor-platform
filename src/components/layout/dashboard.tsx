@@ -17,7 +17,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 interface NavItem {
   href: string;
@@ -128,13 +128,22 @@ export function DashboardLayout({
             </div>
           </div>
         )}
-        <Link
-          href="/login"
-          className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
+        <button
+          onClick={async () => {
+            await fetch('/api/auth/session', { method: 'DELETE' });
+            // Also sign out from Firebase client-side
+            try {
+              const { getFirebaseAuth } = await import('@/lib/firebase/client');
+              const { signOut } = await import('firebase/auth');
+              await signOut(getFirebaseAuth());
+            } catch { /* ignore */ }
+            window.location.href = '/login';
+          }}
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
         >
           <LogOut className="h-4 w-4" />
           ออกจากระบบ
-        </Link>
+        </button>
       </div>
     </>
   );

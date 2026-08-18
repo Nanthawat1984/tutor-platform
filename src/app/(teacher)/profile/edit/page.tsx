@@ -9,6 +9,7 @@ import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { GraduationCap, Video, Sparkles } from 'lucide-react';
 import { ProfilePhotoUploader } from '@/components/teacher/profile-photo-uploader';
+import { requireSessionUser } from '@/lib/auth/session';
 
 const TEACHING_STYLE_OPTIONS = [
   { value: 'fun', label: 'เน้นสนุก', desc: 'เรียนสนุก ไม่เครียด' },
@@ -19,7 +20,8 @@ const TEACHING_STYLE_OPTIONS = [
 export default async function EditProfilePage() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const teacherId = 'temp-teacher-id'; // TODO: from session
+  const session = await requireSessionUser();
+  const teacherId = session.uid;
 
   const teacherSnap = await db.collection(COLLECTIONS.TEACHERS).doc(teacherId).get();
   const teacher = teacherSnap.exists ? { id: teacherSnap.id, ...teacherSnap.data() } as any : null;
@@ -67,7 +69,7 @@ export default async function EditProfilePage() {
       title="แก้ไขโปรไฟล์"
       navItems={TEACHER_NAV_ITEMS}
       role="teacher"
-      userName="คุณครู"
+      userName={session.displayName || 'คุณครู'}
     >
       <p className="mb-6 text-sm text-slate-500">
         ข้อมูลนี้จะแสดงบนโปรไฟล์สาธารณะของคุณ ({`/teachers/${teacherId}`})

@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/layout/dashboard';
 import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
+import { requireSessionUser } from '@/lib/auth/session';
 
 const levelOptions = [
   { value: '', label: '-- เลือกระดับ --' },
@@ -26,9 +27,10 @@ const formatOptions = [
   { value: 'hybrid', label: 'ผสม (Online + On-site)' },
 ];
 
-export default function NewCoursePage() {
-  const db = getServerDb();
-  const teacherId = 'temp-teacher-id'; // TODO: from session
+export default async function NewCoursePage() {
+  const session = await requireSessionUser();
+  const teacherId = session.uid;
+  const teacherName = session.displayName || 'คุณครู';
 
   async function createCourseAction(formData: FormData) {
     'use server';
@@ -37,9 +39,9 @@ export default function NewCoursePage() {
 
     await dbRef.collection(COLLECTIONS.COURSES).add({
       teacherId,
-      teacherName: 'Teacher Name', // TODO: from session
+      teacherName,
       subjectId: formData.get('subject_id') as string,
-      subjectName: 'Subject', // TODO: lookup
+      subjectName: formData.get('subject_id') as string || 'ทั่วไป',
       title: formData.get('title') as string,
       description: formData.get('description') as string,
       level: formData.get('level') as string,
@@ -60,7 +62,7 @@ export default function NewCoursePage() {
       title="สร้างคอร์สเรียนใหม่"
       navItems={TEACHER_NAV_ITEMS}
       role="teacher"
-      userName="คุณครู"
+      userName={session.displayName || 'คุณครู'}
     >
       <p className="mb-6 text-sm text-slate-500">กรอกข้อมูลคอร์สเรียนที่คุณต้องการเปิดสอน</p>
 

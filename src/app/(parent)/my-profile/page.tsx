@@ -9,11 +9,13 @@ import { ProfilePhotoUploader } from '@/components/teacher/profile-photo-uploade
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { Mail, ShieldCheck, UserRound } from 'lucide-react';
+import { requireSessionUser } from '@/lib/auth/session';
 
 export default async function MyProfilePage() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const parentId = 'temp-parent-id'; // TODO: from session
+  const session = await requireSessionUser();
+  const parentId = session.uid;
 
   const userSnap = await db.collection(COLLECTIONS.USERS).doc(parentId).get();
   const user = userSnap.exists ? { id: userSnap.id, ...userSnap.data() } as any : null;
@@ -42,7 +44,7 @@ export default async function MyProfilePage() {
       title="โปรไฟล์ของฉัน"
       navItems={PARENT_NAV_ITEMS}
       role="parent"
-      userName={user?.displayName || 'ผู้ปกครอง'}
+      userName={user?.displayName || session.displayName || 'ผู้ปกครอง'}
     >
       <p className="mb-6 text-sm text-slate-500">
         จัดการข้อมูลส่วนตัวของคุณ — ใช้สำหรับการติดต่อและการจองเรียน

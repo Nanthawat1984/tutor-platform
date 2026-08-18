@@ -9,6 +9,7 @@ import { DashboardLayout } from '@/components/layout/dashboard';
 import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency, getInitials } from '@/lib/utils';
+import { requireSessionUser } from '@/lib/auth/session';
 
 export default async function CourseDetailPage({
   params,
@@ -17,6 +18,7 @@ export default async function CourseDetailPage({
 }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
+  const session = await requireSessionUser();
   const { id } = await params;
 
   const courseSnap = await db.collection(COLLECTIONS.COURSES).doc(id).get();
@@ -24,14 +26,14 @@ export default async function CourseDetailPage({
   if (!courseSnap.exists) notFound();
 
   const course = { id: courseSnap.id, ...courseSnap.data() } as any;
-  const isOwner = false; // TODO: check session
+  const isOwner = course.teacherId === session.uid;
 
   return (
     <DashboardLayout
       title="รายละเอียดคอร์ส"
       navItems={TEACHER_NAV_ITEMS}
       role="teacher"
-      userName="คุณครู"
+      userName={session.displayName || 'คุณครู'}
     >
       {isOwner && (
         <div className="responsive-actions mb-6">

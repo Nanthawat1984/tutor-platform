@@ -11,6 +11,7 @@ import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { formatCurrency } from '@/lib/utils';
 import { Users } from 'lucide-react';
+import { requireSessionUser } from '@/lib/auth/session';
 
 export default async function NewBookingPage({
   searchParams,
@@ -19,8 +20,9 @@ export default async function NewBookingPage({
 }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const userId = 'temp-user-id';
-  const parentId = 'temp-parent-id';
+  const session = await requireSessionUser();
+  const userId = session.uid;
+  const parentId = session.uid;
 
   const params = await searchParams;
   const courseId = params.course_id;
@@ -31,7 +33,7 @@ export default async function NewBookingPage({
 
   if (!courseSnap.exists) {
     return (
-      <DashboardLayout title="จองเรียน" navItems={PARENT_NAV_ITEMS} role="parent" userName="ผู้ปกครอง">
+      <DashboardLayout title="จองเรียน" navItems={PARENT_NAV_ITEMS} role="parent"      userName={session.displayName || 'ผู้ปกครอง'}>
         <div className="text-center py-12">
           <p className="text-gray-500">ไม่พบคอร์สเรียน</p>
           <a href="/explore" className="text-pink-600 hover:underline">กลับไปค้นหาครู</a>
@@ -101,7 +103,7 @@ export default async function NewBookingPage({
   }
 
   return (
-    <DashboardLayout title="จองเรียน" navItems={PARENT_NAV_ITEMS} role="parent" userName="ผู้ปกครอง">
+    <DashboardLayout title="จองเรียน" navItems={PARENT_NAV_ITEMS} role="parent"      userName={session.displayName || 'ผู้ปกครอง'}>
       <Card className="mb-6">
         <div className="flex items-start gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-100 to-rose-100 font-bold text-xl text-pink-700">

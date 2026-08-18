@@ -9,11 +9,13 @@ import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { GraduationCap, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { requireSessionUser } from '@/lib/auth/session';
 
 export default async function MyStudentsPage() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const parentId = 'temp-parent-id';
+  const session = await requireSessionUser();
+  const parentId = session.uid;
 
   const studentsSnap = await db.collection(COLLECTIONS.STUDENTS)
     .where('parentId', '==', parentId)
@@ -71,7 +73,7 @@ export default async function MyStudentsPage() {
       title="นักเรียนของฉัน"
       navItems={PARENT_NAV_ITEMS}
       role="parent"
-      userName="ผู้ปกครอง"
+      userName={session.displayName || 'ผู้ปกครอง'}
     >
       <p className="mb-6 text-sm text-slate-500">
         เพิ่มรายชื่อลูกของคุณ เพื่อให้การจองเรียนเร็วขึ้น — เลือกได้จากหน้าจองเรียน

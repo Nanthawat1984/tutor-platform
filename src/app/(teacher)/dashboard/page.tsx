@@ -2,6 +2,7 @@ import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { COLLECTIONS } from '@/types/firestore';
+import { requireSessionUser } from '@/lib/auth/session';
 import {
   BookOpen,
   CalendarCheck,
@@ -21,7 +22,8 @@ import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 export default async function TeacherDashboard() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const teacherId = 'temp-teacher-id';
+  const session = await requireSessionUser();
+  const teacherId = session.uid;
 
   let upcomingBookings: any[] = [];
   let activeCourses = 0;
@@ -82,7 +84,7 @@ export default async function TeacherDashboard() {
       title="แดชบอร์ด"
       navItems={TEACHER_NAV_ITEMS}
       role="teacher"
-      userName="คุณครู"
+      userName={session.displayName || 'คุณครู'}
     >
       {/* ── Setup Error Banner ── */}
       {setupError && (
@@ -107,7 +109,7 @@ export default async function TeacherDashboard() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/teachers/temp-teacher-id"
+            href={`/teachers/${teacherId}`}
             className="inline-flex items-center gap-1.5 rounded-xl border border-pink-200 bg-white/70 px-3.5 py-2 text-xs font-bold text-pink-700 transition-colors hover:bg-pink-50"
           >
             <Star className="h-3.5 w-3.5" />

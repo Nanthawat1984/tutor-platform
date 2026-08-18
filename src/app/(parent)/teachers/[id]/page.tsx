@@ -1,6 +1,7 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { requireSessionUser } from '@/lib/auth/session';
 import {
   BadgeCheck,
   BookOpen,
@@ -34,6 +35,7 @@ export default async function TeacherProfilePage({
 }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
+  const session = await requireSessionUser();
   const { id } = await params;
 
   const [userSnap, teacherSnap] = await Promise.all([
@@ -43,7 +45,7 @@ export default async function TeacherProfilePage({
 
   if (!userSnap.exists && !teacherSnap.exists) {
     return (
-      <DashboardLayout title="โปรไฟล์ครู" navItems={PARENT_NAV_ITEMS} role="parent" userName="ผู้ปกครอง">
+      <DashboardLayout title="โปรไฟล์ครู" navItems={PARENT_NAV_ITEMS} role="parent" userName={session.displayName || 'ผู้ปกครอง'}>
         <div className="py-16 text-center">
           <p className="text-slate-500">ไม่พบโปรไฟล์ครูนี้</p>
           <Link href="/explore" className="mt-2 inline-block text-sm font-semibold text-pink-600 hover:underline">
@@ -98,7 +100,7 @@ export default async function TeacherProfilePage({
       title="โปรไฟล์ครู"
       navItems={PARENT_NAV_ITEMS}
       role="parent"
-      userName="ผู้ปกครอง"
+      userName={session.displayName || 'ผู้ปกครอง'}
     >
       {/* ── Header Card ── */}
       <Card className="mb-6 overflow-hidden">

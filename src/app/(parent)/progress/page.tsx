@@ -6,11 +6,13 @@ import { Card } from '@/components/ui/card';
 import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { BarChart3, GraduationCap } from 'lucide-react';
+import { requireSessionUser } from '@/lib/auth/session';
 
 export default async function ProgressPage() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const parentId = 'temp-parent-id';
+  const session = await requireSessionUser();
+  const parentId = session.uid;
 
   const reportsSnap = await db.collection(COLLECTIONS.SESSION_REPORTS)
     .where('parentId', '==', parentId)
@@ -32,7 +34,7 @@ export default async function ProgressPage() {
       title="ผลการเรียน"
       navItems={PARENT_NAV_ITEMS}
       role="parent"
-      userName="ผู้ปกครอง"
+      userName={session.displayName || 'ผู้ปกครอง'}
     >
       {reports.length === 0 ? (
         <EmptyState

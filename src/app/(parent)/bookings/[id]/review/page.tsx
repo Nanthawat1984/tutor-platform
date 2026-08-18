@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
+import { requireSessionUser } from '@/lib/auth/session';
 
 export default async function ReviewPage({
   searchParams,
@@ -15,6 +16,7 @@ export default async function ReviewPage({
 }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
+  const session = await requireSessionUser();
 
   const params = await searchParams;
   const bookingId = params.booking_id;
@@ -25,7 +27,7 @@ export default async function ReviewPage({
 
   if (!bookingSnap.exists) {
     return (
-      <DashboardLayout title="รีวิวครู" navItems={PARENT_NAV_ITEMS} role="parent" userName="ผู้ปกครอง">
+      <DashboardLayout title="รีวิวครู" navItems={PARENT_NAV_ITEMS} role="parent" userName={session.displayName || 'ผู้ปกครอง'}>
         <div className="text-center py-12">
           <p className="text-gray-500">ไม่พบการจอง</p>
         </div>
@@ -41,7 +43,7 @@ export default async function ReviewPage({
     if (!dbRef) return;
     const rating = parseInt(formData.get('rating') as string);
     const comment = formData.get('comment') as string;
-    const parentId = 'temp-user-id'; // TODO: from session
+    const parentId = session.uid;
 
     await dbRef.collection(COLLECTIONS.REVIEWS).add({
       bookingId,
@@ -59,7 +61,7 @@ export default async function ReviewPage({
   }
 
   return (
-    <DashboardLayout title="รีวิวครู" navItems={PARENT_NAV_ITEMS} role="parent" userName="ผู้ปกครอง">
+    <DashboardLayout title="รีวิวครู" navItems={PARENT_NAV_ITEMS} role="parent" userName={session.displayName || 'ผู้ปกครอง'}>
       <p className="mb-6 text-sm text-slate-500">
         คอร์ส: {booking.courseTitle} • ครู{booking.teacherName}
       </p>

@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/layout/dashboard';
 import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
+import { requireSessionUser } from '@/lib/auth/session';
 
 const dayOptions = [
   { value: '0', label: 'อาทิตย์' },
@@ -27,9 +28,9 @@ const timeOptions = Array.from({ length: 48 }, (_, i) => {
   return { value: `${h}:${m}:00`, label: `${h}:${m} น.` };
 }).filter(Boolean) as { value: string; label: string }[];
 
-export default function NewSchedulePage() {
-  const db = getServerDb();
-  const teacherId = 'temp-teacher-id';
+export default async function NewSchedulePage() {
+  const session = await requireSessionUser();
+  const teacherId = session.uid;
 
   async function addScheduleAction(formData: FormData) {
     'use server';
@@ -38,7 +39,7 @@ export default function NewSchedulePage() {
 
     await dbRef.collection(COLLECTIONS.SCHEDULES).add({
       courseId: formData.get('course_id') as string,
-      courseTitle: 'Course Title', // TODO: lookup
+      courseTitle: formData.get('course_id') as string || 'คอร์สเรียน',
       dayOfWeek: parseInt(formData.get('day_of_week') as string),
       startTime: formData.get('start_time') as string,
       endTime: formData.get('end_time') as string,
@@ -58,7 +59,7 @@ export default function NewSchedulePage() {
       title="เพิ่มตารางสอน"
       navItems={TEACHER_NAV_ITEMS}
       role="teacher"
-      userName="คุณครู"
+      userName={session.displayName || 'คุณครู'}
     >
       <p className="mb-6 text-sm text-slate-500">กำหนดวันและเวลาที่คุณพร้อมสอน</p>
 

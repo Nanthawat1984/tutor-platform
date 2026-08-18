@@ -8,11 +8,13 @@ import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
 import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatDate } from '@/lib/utils';
+import { requireSessionUser } from '@/lib/auth/session';
 
 export default async function StudentsPage() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const teacherId = 'temp-teacher-id';
+  const session = await requireSessionUser();
+  const teacherId = session.uid;
 
   const bookingsSnap = await db.collection(COLLECTIONS.BOOKINGS)
     .where('teacherId', '==', teacherId)
@@ -58,7 +60,7 @@ export default async function StudentsPage() {
       title="นักเรียน"
       navItems={TEACHER_NAV_ITEMS}
       role="teacher"
-      userName="คุณครู"
+      userName={session.displayName || 'คุณครู'}
     >
       {students.length === 0 ? (
         <EmptyState

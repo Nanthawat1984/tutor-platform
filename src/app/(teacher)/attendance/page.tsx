@@ -10,13 +10,15 @@ import { formatTime } from '@/lib/utils';
 import { getServerDb } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
+import { requireSessionUser } from '@/lib/auth/session';
 
 const today = new Date().toISOString().split('T')[0];
 
 export default async function AttendancePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const teacherId = 'temp-teacher-id';
+  const session = await requireSessionUser();
+  const teacherId = session.uid;
   const params = await searchParams;
   const selectedDate = params.date || today;
 
@@ -34,7 +36,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
       title="เช็คชื่อ"
       navItems={TEACHER_NAV_ITEMS}
       role="teacher"
-      userName="คุณครู"
+      userName={session.displayName || 'คุณครู'}
     >
       <div className="responsive-page-header mb-6">
         <p className="text-sm text-slate-500">บันทึกการเข้าเรียนของนักเรียน</p>

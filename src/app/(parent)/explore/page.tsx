@@ -12,6 +12,7 @@ import { RatingStars } from '@/components/ui/rating';
 import { COLLECTIONS } from '@/types/firestore';
 import type { Course } from '@/types/firestore';
 import { formatCurrency, getInitials } from '@/lib/utils';
+import { requireSessionUser } from '@/lib/auth/session';
 
 const levelOptions = [
   { value: '', label: 'ทุกระดับ' },
@@ -24,6 +25,7 @@ const levelOptions = [
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ subject?: string; level?: string; search?: string }> }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
+  const session = await requireSessionUser();
   const params = await searchParams;
 
   let q: any = db.collection(COLLECTIONS.COURSES).where('isActive', '==', true);
@@ -57,7 +59,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       title="ค้นหาครูพิเศษ"
       navItems={PARENT_NAV_ITEMS}
       role="parent"
-      userName="ผู้ปกครอง"
+      userName={session.displayName || 'ผู้ปกครอง'}
     >
       {/* Search Bar */}
       <Card className="mb-6">

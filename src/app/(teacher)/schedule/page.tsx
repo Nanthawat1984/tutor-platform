@@ -9,13 +9,15 @@ import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatTime } from '@/lib/utils';
 import type { Schedule } from '@/types/firestore';
+import { requireSessionUser } from '@/lib/auth/session';
 
 const dayNames = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
 
 export default async function SchedulePage() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const teacherId = 'temp-teacher-id';
+  const session = await requireSessionUser();
+  const teacherId = session.uid;
 
   // Get teacher's courses first
   const coursesSnap = await db.collection(COLLECTIONS.COURSES)
@@ -44,7 +46,7 @@ export default async function SchedulePage() {
       title="ตารางสอน"
       navItems={TEACHER_NAV_ITEMS}
       role="teacher"
-      userName="คุณครู"
+      userName={session.displayName || 'คุณครู'}
     >
       <div className="responsive-page-header mb-6">
         <p className="text-sm text-slate-500">จัดการตารางเวลาเรียนของคุณ</p>

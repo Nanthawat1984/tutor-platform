@@ -6,11 +6,13 @@ import { BarChart3, CalendarCheck, CalendarDays, ClipboardList, GraduationCap, P
 import { DashboardLayout, StatCard, EmptyState, SectionCard } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { BookingStatusBadge } from '@/components/ui/badge';
+import { requireSessionUser } from '@/lib/auth/session';
 
 export default async function ParentDashboard() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const parentId = 'temp-parent-id';
+  const session = await requireSessionUser();
+  const parentId = session.uid;
 
   const bookingsSnap = await db.collection(COLLECTIONS.BOOKINGS)
     .where('parentId', '==', parentId)
@@ -57,7 +59,7 @@ export default async function ParentDashboard() {
       title="แดชบอร์ด"
       navItems={PARENT_NAV_ITEMS}
       role="parent"
-      userName="ผู้ปกครอง"
+      userName={session.displayName || 'ผู้ปกครอง'}
     >
       {/* ── Greeting ── */}
       <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
