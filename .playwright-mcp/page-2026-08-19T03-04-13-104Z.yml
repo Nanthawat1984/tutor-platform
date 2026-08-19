@@ -1,0 +1,47 @@
+- generic [active] [ref=f11e1]:
+  - generic [ref=f11e2]:
+    - generic [ref=f11e3]:
+      - generic [ref=f11e4]: TutorFinder
+      - generic [ref=f11e10]:
+        - generic [ref=f11e11]: ✨ แพลตฟอร์มการศึกษาอันดับ 1
+        - heading "เรียนเสริม ง่าย เร็ว ดี ในที่เดียว" [level=2] [ref=f11e12]: เรียนเสริมง่าย เร็ว ดีในที่เดียว
+        - paragraph [ref=f11e13]: เชื่อมต่อผู้ปกครองกับครูพิเศษคุณภาพ ติดตามผลและจัดการทุกอย่างครบจบ
+        - generic [ref=f11e14]:
+          - generic [ref=f11e15]: ครูพิเศษกว่า 2,400 คน
+          - generic [ref=f11e23]: มากกว่า 120 วิชา
+          - generic [ref=f11e28]: ความพึงพอใจ 95%
+      - generic [ref=f11e33]:
+        - paragraph [ref=f11e45]: "\"ใช้งานง่ายมาก หาครูพิเศษให้ลูกได้ภายใน 10 นาที ครูมีคุณภาพและตรวจสอบประวัติแล้ว\""
+        - generic [ref=f11e46]:
+          - generic [ref=f11e47]: ส
+          - generic [ref=f11e48]:
+            - paragraph [ref=f11e49]: คุณสมหญิง วิชาการ
+            - paragraph [ref=f11e50]: ผู้ปกครอง • กรุงเทพฯ
+    - generic [ref=f11e52]:
+      - generic [ref=f11e53]:
+        - heading "ยินดีต้อนรับกลับ 👋" [level=1] [ref=f11e54]:
+          - text: ยินดีต้อนรับกลับ
+          - generic [ref=f11e55]: 👋
+        - paragraph [ref=f11e56]: เข้าสู่ระบบเพื่อเริ่มใช้งาน
+      - generic [ref=f11e57]:
+        - button "เข้าสู่ระบบด้วย Google" [ref=f11e58] [cursor=pointer]
+        - generic [ref=f11e64]: หรือ
+        - generic [ref=f11e68]:
+          - generic [ref=f11e69]: อีเมล
+          - textbox "อีเมล" [ref=f11e71]:
+            - /placeholder: you@example.com
+        - generic [ref=f11e72]:
+          - generic [ref=f11e73]: รหัสผ่าน
+          - textbox "รหัสผ่าน" [ref=f11e75]:
+            - /placeholder: ••••••••
+        - button "ลืมรหัสผ่าน?" [ref=f11e77] [cursor=pointer]
+        - button "เข้าสู่ระบบ" [ref=f11e78] [cursor=pointer]
+        - paragraph [ref=f11e82]:
+          - text: ยังไม่มีบัญชี?
+          - link "สมัครใช้งาน" [ref=f11e83] [cursor=pointer]:
+            - /url: /register
+      - generic [ref=f11e84]:
+        - generic [ref=f11e85]: ไม่มีค่าธรรมเนียม
+        - generic [ref=f11e89]: ข้อมูลปลอดภัย 100%
+        - generic [ref=f11e93]: ครูผ่านการตรวจสอบ
+  - alert [ref=f11e97]

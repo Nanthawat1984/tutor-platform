@@ -1,0 +1,79 @@
+- generic [active] [ref=f3e1]:
+  - alert [ref=f3e97]
+  - generic [ref=f3e100]:
+    - complementary [ref=f3e101]:
+      - generic [ref=f3e107]:
+        - paragraph [ref=f3e108]: TutorFinder
+        - text: ผู้ปกครอง
+      - navigation [ref=f3e109]:
+        - paragraph [ref=f3e110]: เมนูหลัก
+        - list [ref=f3e111]:
+          - listitem [ref=f3e112]:
+            - link "แดชบอร์ด" [ref=f3e113] [cursor=pointer]:
+              - /url: /my-bookings
+          - listitem [ref=f3e123]:
+            - link "ค้นหาครู" [ref=f3e124] [cursor=pointer]:
+              - /url: /explore
+          - listitem [ref=f3e130]:
+            - link "การจอง" [ref=f3e131] [cursor=pointer]:
+              - /url: /bookings
+          - listitem [ref=f3e136]:
+            - link "ผลการเรียน" [ref=f3e137] [cursor=pointer]:
+              - /url: /progress
+          - listitem [ref=f3e142]:
+            - link "นักเรียนของฉัน" [ref=f3e143] [cursor=pointer]:
+              - /url: /my-students
+      - generic [ref=f3e149]:
+        - generic [ref=f3e150]:
+          - generic [ref=f3e151]: T
+          - generic [ref=f3e152]:
+            - paragraph [ref=f3e153]: Test Parent
+            - paragraph [ref=f3e154]: ผู้ปกครอง
+        - button "ออกจากระบบ" [ref=f3e155] [cursor=pointer]
+    - generic [ref=f3e159]:
+      - banner [ref=f3e160]:
+        - generic [ref=f3e161]:
+          - heading "แดชบอร์ด" [level=1] [ref=f3e162]
+          - generic [ref=f3e163]: ผู้ปกครอง
+      - main [ref=f3e165]:
+        - generic [ref=f3e166]:
+          - generic [ref=f3e167]:
+            - heading "สวัสดี คุณพ่อคุณแม่! 👋" [level=2] [ref=f3e168]
+            - paragraph [ref=f3e169]: จัดการการเรียนเสริมของลูกคุณได้ที่นี่
+          - link "แก้ไขโปรไฟล์" [ref=f3e170] [cursor=pointer]:
+            - /url: /my-profile
+        - generic [ref=f3e173]:
+          - generic [ref=f3e176]:
+            - paragraph [ref=f3e177]: การจองที่กำลังจะมาถึง
+            - paragraph [ref=f3e178]: "0"
+          - generic [ref=f3e186]:
+            - paragraph [ref=f3e187]: การจองทั้งหมด
+            - paragraph [ref=f3e188]: "0"
+          - generic [ref=f3e196]:
+            - paragraph [ref=f3e197]: เซสชันที่เสร็จสิ้น
+            - paragraph [ref=f3e198]: "0"
+          - generic [ref=f3e205]:
+            - paragraph [ref=f3e206]: ครูที่กำลังเรียน
+            - paragraph [ref=f3e207]: "0"
+        - generic [ref=f3e212]:
+          - generic [ref=f3e213]:
+            - heading "ดำเนินการด่วน" [level=2] [ref=f3e215]
+            - generic [ref=f3e217]:
+              - link "ค้นหาครู" [ref=f3e218] [cursor=pointer]:
+                - /url: /explore
+              - link "การจอง" [ref=f3e224] [cursor=pointer]:
+                - /url: /bookings
+              - link "ผลการเรียน" [ref=f3e229] [cursor=pointer]:
+                - /url: /progress
+              - link "นักเรียนของฉัน" [ref=f3e234] [cursor=pointer]:
+                - /url: /my-students
+          - generic [ref=f3e240]:
+            - generic [ref=f3e241]:
+              - heading "การจองล่าสุด" [level=2] [ref=f3e242]
+              - link "ดูทั้งหมด →" [ref=f3e243] [cursor=pointer]:
+                - /url: /bookings
+            - generic [ref=f3e245]:
+              - heading "ยังไม่มีการจอง" [level=3] [ref=f3e258]
+              - paragraph [ref=f3e259]: ค้นหาครูพิเศษให้ลูกของคุณได้เลย
+              - link "เริ่มค้นหาครู" [ref=f3e261] [cursor=pointer]:
+                - /url: /explore

@@ -20,8 +20,9 @@ export function isMobile(): boolean {
 }
 
 export function getPreferredGoogleSignInMethod(): GoogleSignInMethod {
-  if (isMobile()) return 'redirect';
-  return 'popup';
+  // Always use redirect to avoid popup COOP issues on desktop
+  // and to provide a consistent experience across devices.
+  return 'redirect';
 }
 
 export function isGoogleProviderUser(providerData: ReadonlyArray<{ providerId?: string | null }>) {

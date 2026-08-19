@@ -52,6 +52,11 @@ export function middleware(request: NextRequest) {
 
   // Redirect authenticated users away from login/register
   if (isAuthRoute && isLoggedIn) {
+    // If there's a redirect parameter, use it (e.g., after Google redirect flow)
+    const redirectTo = request.nextUrl.searchParams.get('redirect');
+    if (redirectTo) {
+      return NextResponse.redirect(new URL(redirectTo, request.url));
+    }
     return NextResponse.redirect(new URL('/my-bookings', request.url));
   }
 

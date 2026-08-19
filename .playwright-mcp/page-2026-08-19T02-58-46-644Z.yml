@@ -1,0 +1,47 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: TutorFinder
+      - generic [ref=e10]:
+        - generic [ref=e11]: ✨ แพลตฟอร์มการศึกษาอันดับ 1
+        - heading "เรียนเสริม ง่าย เร็ว ดี ในที่เดียว" [level=2] [ref=e12]: เรียนเสริมง่าย เร็ว ดีในที่เดียว
+        - paragraph [ref=e13]: เชื่อมต่อผู้ปกครองกับครูพิเศษคุณภาพ ติดตามผลและจัดการทุกอย่างครบจบ
+        - generic [ref=e14]:
+          - generic [ref=e15]: ครูพิเศษกว่า 2,400 คน
+          - generic [ref=e23]: มากกว่า 120 วิชา
+          - generic [ref=e28]: ความพึงพอใจ 95%
+      - generic [ref=e33]:
+        - paragraph [ref=e45]: "\"ใช้งานง่ายมาก หาครูพิเศษให้ลูกได้ภายใน 10 นาที ครูมีคุณภาพและตรวจสอบประวัติแล้ว\""
+        - generic [ref=e46]:
+          - generic [ref=e47]: ส
+          - generic [ref=e48]:
+            - paragraph [ref=e49]: คุณสมหญิง วิชาการ
+            - paragraph [ref=e50]: ผู้ปกครอง • กรุงเทพฯ
+    - generic [ref=e52]:
+      - generic [ref=e53]:
+        - heading "ยินดีต้อนรับกลับ 👋" [level=1] [ref=e54]:
+          - text: ยินดีต้อนรับกลับ
+          - generic [ref=e55]: 👋
+        - paragraph [ref=e56]: เข้าสู่ระบบเพื่อเริ่มใช้งาน
+      - generic [ref=e57]:
+        - button "เข้าสู่ระบบด้วย Google" [ref=e58] [cursor=pointer]
+        - generic [ref=e64]: หรือ
+        - generic [ref=e68]:
+          - generic [ref=e69]: อีเมล
+          - textbox "อีเมล" [ref=e71]:
+            - /placeholder: you@example.com
+        - generic [ref=e72]:
+          - generic [ref=e73]: รหัสผ่าน
+          - textbox "รหัสผ่าน" [ref=e75]:
+            - /placeholder: ••••••••
+        - button "ลืมรหัสผ่าน?" [ref=e77] [cursor=pointer]
+        - button "เข้าสู่ระบบ" [ref=e78] [cursor=pointer]
+        - paragraph [ref=e82]:
+          - text: ยังไม่มีบัญชี?
+          - link "สมัครใช้งาน" [ref=e83] [cursor=pointer]:
+            - /url: /register
+      - generic [ref=e84]:
+        - generic [ref=e85]: ไม่มีค่าธรรมเนียม
+        - generic [ref=e89]: ข้อมูลปลอดภัย 100%
+        - generic [ref=e93]: ครูผ่านการตรวจสอบ
+  - alert [ref=e97]

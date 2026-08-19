@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { LoginForm } from '@/components/auth/login-form';
 import { BookOpen, CheckCircle2, GraduationCap, Star, Users } from 'lucide-react';
 
@@ -7,6 +8,10 @@ const FEATURES = [
   { icon: BookOpen, text: 'มากกว่า 120 วิชา' },
   { icon: Star, text: 'ความพึงพอใจ 95%' },
 ];
+
+function LoginFormWrapper() {
+  return <LoginForm />;
+}
 
 export default function LoginPage() {
   return (
@@ -101,7 +106,9 @@ export default function LoginPage() {
             <p className="mt-2 text-slate-500">ยินดีต้อนรับกลับ</p>
           </div>
 
-          <LoginForm />
+          <Suspense fallback={<div className="flex h-64 items-center justify-center">Loading...</div>}>
+            <LoginFormWrapper />
+          </Suspense>
 
           <div className="mt-6 flex flex-col gap-2">
             {['ไม่มีค่าธรรมเนียม', 'ข้อมูลปลอดภัย 100%', 'ครูผ่านการตรวจสอบ'].map((t) => (

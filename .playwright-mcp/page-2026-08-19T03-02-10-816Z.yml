@@ -1,0 +1,49 @@
+- generic [active] [ref=f10e1]:
+  - generic [ref=f10e2]:
+    - generic [ref=f10e3]:
+      - generic [ref=f10e4]: TutorFinder
+      - generic [ref=f10e10]:
+        - generic [ref=f10e11]: ✨ แพลตฟอร์มการศึกษาอันดับ 1
+        - heading "เรียนเสริม ง่าย เร็ว ดี ในที่เดียว" [level=2] [ref=f10e12]: เรียนเสริมง่าย เร็ว ดีในที่เดียว
+        - paragraph [ref=f10e13]: เชื่อมต่อผู้ปกครองกับครูพิเศษคุณภาพ ติดตามผลและจัดการทุกอย่างครบจบ
+        - generic [ref=f10e14]:
+          - generic [ref=f10e15]: ครูพิเศษกว่า 2,400 คน
+          - generic [ref=f10e23]: มากกว่า 120 วิชา
+          - generic [ref=f10e28]: ความพึงพอใจ 95%
+      - generic [ref=f10e33]:
+        - paragraph [ref=f10e45]: "\"ใช้งานง่ายมาก หาครูพิเศษให้ลูกได้ภายใน 10 นาที ครูมีคุณภาพและตรวจสอบประวัติแล้ว\""
+        - generic [ref=f10e46]:
+          - generic [ref=f10e47]: ส
+          - generic [ref=f10e48]:
+            - paragraph [ref=f10e49]: คุณสมหญิง วิชาการ
+            - paragraph [ref=f10e50]: ผู้ปกครอง • กรุงเทพฯ
+    - generic [ref=f10e52]:
+      - generic [ref=f10e53]:
+        - heading "ยินดีต้อนรับกลับ 👋" [level=1] [ref=f10e54]:
+          - text: ยินดีต้อนรับกลับ
+          - generic [ref=f10e55]: 👋
+        - paragraph [ref=f10e56]: เข้าสู่ระบบเพื่อเริ่มใช้งาน
+      - generic [ref=f10e57]:
+        - button "เข้าสู่ระบบด้วย Google" [disabled] [ref=f10e58]
+        - generic [ref=f10e64]: หรือ
+        - generic [ref=f10e68]:
+          - generic [ref=f10e69]: อีเมล
+          - textbox "อีเมล" [ref=f10e71]:
+            - /placeholder: you@example.com
+            - text: test.parent@tutorfinder.dev
+        - generic [ref=f10e72]:
+          - generic [ref=f10e73]: รหัสผ่าน
+          - textbox "รหัสผ่าน" [ref=f10e75]:
+            - /placeholder: ••••••••
+            - text: TestPass123!
+        - button "ลืมรหัสผ่าน?" [ref=f10e77] [cursor=pointer]
+        - button "เข้าสู่ระบบ" [disabled] [ref=f10e78]
+        - paragraph [ref=f10e82]:
+          - text: ยังไม่มีบัญชี?
+          - link "สมัครใช้งาน" [ref=f10e83] [cursor=pointer]:
+            - /url: /register
+      - generic [ref=f10e84]:
+        - generic [ref=f10e85]: ไม่มีค่าธรรมเนียม
+        - generic [ref=f10e89]: ข้อมูลปลอดภัย 100%
+        - generic [ref=f10e93]: ครูผ่านการตรวจสอบ
+  - alert [ref=f10e97]

@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FirebaseError } from 'firebase/app';
 import { Mail } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -43,10 +43,16 @@ function LoginFormFields() {
   const [error, setError] = useState<string | null>(null);
   const [pendingMethod, setPendingMethod] = useState<'email' | 'google' | null>(null);
 
+  // Get redirect parameter from URL (set by middleware when accessing protected routes)
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams?.get('redirect');
+
   useEffect(() => {
     if (!userProfile || pendingMethod) return;
-    router.replace(getPostLoginPath(userProfile.role));
-  }, [pendingMethod, router, userProfile]);
+    // Use redirect parameter if present, otherwise fall back to role-based path
+    const destination = redirectTo || getPostLoginPath(userProfile.role);
+    router.replace(destination);
+  }, [pendingMethod, redirectTo, router, userProfile]);
 
   async function handleEmailLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,7 +65,8 @@ function LoginFormFields() {
       const password = String(formData.get('password') || '');
       const profile = await signIn(email, password);
       // signIn already calls setSessionCookie inside useFirebase
-      router.push(profile ? getPostLoginPath(profile.role) : '/dashboard');
+      const destination = redirectTo || (profile ? getPostLoginPath(profile.role) : '/dashboard');
+      router.push(destination);
       router.refresh();
     } catch (loginError) {
       setError(getAuthErrorMessage(loginError));
@@ -80,7 +87,8 @@ function LoginFormFields() {
 
       const profile = await signInWithGoogle();
       // signInWithGoogle already calls setSessionCookie inside useFirebase
-      router.push(getPostLoginPath(profile.role));
+      const destination = redirectTo || getPostLoginPath(profile.role);
+      router.push(destination);
       router.refresh();
     } catch (loginError) {
       // ถ้าใช้ redirect อยู่แล้ว (มือถือ) ไม่ต้อง fallback ไป redirect ซ้ำ
