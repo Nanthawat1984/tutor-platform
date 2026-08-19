@@ -157,6 +157,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void getRedirectResult(auth).then(async (result) => {
       if (!result?.user || !isMounted) return;
       const profile = await ensureUserProfile(result.user, getPendingGoogleRole());
+      // Set the session cookie BEFORE exposing the profile so that any
+      // navigation triggered by setUserProfile has the cookie ready.
+      // (Fixes bounce-back to /login after Google redirect sign-in.)
+      await setSessionCookie(result.user);
       if (isMounted) setUserProfile(profile);
     }).catch((error) => {
       console.error('Google redirect sign-in error:', error);
@@ -170,11 +174,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const profile = isGoogleProviderUser(firebaseUser.providerData)
             ? await ensureUserProfile(firebaseUser, getPendingGoogleRole())
             : await fetchUserProfile(firebaseUser);
+          // Set the session cookie BEFORE exposing the profile so any
+          // navigation triggered by setUserProfile has the cookie ready.
+          await setSessionCookie(firebaseUser);
           if (profile) {
             setUserProfile(profile);
           }
-          // Set session cookie for server-side auth
-          await setSessionCookie(firebaseUser);
         } else {
           setUserProfile(null);
           await clearSessionCookie();
@@ -226,8 +231,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await signInWithPopup(auth, createGoogleProvider());
       const profile = await ensureUserProfile(result.user, role);
-      setUserProfile(profile);
+      // Set the session cookie BEFORE exposing the profile so any navigation
+      // triggered by setUserProfile has the cookie ready.
       await setSessionCookie(result.user);
+      setUserProfile(profile);
       return profile;
     } catch (error) {
       console.error('Google sign-in error:', error);

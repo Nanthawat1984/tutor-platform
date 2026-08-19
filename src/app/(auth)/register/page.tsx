@@ -194,6 +194,10 @@ function RegisterFields() {
             </div>
           </div>
 
+          <p className="-mt-2 text-xs leading-relaxed text-slate-400">
+            💡 มีบัญชีอยู่แล้ว? บทบาทของคุณจะใช้จากบัญชีเดิมโดยอัตโนมัติ (เช่น ผู้ดูแลระบบ) — เลือกบทบาทนี้สำหรับบัญชีใหม่เท่านั้น
+          </p>
+
           <button
             type="button"
             disabled={isPending}
