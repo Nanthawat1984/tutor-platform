@@ -47,6 +47,7 @@ function getAuthErrorMessage(error: unknown) {
   if (error instanceof Error) {
     if (error.message === 'profile-create-failed') return 'สร้างโปรไฟล์ผู้ใช้ไม่สำเร็จ กรุณาลองเข้าสู่ระบบด้วยบัญชีเดิมอีกครั้ง';
     if (error.message === 'profile-read-failed') return 'อ่านข้อมูลโปรไฟล์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+    if (error.name === 'GooglePopupTimeoutError') return error.message;
   }
   return 'สมัครไม่สำเร็จ กรุณาลองอีกครั้ง';
 }
@@ -108,8 +109,14 @@ function RegisterFields() {
       router.push(getPostLoginPath(profile.role));
       router.refresh();
     } catch (registerError) {
-      if (shouldFallbackToGoogleRedirect(registerError)) {
-        await signInWithGoogleRedirect(role);
+      // ถ้าใช้ redirect อยู่แล้ว (มือถือ) ไม่ต้อง fallback ไป redirect ซ้ำ
+      // (จะ fail ซ้ำและกลายเป็น unhandled rejection → หน้าค้าง)
+      if (getPreferredGoogleSignInMethod() !== 'redirect' && shouldFallbackToGoogleRedirect(registerError)) {
+        try {
+          await signInWithGoogleRedirect(role);
+        } catch (redirectError) {
+          setError(getAuthErrorMessage(redirectError));
+        }
         return;
       }
       setError(getAuthErrorMessage(registerError));

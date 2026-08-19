@@ -19,6 +19,9 @@ function getAuthErrorMessage(error: unknown) {
     if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
     if (error.code === 'auth/user-not-found') return 'ไม่พบบัญชีผู้ใช้นี้';
   }
+  if (error instanceof Error) {
+    if (error.name === 'GooglePopupTimeoutError') return error.message;
+  }
   return 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองอีกครั้ง';
 }
 
@@ -80,8 +83,14 @@ function LoginFormFields() {
       router.push(getPostLoginPath(profile.role));
       router.refresh();
     } catch (loginError) {
-      if (shouldFallbackToGoogleRedirect(loginError)) {
-        await signInWithGoogleRedirect();
+      // ถ้าใช้ redirect อยู่แล้ว (มือถือ) ไม่ต้อง fallback ไป redirect ซ้ำ
+      // (จะ fail ซ้ำและกลายเป็น unhandled rejection → หน้าค้าง)
+      if (getPreferredGoogleSignInMethod() !== 'redirect' && shouldFallbackToGoogleRedirect(loginError)) {
+        try {
+          await signInWithGoogleRedirect();
+        } catch (redirectError) {
+          setError(getAuthErrorMessage(redirectError));
+        }
         return;
       }
       setError(getAuthErrorMessage(loginError));

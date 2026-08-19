@@ -170,7 +170,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const profile = isGoogleProviderUser(firebaseUser.providerData)
             ? await ensureUserProfile(firebaseUser, getPendingGoogleRole())
             : await fetchUserProfile(firebaseUser);
-          setUserProfile(profile);
+          if (profile) {
+            setUserProfile(profile);
+          }
           // Set session cookie for server-side auth
           await setSessionCookie(firebaseUser);
         } else {
@@ -179,7 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('Auth profile load error:', error);
-        setUserProfile(null);
+        // อย่า setUserProfile(null) — อาจไปทับ profile ที่ signInWithGoogle
+        // ตั้งไว้แล้ว ทำให้หน้า login ค้าง (userProfile เป็น null → ไม่ redirect ต่อ)
       } finally {
         setLoading(false);
       }
@@ -215,11 +218,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async (role: AuthRole = 'parent') => {
     const auth = getFirebaseAuth();
     setPendingGoogleRole(role);
-    const result = await signInWithPopup(auth, createGoogleProvider());
-    const profile = await ensureUserProfile(result.user, role);
-    setUserProfile(profile);
-    await setSessionCookie(result.user);
-    return profile;
+
+    // signInWithPopup จะ reject เองเมื่อ popup ถูกบล็อก (auth/popup-blocked)
+    // หรือผู้ใช้ปิดหน้าต่าง (auth/popup-closed-by-user) — ไม่ต้องมี timeout
+    // เพราะ timeout เดิม (25 วิ) ทำให้ผู้ใช้ที่ใช้เวลาเลือกบัญชี Google นาน
+    // fallback ไป signInWithRedirect ซึ่ง route __/auth/handler ไม่มี → ระบบค้าง
+    try {
+      const result = await signInWithPopup(auth, createGoogleProvider());
+      const profile = await ensureUserProfile(result.user, role);
+      setUserProfile(profile);
+      await setSessionCookie(result.user);
+      return profile;
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      throw error;
+    }
   }, []);
 
   const signInWithGoogleRedirect = useCallback(async (role: AuthRole = 'parent') => {

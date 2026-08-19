@@ -10,6 +10,17 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  async rewrites() {
+    return [
+      // Firebase Auth signInWithRedirect ต้องมีหน้า /__/auth/handler
+      // แต่ Next.js ไม่ route โฟลเดอร์ที่ขึ้นต้นด้วย "_" จึง rewrite
+      // ไปยัง route handler ที่ path ปกติ (/auth-handler)
+      {
+        source: '/__/auth/handler',
+        destination: '/auth-handler',
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

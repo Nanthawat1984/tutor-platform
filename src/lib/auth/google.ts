@@ -5,7 +5,22 @@ const GOOGLE_REDIRECT_FALLBACK_CODES = new Set([
 
 export type GoogleSignInMethod = 'popup' | 'redirect';
 
+export class GooglePopupTimeoutError extends Error {
+  constructor() {
+    super('กรุณาเลือกบัญชี Google ภายใน 30 วินาที ระบบจะเปลี่ยนเป็นวิธีล็อกอินอื่นค่ะ');
+    this.name = 'GooglePopupTimeoutError';
+  }
+}
+
+export function isMobile(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i.test(
+    navigator.userAgent
+  );
+}
+
 export function getPreferredGoogleSignInMethod(): GoogleSignInMethod {
+  if (isMobile()) return 'redirect';
   return 'popup';
 }
 
@@ -16,5 +31,7 @@ export function isGoogleProviderUser(providerData: ReadonlyArray<{ providerId?: 
 export function shouldFallbackToGoogleRedirect(error: unknown) {
   if (!error || typeof error !== 'object') return false;
   const code = 'code' in error ? error.code : undefined;
-  return typeof code === 'string' && GOOGLE_REDIRECT_FALLBACK_CODES.has(code);
+  if (typeof code === 'string' && GOOGLE_REDIRECT_FALLBACK_CODES.has(code)) return true;
+  if (error instanceof GooglePopupTimeoutError) return true;
+  return false;
 }

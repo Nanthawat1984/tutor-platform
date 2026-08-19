@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const SESSION_COOKIE_NAME = 'fb_session';
+// IMPORTANT: Firebase Hosting strips ALL cookies from incoming requests
+// EXCEPT the specially-named `__session` cookie. Using any other name means
+// the middleware will never see the session on the deployed version.
+// See: https://firebase.google.com/docs/hosting/manage-cache#using_cookies
+const SESSION_COOKIE_NAME = '__session';
 
 // Routes that require authentication
 const PROTECTED_ROUTES = [
