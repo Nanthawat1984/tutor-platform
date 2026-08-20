@@ -8,11 +8,36 @@ import { Input, Select } from '@/components/ui/input';
 import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { DashboardLayout, StatCard, EmptyState } from '@/components/layout/dashboard';
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
+import { ConfirmDeleteButton } from '@/components/admin/confirm-delete-button';
 import { FieldValue } from 'firebase-admin/firestore';
-import { GraduationCap, School, Search, StickyNote, Trash2, Users, X } from 'lucide-react';
+import { GraduationCap, School, Search, StickyNote, Users, X } from 'lucide-react';
 
 interface StudentsSearchParams {
   searchParams: Promise<{ q?: string; level?: string; sort?: string }>;
+}
+
+async function deleteStudentAction(formData: FormData) {
+  'use server';
+  const dbRef = getServerDb();
+  if (!dbRef) return;
+  const studentId = formData.get('studentId') as string;
+
+  const bookingsSnap = await dbRef.collection(COLLECTIONS.BOOKINGS)
+    .where('studentId', '==', studentId)
+    .get();
+
+  const batch = dbRef.batch();
+  bookingsSnap.docs.forEach((d) =>
+    batch.update(d.ref, {
+      status: 'cancelled',
+      notes: (d.data().notes ? d.data().notes + ' | ' : '') + 'ยกเลิกโดย admin (ลบรายชื่อนักเรียน)',
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+  );
+  batch.delete(dbRef.collection(COLLECTIONS.STUDENTS).doc(studentId));
+  await batch.commit();
+
+  redirect('/admin/students');
 }
 
 export default async function AdminStudentsPage({ searchParams }: StudentsSearchParams) {
@@ -83,31 +108,7 @@ export default async function AdminStudentsPage({ searchParams }: StudentsSearch
     }
   });
 
-  async function deleteStudentAction(formData: FormData) {
-    'use server';
-    const dbRef = getServerDb();
-    if (!dbRef) return;
-    const studentId = formData.get('studentId') as string;
-
-    const bookingsSnap = await dbRef.collection(COLLECTIONS.BOOKINGS)
-      .where('studentId', '==', studentId)
-      .get();
-
-    const batch = dbRef.batch();
-    bookingsSnap.docs.forEach((d) =>
-      batch.update(d.ref, {
-        status: 'cancelled',
-        notes: (d.data().notes ? d.data().notes + ' | ' : '') + 'ยกเลิกโดย admin (ลบรายชื่อนักเรียน)',
-        updatedAt: FieldValue.serverTimestamp(),
-      })
-    );
-    batch.delete(dbRef.collection(COLLECTIONS.STUDENTS).doc(studentId));
-    await batch.commit();
-
-    redirect('/admin/students');
-  }
-
-  const STATS = [
+    const STATS = [
     {
       label: 'นักเรียนทั้งหมด',
       value: students.length,
@@ -241,24 +242,13 @@ export default async function AdminStudentsPage({ searchParams }: StudentsSearch
                   )}
                 </TableCell>
                 <TableCell>
-                  <form action={deleteStudentAction}>
-                    <input type="hidden" name="studentId" value={student.id} />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      variant="outline"
-                      className="border-rose-200 text-rose-600 hover:bg-rose-50"
-                      onClick={(e) => {
-                        if (!confirm(`ลบรายชื่อ ${student.name}?\n\nจะลบออกจากระบบและยกเลิกการจองที่อ้างถึง — ไม่สามารถย้อนกลับได้`)) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      ลบ
-                    </Button>
-                  </form>
-                </TableCell>
+                    <ConfirmDeleteButton
+                      action={deleteStudentAction}
+                      hiddenName="studentId"
+                      hiddenValue={student.id}
+                      confirmMessage={`ลบรายชื่อ ${student.name}?\n\nจะลบออกจากระบบและยกเลิกการจองที่อ้างถึง — ไม่สามารถย้อนกลับได้`}
+                    />
+                  </TableCell>
               </TableRow>
             ))}
           </Table>

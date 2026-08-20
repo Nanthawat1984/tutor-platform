@@ -7,11 +7,38 @@ import { Input, Select } from '@/components/ui/input';
 import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { DashboardLayout, StatCard, EmptyState } from '@/components/layout/dashboard';
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
+import { ConfirmDeleteButton } from '@/components/admin/confirm-delete-button';
 import { FieldValue } from 'firebase-admin/firestore';
-import { GraduationCap, Mail, Phone, Search, Trash2, User, Users, X } from 'lucide-react';
+import { GraduationCap, Mail, Phone, Search, User, Users, X } from 'lucide-react';
 
 interface ParentsSearchParams {
   searchParams: Promise<{ q?: string; kids?: string; bookings?: string; sort?: string }>;
+}
+
+async function deleteParentAction(formData: FormData) {
+  'use server';
+  const dbRef = getServerDb();
+  if (!dbRef) return;
+  const parentId = formData.get('parentId') as string;
+
+  const [students, bookings] = await Promise.all([
+    dbRef.collection(COLLECTIONS.STUDENTS).where('parentId', '==', parentId).get(),
+    dbRef.collection(COLLECTIONS.BOOKINGS).where('parentId', '==', parentId).get(),
+  ]);
+
+  const batch = dbRef.batch();
+  students.docs.forEach((d) => batch.delete(d.ref));
+  bookings.docs.forEach((d) =>
+    batch.update(d.ref, {
+      status: 'cancelled',
+      notes: (d.data().notes ? d.data().notes + ' | ' : '') + 'ยกเลิกโดย admin (ลบบัญชีผู้ปกครอง)',
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+  );
+  batch.delete(dbRef.collection(COLLECTIONS.USERS).doc(parentId));
+  await batch.commit();
+
+  redirect('/admin/parents');
 }
 
 export default async function AdminParentsPage({ searchParams }: ParentsSearchParams) {
@@ -93,33 +120,7 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
     }
   });
 
-  async function deleteParentAction(formData: FormData) {
-    'use server';
-    const dbRef = getServerDb();
-    if (!dbRef) return;
-    const parentId = formData.get('parentId') as string;
-
-    const [students, bookings] = await Promise.all([
-      dbRef.collection(COLLECTIONS.STUDENTS).where('parentId', '==', parentId).get(),
-      dbRef.collection(COLLECTIONS.BOOKINGS).where('parentId', '==', parentId).get(),
-    ]);
-
-    const batch = dbRef.batch();
-    students.docs.forEach((d) => batch.delete(d.ref));
-    bookings.docs.forEach((d) =>
-      batch.update(d.ref, {
-        status: 'cancelled',
-        notes: (d.data().notes ? d.data().notes + ' | ' : '') + 'ยกเลิกโดย admin (ลบบัญชีผู้ปกครอง)',
-        updatedAt: FieldValue.serverTimestamp(),
-      })
-    );
-    batch.delete(dbRef.collection(COLLECTIONS.USERS).doc(parentId));
-    await batch.commit();
-
-    redirect('/admin/parents');
-  }
-
-  const STATS = [
+          const STATS = [
     {
       label: 'ผู้ปกครองทั้งหมด',
       value: parents.length,
@@ -254,23 +255,12 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
                     </span>
                   </TableCell>
                   <TableCell>
-                    <form action={deleteParentAction}>
-                      <input type="hidden" name="parentId" value={parent.uid} />
-                      <Button
-                        type="submit"
-                        size="sm"
-                        variant="outline"
-                        className="border-rose-200 text-rose-600 hover:bg-rose-50"
-                        onClick={(e) => {
-                          if (!confirm(`ลบบัญชี ${parent.displayName || 'ผู้ปกครอง'}?\n\nจะลบรายชื่อลูก ${studentCount} คน และยกเลิกการจอง ${bookingCount} รายการ — ไม่สามารถย้อนกลับได้`)) {
-                            e.preventDefault();
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        ลบ
-                      </Button>
-                    </form>
+                    <ConfirmDeleteButton
+                      action={deleteParentAction}
+                      hiddenName="parentId"
+                      hiddenValue={parent.uid}
+                      confirmMessage={`ลบบัญชี ${parent.displayName || 'ผู้ปกครอง'}?\n\nจะลบรายชื่อลูก ${studentCount} คน และยกเลิกการจอง ${bookingCount} รายการ — ไม่สามารถย้อนกลับได้`}
+                    />
                   </TableCell>
                 </TableRow>
               );
