@@ -19,6 +19,7 @@ functions/lib/
 # Local agent state
 .agent/
 .omx/
+.playwright-mcp/
 
 # IDE
 .vscode

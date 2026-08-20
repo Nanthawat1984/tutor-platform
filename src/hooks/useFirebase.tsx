@@ -171,12 +171,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         if (firebaseUser) {
+          // Always set the session cookie FIRST so the middleware lets the
+          // user through even if profile creation/read fails below.
+          await setSessionCookie(firebaseUser);
           const profile = isGoogleProviderUser(firebaseUser.providerData)
             ? await ensureUserProfile(firebaseUser, getPendingGoogleRole())
             : await fetchUserProfile(firebaseUser);
-          // Set the session cookie BEFORE exposing the profile so any
-          // navigation triggered by setUserProfile has the cookie ready.
-          await setSessionCookie(firebaseUser);
           if (profile) {
             setUserProfile(profile);
           }

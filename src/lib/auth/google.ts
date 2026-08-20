@@ -20,9 +20,12 @@ export function isMobile(): boolean {
 }
 
 export function getPreferredGoogleSignInMethod(): GoogleSignInMethod {
-  // Always use redirect to avoid popup COOP issues on desktop
-  // and to provide a consistent experience across devices.
-  return 'redirect';
+  // Desktop: popup gives a smoother experience (no full-page redirect) and
+  // returns the result directly via window.opener.postMessage.
+  // Mobile: redirect works in ALL mobile browsers including in-app browsers
+  // (LINE, Facebook, etc.) that block popups. The redirect flow is now
+  // same-origin (authDomain === app domain) so it completes reliably.
+  return isMobile() ? 'redirect' : 'popup';
 }
 
 export function isGoogleProviderUser(providerData: ReadonlyArray<{ providerId?: string | null }>) {

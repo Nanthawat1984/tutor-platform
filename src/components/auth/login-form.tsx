@@ -39,7 +39,7 @@ function GoogleIcon() {
 
 function LoginFormFields() {
   const router = useRouter();
-  const { signIn, signInWithGoogle, signInWithGoogleRedirect, userProfile } = useAuth();
+  const { user, signIn, signInWithGoogle, signInWithGoogleRedirect, userProfile, loading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [pendingMethod, setPendingMethod] = useState<'email' | 'google' | null>(null);
 
@@ -48,11 +48,23 @@ function LoginFormFields() {
   const redirectTo = searchParams?.get('redirect');
 
   useEffect(() => {
-    if (!userProfile || pendingMethod) return;
-    // Use redirect parameter if present, otherwise fall back to role-based path
-    const destination = redirectTo || getPostLoginPath(userProfile.role);
-    router.replace(destination);
-  }, [pendingMethod, redirectTo, router, userProfile]);
+    if (pendingMethod) return;
+    // Once we have a profile, go to the role-based destination.
+    if (userProfile) {
+      const destination = redirectTo || getPostLoginPath(userProfile.role);
+      router.replace(destination);
+      return;
+    }
+    // Signed in (e.g. after Google redirect) but profile not loaded yet —
+    // wait briefly for the profile to arrive, then fall back to a safe path
+    // so the user is never stuck on /login.
+    if (user && !loading) {
+      const t = setTimeout(() => {
+        router.replace(redirectTo || '/my-bookings');
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [pendingMethod, redirectTo, router, user, userProfile, loading]);
 
   async function handleEmailLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
