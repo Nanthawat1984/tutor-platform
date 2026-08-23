@@ -11,6 +11,8 @@ import { COLLECTIONS } from '@/types/firestore';
 import { requireSessionUser } from '@/lib/auth/session';
 import { requireRole } from '@/lib/auth/guards';
 import KycFileUploader from '@/components/teacher/kyc-file-uploader';
+import StripeConnectOnboarding from '@/components/teacher/stripe-connect-onboarding';
+import { getStripeConnectMode } from '@/lib/payments/connect';
 
 const BANKS = [
   'ธนาคารกสิกรไทย (KBank)',
@@ -37,13 +39,14 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 export default async function PayoutSettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; connect?: string }>;
 }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
   const session = await requireSessionUser();
   const teacherId = session.uid;
   const params = await searchParams;
+  const connectMode = getStripeConnectMode();
 
   const userSnap = await db.collection(COLLECTIONS.USERS).doc(teacherId).get();
   const user = userSnap.exists ? userSnap.data() as any : {};
@@ -104,6 +107,26 @@ export default async function PayoutSettingsPage({
           ❌ เหตุผลที่ไม่ผ่าน: {user.kycNote}
         </div>
       )}
+
+      {params.connect === 'complete' && (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 print:hidden">
+          กลับจาก Stripe แล้ว ระบบจะอัปเดตสถานะบัญชีรับเงินเมื่อเปิดหน้านี้อีกครั้ง
+        </div>
+      )}
+      {params.connect === 'refresh' && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 print:hidden">
+          ลิงก์ Stripe หมดอายุหรือถูกยกเลิก กรุณาเริ่มการเชื่อมต่อใหม่
+        </div>
+      )}
+
+      <div className="mb-6">
+        <StripeConnectOnboarding
+          mode={connectMode}
+          accountId={user.stripeConnectAccountId}
+          transfersStatus={user.stripeConnectTransfersStatus}
+          connectMessage={user.stripeConnectStatus === 'active' ? 'บัญชีพร้อมรับเงินโอนใน Stripe แล้ว' : undefined}
+        />
+      </div>
 
       {kycStatus === 'verified' && (
         <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">

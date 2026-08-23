@@ -1,7 +1,7 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Receipt, ReceiptText, CalendarDays, Clock, QrCode, CreditCard, Smartphone, Landmark } from 'lucide-react';
+import { Receipt, ReceiptText, CalendarDays, QrCode, CreditCard, Smartphone, Landmark } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
@@ -105,53 +105,13 @@ export default async function PaymentsPage() {
                 </div>
               </div>
 
-              {/* ใบเสร็จ (expandable) */}
+              {/* ใบเสร็จ */}
               {(p.status === 'paid' || p.status === 'refunded') && (
-                <details className="mt-3 border-t border-pink-100 pt-3">
-                  <summary className="cursor-pointer select-none text-xs font-bold text-pink-600 hover:underline">
-                    ดูใบเสร็จ
-                  </summary>
-                  <div className="mt-3 rounded-xl bg-pink-50/50 p-4 text-sm">
-                    <div className="mb-2 flex items-center gap-2">
-                      <Receipt className="h-4 w-4 text-pink-600" />
-                      <span className="font-bold text-slate-800">ใบเสร็จรับเงิน — TutorFinder</span>
-                    </div>
-                    <div className="space-y-1.5 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">เลขที่อ้างอิง</span>
-                        <span className="font-mono font-bold text-slate-700">{p.transactionId || p.id}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">รายการ</span>
-                        <span className="font-semibold text-slate-700">{p.courseTitle}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">นักเรียน</span>
-                        <span className="font-semibold text-slate-700">{p.studentName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">วิธีชำระ</span>
-                        <span className="font-semibold text-slate-700">{methodLabel(p.method)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">ชำระเมื่อ</span>
-                        <span className="font-semibold text-slate-700">
-                          {p.paidAt ? formatDate(p.paidAt.toDate?.() || p.paidAt, 'd MMM yyyy') : '-'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between border-t border-pink-200 pt-1.5">
-                        <span className="font-bold text-slate-800">ยอดชำระ</span>
-                        <span className="font-extrabold text-pink-700">{formatCurrency(p.amount)}</span>
-                      </div>
-                      {p.slipURL && (
-                        <div className="pt-2">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={p.slipURL} alt="สลิปโอนเงิน" className="max-h-40 rounded-lg border border-slate-200" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </details>
+                <div className="mt-3 border-t border-pink-100 pt-3">
+                  <Link href={`/payments/${p.id}/receipt`}>
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto">ดู / พิมพ์ใบเสร็จ PDF</Button>
+                  </Link>
+                </div>
               )}
             </Card>
           ))}

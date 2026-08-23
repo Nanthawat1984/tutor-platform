@@ -149,6 +149,17 @@ env:
     availability:
       - RUNTIME
 
+  # Connect is fail-closed. Enable test mode first; live transfers need a separate explicit switch.
+  - variable: STRIPE_CONNECT_ENABLED
+    value: "false"
+    availability:
+      - RUNTIME
+
+  - variable: STRIPE_CONNECT_LIVE_ENABLED
+    value: "false"
+    availability:
+      - RUNTIME
+
   # Optional payment-slip agent. The key remains server-only in Secret Manager.
   - variable: OPENAI_API_KEY
     secret: OPENAI_API_KEY

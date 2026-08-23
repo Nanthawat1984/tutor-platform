@@ -74,6 +74,12 @@ export interface User {
   lineUserId?: string;         // LINE user ID ที่ผ่าน LIFF verification แล้ว
   lineLinkedAt?: Timestamp;
   lineNotificationEnabled?: boolean;
+  // ── Stripe Connect (ครู) ──
+  stripeConnectAccountId?: string;
+  stripeConnectStatus?: string;
+  stripeConnectTransfersStatus?: string | null;
+  stripeConnectPayoutsStatus?: string | null;
+  stripeConnectUpdatedAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -319,6 +325,9 @@ export interface Payment {
   taxWithheld?: number;     // ยอดภาษีที่หัก (บาท)
   payoutAmount?: number;    // ยอดสุทธิที่ครูได้รับจริง (netAmount - taxWithheld)
   taxWithheldAt?: Timestamp;// วันที่หัก (= วัน release escrow)
+  stripeChargeId?: string;
+  stripeTransferId?: string;
+  stripeTransferStatus?: 'pending' | 'created' | 'failed' | 'locked';
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

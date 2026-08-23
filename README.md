@@ -134,8 +134,25 @@ node scripts/setup-line-rich-menus.cjs --dry-run
 - **ค่าบริการแพลตฟอร์ม:** 20% ของรายได้ต่อเซสชัน (ดู `src/lib/payments/config.ts`)
 - **Mock Gateway:** ทำงานเมื่อไม่มี Stripe key หรือ `PAYMENT_PROVIDER` ไม่ใช่ `stripe` — ไม่มีการหักเงินจริง
 - **Stripe Test Mode:** ตั้ง `PAYMENT_PROVIDER=stripe`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` และตั้ง webhook ไปที่ `/api/payments/webhook`
-- **Stripe Connect:** เตรียมไว้สำหรับ onboarding/payout ครู โดยยังคง escrow และการอนุมัติโอนของแอดมินเป็น authoritative
+- **ใบเสร็จ PDF:** ผู้ปกครองเปิด `/payments` แล้วกด `ดู / พิมพ์ใบเสร็จ PDF` ระบบใช้หน้าพิมพ์ของเบราว์เซอร์เพื่อเลือก `Save as PDF` โดยไม่เพิ่มค่า PDF service และไม่แสดงค่าบริการแพลตฟอร์มหรือรายได้ครู
+- **Stripe Connect:** ครูเริ่ม onboarding ที่ `/profile/payout`; แอดมินยังเป็นผู้อนุมัติ payout และเลือก `ส่งผ่าน Stripe Connect` ได้เฉพาะบัญชีที่ Stripe แจ้งว่า transfers พร้อม
+- **Connect safety flags:** `STRIPE_CONNECT_ENABLED=false` และ `STRIPE_CONNECT_LIVE_ENABLED=false` เป็นค่าเริ่มต้น ระบบจึงไม่สร้างบัญชีหรือโอนเงินจริงจนกว่าจะเปิดอย่างตั้งใจใน Test Mode ก่อน
 - **อัปโหลดสลิป:** ผ่าน `/api/payments/upload-slip` (Admin SDK, ไม่พึ่ง client auth)
+
+### UAT การชำระเงินและ Connect
+
+ตรวจ contract และ regression ก่อนทดสอบด้วยบัญชีจริง/บัญชีทดสอบ:
+
+```bash
+node scripts/verify-receipt-connect.cjs
+node scripts/verify-bank-transfer-review.cjs
+node scripts/verify-stripe-payment.cjs
+node scripts/verify-security-hardening.cjs
+pnpm typecheck
+pnpm build
+```
+
+ลำดับ UAT ที่ปลอดภัยคือใช้ Stripe Test Mode และสลิปทดสอบ: ผู้ปกครองส่งสลิป → ตรวจผล pre-check ใน Admin → Admin อนุมัติ/ปฏิเสธด้วยตนเอง → จบบทเรียน/ปล่อย escrow → ครูทำ Connect onboarding → Admin เลือก payout ผ่าน Connect เฉพาะเมื่อสถานะ transfers เป็น `active` การทดสอบ Live หรือการโอนเงินจริงยังต้องทำเป็น change แยกต่างหาก
 
 ## Roles
 

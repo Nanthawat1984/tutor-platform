@@ -1,15 +1,15 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle2, Receipt, CalendarDays, Clock } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
-import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
+import { formatDate, formatTime } from '@/lib/utils';
 import { requireSessionUser } from '@/lib/auth/session';
 import { PAYMENT_METHODS } from '@/lib/payments/config';
+import PaymentReceipt from '@/components/parent/payment-receipt';
 
 export default async function PaymentSuccessPage({
   params,
@@ -62,52 +62,18 @@ export default async function PaymentSuccessPage({
               : <>ระบบได้รับข้อมูลการชำระเงินของ <span className="font-bold text-slate-700">{booking.studentName}</span> แล้ว กำลังรอการยืนยัน</>}
         </p>
 
-        {/* ใบเสร็จ */}
-        <Card className="mt-7 text-left">
-          <div className="flex items-center justify-between border-b border-pink-100 pb-3">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-pink-600" />
-              <span className="font-bold text-slate-900">ใบเสร็จรับเงิน</span>
-            </div>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600 ring-1 ring-emerald-200">
-              {paymentConfirmed ? 'ชำระแล้ว' : paymentAwaitingReview ? 'รอตรวจสอบสลิป' : 'กำลังตรวจสอบ'}
-            </span>
-          </div>
-
-          <div className="mt-4 space-y-2.5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-slate-500">เลขที่อ้างอิง</span>
-              <span className="font-mono text-xs font-bold text-slate-700">
-                {payment?.transactionId || payment?.id || '-'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">รายการ</span>
-              <span className="font-semibold text-slate-800">{booking.courseTitle}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">นักเรียน</span>
-              <span className="font-semibold text-slate-800">{booking.studentName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">วิธีชำระ</span>
-              <span className="font-semibold text-slate-800">{methodLabel}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">วันที่เรียน</span>
-              <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
-                <CalendarDays className="h-3.5 w-3.5" /> {formatDate(booking.bookingDate, 'd MMM yyyy')}
-                <Clock className="ml-1 h-3.5 w-3.5" /> {formatTime(booking.startTime)}
-              </span>
-            </div>
-            <div className="flex justify-between border-t border-pink-100 pt-2.5">
-              <span className="font-bold text-slate-900">ยอดชำระ</span>
-              <span className="text-lg font-extrabold text-pink-700">
-                {formatCurrency(payment?.amount || booking.totalPrice)}
-              </span>
-            </div>
-          </div>
-        </Card>
+        <div className="mt-7 text-left">
+          <PaymentReceipt
+            reference={payment?.transactionId || payment?.id || '-'}
+            courseTitle={booking.courseTitle}
+            studentName={booking.studentName}
+            methodLabel={methodLabel}
+            amount={Number(payment?.amount || booking.totalPrice) || 0}
+            lessonDateLabel={`${formatDate(booking.bookingDate, 'd MMM yyyy')} ${formatTime(booking.startTime)}`}
+            status={paymentConfirmed ? 'paid' : paymentAwaitingReview ? 'awaiting_review' : 'pending'}
+            receiptHref={paymentConfirmed && payment?.id ? `/payments/${payment.id}/receipt` : undefined}
+          />
+        </div>
 
         <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
           <Link href="/payments">
