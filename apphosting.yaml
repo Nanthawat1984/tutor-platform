@@ -175,3 +175,25 @@ env:
     value: gpt-4o-mini
     availability:
       - RUNTIME
+  - variable: COMPANY_NAME
+    secret: COMPANY_NAME
+    availability:
+      - RUNTIME
+  - variable: COMPANY_TAX_ID
+    secret: COMPANY_TAX_ID
+    availability:
+      - RUNTIME
+  - variable: COMPANY_ADDRESS
+    secret: COMPANY_ADDRESS
+    availability:
+      - RUNTIME
+  - variable: COMPANY_BRANCH
+    secret: COMPANY_BRANCH
+    availability:
+      - RUNTIME
+
+  # ออกใบเสร็จรับเงินก่อน ยังไม่เปิดสถานะใบกำกับภาษี VAT
+  - variable: COMPANY_VAT_REGISTERED
+    value: "false"
+    availability:
+      - RUNTIME
