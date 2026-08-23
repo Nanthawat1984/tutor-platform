@@ -53,10 +53,27 @@ export interface User {
   email: string;
   displayName: string;
   phone?: string;
+  address?: string;             // ที่อยู่ผู้ปกครอง — ข้อมูลส่วนตัว
   photoURL?: string;
+  idCardPath?: string;          // path บัตรประชาชนผู้ปกครองใน private Storage
   role: 'teacher' | 'parent' | 'admin';
   isVerified: boolean;
   verificationLevel: 'none' | 'basic' | 'full';
+  // ── KYC + บัญชีรับเงิน (ครู) ──
+  kycStatus?: 'none' | 'pending' | 'verified' | 'rejected';
+  kycNote?: string;            // เหตุผลจากแอดมิน (กรณี rejected)
+  kycSubmittedAt?: Timestamp;
+  payoutBankName?: string;     // ธนาคาร
+  payoutAccountName?: string;  // ชื่อบัญชี (ต้องตรงกับบัตร)
+  payoutAccountNumber?: string;// เลขบัญชี
+  bookBankURL?: string;        // สำเนาสมุดบัญชี (Storage URL)
+  idCardURL?: string;          // สำเนาบัตรประชาชน (Storage URL)
+  termsVersion?: string;       // ฉบับข้อตกลงที่ผู้ใช้ยอมรับ
+  privacyVersion?: string;     // ฉบับนโยบายความเป็นส่วนตัวที่ผู้ใช้รับทราบ
+  consentAcceptedAt?: Timestamp;
+  lineUserId?: string;         // LINE user ID ที่ผ่าน LIFF verification แล้ว
+  lineLinkedAt?: Timestamp;
+  lineNotificationEnabled?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -261,18 +278,72 @@ export interface Notification {
 }
 
 // =============================================
-// PAYMENT
+// PAYMENT (การชำระเงิน — escrow model)
 // =============================================
+// Flow:
+//   1. ผู้ปกครองจอง → สร้าง payment status=pending (โดย Admin SDK ฝั่ง server)
+//   2. ผู้ปกครองเลือกวิธีชำระ (stripe_checkout / bank_transfer)
+//   3. Gateway สำเร็จ → status=paid → ระบบ escrow: ยืนยันการจอง + เข้า wallet pending ของครู
+//   4. เรียนเสร็จ (booking completed) → ปล่อย escrow pending → available ของครู
+export type PaymentMethod = 'stripe_checkout' | 'promptpay' | 'credit_card' | 'truemoney' | 'bank_transfer';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
+// `omise` remains readable for historical records only; new payments use mock or Stripe.
+export type PaymentProvider = 'mock' | 'omise' | 'stripe';
+
 export interface Payment {
   id: string;
   bookingId: string;
   parentId: string;
-  amount: number;
+  teacherId: string;        // denormalized — สำหรับ filter รายได้ครู
+  studentName: string;      // denormalized
+  courseTitle: string;      // denormalized
+  amount: number;           // ยอดรวม (gross)
+  fees: number;             // ค่าบริการแพลตฟอร์ม (เช่น 20%)
+  netAmount: number;        // ยอดที่ครูจะได้รับ (amount - fees)
   currency: string;
-  method: 'promptpay' | 'credit_card' | 'truemoney' | 'bank_transfer';
-  status: 'pending' | 'paid' | 'failed' | 'refunded';
-  transactionId?: string;
+  method: PaymentMethod;
+  provider?: PaymentProvider;
+  status: PaymentStatus;
+  transactionId?: string;   // เลข transaction จาก gateway
+  providerRef?: string;     // ref จาก gateway (เช่น Omise charge id)
   paidAt?: Timestamp;
+  slipURL?: string;         // สำหรับวิธี bank_transfer (อัปโหลดสลิป)
+  escrowProcessed?: boolean;// guard — กันประมวลผลซ้ำ (แอป process แล้ว trigger จะข้าม)
+  expiresAt?: Timestamp;    // วันหมดอายุของ QR/รายการชำระ
+  // ── ภาษีหัก ณ ที่จ่าย (3% ของ netAmount — หักตอน release escrow) ──
+  taxWithheld?: number;     // ยอดภาษีที่หัก (บาท)
+  payoutAmount?: number;    // ยอดสุทธิที่ครูได้รับจริง (netAmount - taxWithheld)
+  taxWithheldAt?: Timestamp;// วันที่หัก (= วัน release escrow)
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// =============================================
+// WALLET (กระเป๋าเงินครู — escrow)
+// =============================================
+export interface Wallet {
+  id: string;               // = teacherId
+  teacherId: string;
+  pendingBalance: number;   // เงินรอปล่อย (escrow) — หลังชำระเงิน ยังไม่เรียนเสร็จ
+  availableBalance: number; // เงินพร้อมโอน — ปล่อยเมื่อเรียนเสร็จ
+  totalEarned: number;      // ยอดสะสมทั้งหมดที่เคยปล่อยแล้ว
+  updatedAt: Timestamp;
+}
+
+// =============================================
+// PAYOUT (การเบิกเงิน/โอนเงินให้ครู)
+// =============================================
+export interface Payout {
+  id: string;
+  teacherId: string;
+  amount: number;
+  status: 'requested' | 'processing' | 'paid' | 'rejected';
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  note?: string;
+  slipURL?: string;         // หลักฐานการโอนเงิน (อัปโหลดโดยแอดมิน)
+  paidAt?: Timestamp;       // วันที่โอนจริง
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -294,4 +365,7 @@ export const COLLECTIONS = {
   REVIEWS: 'reviews',
   NOTIFICATIONS: 'notifications',
   PAYMENTS: 'payments',
+  STRIPE_EVENTS: 'stripeWebhookEvents',
+  WALLETS: 'wallets',
+  PAYOUTS: 'payouts',
 } as const;

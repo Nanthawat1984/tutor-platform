@@ -1,0 +1,28 @@
+# Firebase App Hosting runtime configuration for the existing tutor-platform backend.
+# Secret values stay in Cloud Secret Manager; this file contains references only.
+runConfig:
+  maxInstances: 20
+  concurrency: 80
+
+env:
+  - variable: PAYMENT_PROVIDER
+    value: stripe
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://tutor-platform--tutor-platform-4e38f.asia-southeast1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: STRIPE_SECRET_KEY
+    secret: STRIPE_SECRET_KEY
+    availability:
+      - RUNTIME
+
+  - variable: STRIPE_WEBHOOK_SECRET
+    secret: STRIPE_WEBHOOK_SECRET
+    availability:
+      - RUNTIME

@@ -18,6 +18,7 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  stripe_checkout: 'Stripe Checkout',
   promptpay: 'พร้อมเพย์',
   credit_card: 'บัตรเครดิต',
   truemoney: 'TrueMoney',
