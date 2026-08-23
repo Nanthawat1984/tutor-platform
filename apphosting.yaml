@@ -148,3 +148,19 @@ env:
     secret: STRIPE_WEBHOOK_SECRET
     availability:
       - RUNTIME
+
+  # Optional payment-slip agent. The key remains server-only in Secret Manager.
+  - variable: OPENAI_API_KEY
+    secret: OPENAI_API_KEY
+    availability:
+      - RUNTIME
+
+  - variable: PAYMENT_SLIP_AGENT_ENABLED
+    value: "true"
+    availability:
+      - RUNTIME
+
+  - variable: PAYMENT_SLIP_AGENT_MODEL
+    value: gpt-4o-mini
+    availability:
+      - RUNTIME

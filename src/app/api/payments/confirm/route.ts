@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerDb } from '@/lib/firebase/server';
+import { getServerDb, getServerStorage } from '@/lib/firebase/server';
 import { getSessionUser } from '@/lib/auth/session';
 import { COLLECTIONS } from '@/types/firestore';
 import { markPaymentPaid, markPaymentFailed } from '@/lib/payments/process';
 import { MOCK_MODE, generateRef } from '@/lib/payments/config';
+import { analyzePaymentSlip } from '@/lib/payments/slip-agent';
 
 /**
  * POST /api/payments/confirm
@@ -42,11 +43,42 @@ export async function POST(request: NextRequest) {
     if (!slipPath || !slipPath.startsWith(expectedPrefix) || slipPath.length > 512) {
       return NextResponse.json({ error: 'invalid_slip_path' }, { status: 400 });
     }
-    await db.collection(COLLECTIONS.PAYMENTS).doc(paymentId).update({
+    const paymentRef = db.collection(COLLECTIONS.PAYMENTS).doc(paymentId);
+    await paymentRef.update({
       slipPath,
       status: 'awaiting_review',
       submittedAt: new Date(),
       reviewNote: null,
+      updatedAt: new Date(),
+    } as any);
+    let agentResult;
+    try {
+      const storage = getServerStorage();
+      const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebasestorage.app`;
+      const fileRef = storage?.bucket(bucketName).file(slipPath);
+      if (!fileRef) throw new Error('storage_unavailable');
+      const [buffer] = await fileRef.download();
+      const [metadata] = await fileRef.getMetadata();
+      const mimeType = metadata.contentType || 'image/jpeg';
+      const expectedReference = typeof payment.providerRef === 'string'
+        ? payment.providerRef.replace(/^manual_/, '')
+        : null;
+      agentResult = await analyzePaymentSlip({
+        buffer,
+        mimeType,
+        expectedAmount: Number(payment.amount) || 0,
+        expectedReference,
+      });
+    } catch {
+      agentResult = { status: 'unavailable', confidence: null, extracted: {}, reasons: ['agent_input_unavailable'], model: null };
+    }
+    await paymentRef.update({
+      agentStatus: agentResult.status,
+      agentConfidence: agentResult.confidence,
+      agentExtracted: agentResult.extracted,
+      agentReasons: agentResult.reasons,
+      agentModel: agentResult.model,
+      agentAnalyzedAt: new Date(),
       updatedAt: new Date(),
     } as any);
     return NextResponse.json({ ok: true, awaitingReview: true, bookingId: payment.bookingId }, { status: 202 });
