@@ -1,43 +1,11 @@
 import Link from 'next/link';
-import { GraduationCap, FileText, CheckCircle2, ArrowLeft } from 'lucide-react';
-
-const SECTIONS = [
-  {
-    title: '1. การใช้บริการ',
-    points: [
-      'TutorFinder เป็นแพลตฟอร์มเชื่อมต่อผู้ปกครองกับครูเรียนเสริม',
-      'ผู้ใช้ต้องมีอายุ 18 ปีขึ้นไป หรืออยู่ภายใต้การดูแลของผู้ปกครอง',
-      'ข้อมูลที่ให้ไว้ต้องเป็นความจริงและถูกต้อง',
-    ],
-  },
-  {
-    title: '2. บทบาทของครู',
-    points: [
-      'ครูต้องให้ข้อมูลการศึกษาและประสบการณ์ที่ถูกต้อง',
-      'ครูต้องจัดการตารางสอนตามที่ตกลงไว้กับนักเรียน',
-      'การยกเลิกคาบเรียนควรแจ้งล่วงหน้าตามนโยบายของแพลตฟอร์ม',
-    ],
-  },
-  {
-    title: '3. การชำระเงิน',
-    points: [
-      'การชำระเงินทำผ่านระบบ escrow เพื่อปกป้องทั้งสองฝ่าย',
-      'เงินจะปล่อยให้ครูหลังคาบเรียนเสร็จสมบูรณ์',
-      'ค่าธรรมเนียมแพลตฟอร์มจะแสดงอย่างชัดเจนก่อนชำระ',
-    ],
-  },
-  {
-    title: '4. การระงับบัญชี',
-    points: [
-      'เราขอสงวนสิทธิ์ระงับบัญชีที่ละเมิดข้อกำหนดหรือก่อให้เกิดความเสียหาย',
-      'ผู้ใช้สามารถลบบัญชีได้ตลอดเวลาผ่านหน้าตั้งค่า',
-    ],
-  },
-];
+import { ArrowLeft, FileText, GraduationCap } from 'lucide-react';
+import { ServiceAgreementContent } from '@/components/legal/service-agreement-content';
+import { TERMS_VERSION } from '@/lib/legal/consent';
 
 export const metadata = {
-  title: 'ข้อกำหนดการใช้งาน — TutorFinder',
-  description: 'ข้อกำหนดการใช้งานของ TutorFinder แพลตฟอร์มการเรียนเสริม',
+  title: 'ข้อตกลงผู้ใช้บริการ — TutorFinder',
+  description: 'ข้อตกลงผู้ใช้บริการของ TutorFinder แพลตฟอร์มการเรียนเสริม',
 };
 
 export default function TermsPage() {
@@ -69,28 +37,16 @@ export default function TermsPage() {
             <FileText className="h-8 w-8 text-sky-600" />
           </div>
           <h1 className="font-display text-3xl font-extrabold text-slate-900 sm:text-4xl">
-            ข้อกำหนดการใช้งาน
+            ข้อตกลงผู้ใช้บริการ
           </h1>
           <p className="mt-3 text-slate-600">
-            กฎกติกาที่ช่วยให้ทุกคนเรียนสนุกและปลอดภัย <span className="inline-block animate-wiggle">📚</span>
+            กรุณาอ่านและทำความเข้าใจก่อนสมัครและใช้บริการ TutorFinder
           </p>
-          <p className="mt-2 text-sm text-slate-400">อัปเดตล่าสุด: สิงหาคม 2026</p>
+          <p className="mt-2 text-sm text-slate-400">ฉบับ {TERMS_VERSION} · อัปเดตล่าสุด: 21 สิงหาคม 2026</p>
         </div>
 
-        <div className="space-y-6">
-          {SECTIONS.map((section) => (
-            <div key={section.title} className="glass-card p-6 sm:p-7">
-              <h2 className="font-display text-lg font-bold text-pink-600">{section.title}</h2>
-              <ul className="mt-3 space-y-2">
-                {section.points.map((point) => (
-                  <li key={point} className="flex items-start gap-2 text-sm leading-relaxed text-slate-600">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-pink-500" />
-                    {point}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        <div className="glass-card p-6 sm:p-8">
+          <ServiceAgreementContent />
         </div>
 
         <p className="mt-10 text-center text-sm text-slate-400">

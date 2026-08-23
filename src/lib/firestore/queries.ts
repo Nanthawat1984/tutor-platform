@@ -425,6 +425,7 @@ export async function createPayment(data: Omit<Payment, 'id' | 'createdAt' | 'up
   const ref = await db().collection(COLLECTIONS.PAYMENTS).add({
     ...data,
     status: 'pending',
+    escrowProcessed: false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   } as any);
@@ -443,6 +444,15 @@ export async function updatePaymentStatus(id: string, status: Payment['status'],
 export async function getPaymentsByParent(parentId: string): Promise<Payment[]> {
   const snap = await db().collection(COLLECTIONS.PAYMENTS)
     .where('parentId', '==', parentId)
+    .orderBy('createdAt', 'desc')
+    .get();
+
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Payment));
+}
+
+export async function getPaymentsByTeacher(teacherId: string): Promise<Payment[]> {
+  const snap = await db().collection(COLLECTIONS.PAYMENTS)
+    .where('teacherId', '==', teacherId)
     .orderBy('createdAt', 'desc')
     .get();
 

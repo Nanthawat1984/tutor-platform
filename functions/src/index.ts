@@ -8,80 +8,41 @@
 
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
+import { dispatchLineOutbox, OUTBOX_COLLECTION } from './line/outbox';
+import {
+  enqueueAttendanceChanged,
+  enqueueBookingCreated,
+  enqueueBookingStatusChanged,
+  enqueuePaymentChanged,
+  enqueuePaymentReleased,
+} from './line/events';
+import { getLineServerConfig } from './line/config';
+import { replyLineMessages } from './line/client';
+import { verifyLineWebhookSignature } from './line/security';
+import { assignRoleRichMenu } from './line/rich-menu';
 
-admin.initializeApp();
-const db = admin.firestore('tutor');
-
-// =============================================
-// HELPER: Send LINE notification
-// =============================================
-async function sendLINENotify(message: string): Promise<void> {
-  const channelAccessToken = functions.config().line?.channel_token;
-  if (!channelAccessToken) {
-    console.log('LINE channel token not configured, skipping notification');
-    return;
+// Lazy init — อย่า initializeApp ตอน module load
+// (deploy analysis server จะ timeout 10s ถ้า init ช้า)
+let _db: FirebaseFirestore.Firestore | null = null;
+function getDb(): FirebaseFirestore.Firestore {
+  if (!_db) {
+    const app = admin.initializeApp();
+    _db = getFirestore(app, 'tutor');
   }
-
-  // LINE Notify API (one-way)
-  try {
-    const fetch = (await import('node-fetch')).default;
-    await fetch('https://notify-api.line.me/api/notify', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${channelAccessToken}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({ message }),
-    });
-  } catch (error) {
-    console.error('LINE notify error:', error);
-  }
+  return _db;
 }
-
-async function sendLINEPush(to: string, messages: Array<{ type: string; text: string }>): Promise<void> {
-  const channelAccessToken = functions.config().line?.channel_token;
-  if (!channelAccessToken) return;
-
-  try {
-    const fetch = (await import('node-fetch')).default;
-    await fetch('https://api.line.me/v2/bot/message/push', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${channelAccessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ to, messages }),
-    });
-  } catch (error) {
-    console.error('LINE push error:', error);
-  }
-}
-
-// =============================================
-// NOTIFICATION TEMPLATES (Thai)
-// =============================================
-const Templates = {
-  bookingConfirmed: (studentName: string, date: string, time: string) =>
-    `✅ ยืนยันการจองเรียน\n\nนักเรียน: ${studentName}\nวันที่: ${date}\nเวลา: ${time} น.\n\nกรุณามาตรงเวลานะคะ`,
-
-  bookingCancelled: (studentName: string, date: string) =>
-    `❌ ยกเลิกการจองเรียน\n\nนักเรียน: ${studentName}\nวันที่: ${date}`,
-
-  attendanceAlert: (studentName: string, status: string) => {
-    const statusText = status === 'present' ? 'มาเรียน ✅' : status === 'absent' ? 'ขาดเรียน ❌' : 'มาสาย ⚠️';
-    return `📋 แจ้งการเข้าเรียน\n\nนักเรียน: ${studentName}\nสถานะ: ${statusText}`;
+// Proxy เพื่อให้ `db.collection(...)` เดิมทำงานได้โดยไม่ต้องแก้ทุกจุด
+const db = new Proxy({} as FirebaseFirestore.Firestore, {
+  get(_target, prop) {
+    const value = (getDb() as any)[prop];
+    return typeof value === 'function' ? value.bind(getDb()) : value;
   },
+});
 
-  sessionReport: (studentName: string, date: string) =>
-    `📊 รายงานการเรียน\n\nนักเรียน: ${studentName}\nวันที่: ${date}\n\nครูได้บันทึกผลการเรียนแล้ว กรุณาตรวจสอบในแอพ`,
-
-  paymentSuccess: (studentName: string, amount: string) =>
-    `💳 ชำระเงินสำเร็จ\n\nนักเรียน: ${studentName}\nจำนวน: ${amount} บาท\n\nการจองได้รับการยืนยันแล้ว`,
-
-  reviewReceived: (rating: number) =>
-    `⭐ ได้รับรีวิวใหม่\n\nคะแนน: ${'⭐'.repeat(rating)}\n\nขอบคุณสำหรับ feedback คะ`,
-};
+const lineRuntime = () => functions.runWith({
+  secrets: ['LINE_CHANNEL_SECRET', 'LINE_CHANNEL_ACCESS_TOKEN'],
+});
 
 // =============================================
 // FIRESTORE TRIGGERS
@@ -89,7 +50,8 @@ const Templates = {
 
 // 1. เมื่อ booking status เปลี่ยน → ส่ง notification
 // ต้องอยู่ region เดียวกับ Firestore database (asia-southeast1)
-export const onBookingStatusChange = functions.region('asia-southeast1').firestore
+export const onBookingStatusChange = lineRuntime().region('asia-southeast1').firestore
+  .database('tutor')
   .document('bookings/{bookingId}')
   .onUpdate(async (change, context) => {
     const before = change.before.data();
@@ -150,12 +112,56 @@ export const onBookingStatusChange = functions.region('asia-southeast1').firesto
           isRead: false,
           createdAt: FieldValue.serverTimestamp(),
         });
+
+        // ปล่อย escrow → ย้าย pendingBalance → availableBalance ของครู
+        await releaseEscrow(bookingId);
         break;
     }
+
+    await enqueueBookingStatusChanged(db, bookingId, before, after);
   });
 
+// เมื่อมีการสร้าง booking ใหม่ → แจ้งครูทันที แม้ payment ยัง pending
+export const onBookingCreated = lineRuntime().region('asia-southeast1').firestore
+  .database('tutor')
+  .document('bookings/{bookingId}')
+  .onCreate(async (snap, context) => {
+    await enqueueBookingCreated(db, context.params.bookingId, snap.data());
+  });
+
+// Helper: ปล่อย escrow เมื่อเรียนเสร็จ (ย้าย pending → available ของครู)
+async function releaseEscrow(bookingId: string): Promise<void> {
+  try {
+    const paymentsSnap = await db.collection('payments')
+      .where('bookingId', '==', bookingId)
+      .where('status', '==', 'paid')
+      .limit(1)
+      .get();
+    if (paymentsSnap.empty) return;
+    const payment = paymentsSnap.docs[0].data();
+    const teacherId = payment.teacherId;
+    const netAmount = Number(payment.netAmount) || 0;
+    if (!teacherId || netAmount <= 0) return;
+
+    const walletRef = db.collection('wallets').doc(teacherId);
+    const walletSnap = await walletRef.get();
+    if (walletSnap.exists) {
+      await walletRef.update({
+        pendingBalance: FieldValue.increment(-netAmount),
+        availableBalance: FieldValue.increment(netAmount),
+        totalEarned: FieldValue.increment(netAmount),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      await enqueuePaymentReleased(db, bookingId, payment);
+    }
+  } catch (e) {
+    console.error('releaseEscrow error:', e);
+  }
+}
+
 // 2. เมื่อ attendance ถูกบันทึก → แจ้งผู้ปกครอง
-export const onAttendanceCreated = functions.region('asia-southeast1').firestore
+export const onAttendanceCreated = lineRuntime().region('asia-southeast1').firestore
+  .database('tutor')
   .document('attendance/{attendanceId}')
   .onCreate(async (snap, context) => {
     const data = snap.data();
@@ -177,10 +183,25 @@ export const onAttendanceCreated = functions.region('asia-southeast1').firestore
       isRead: false,
       createdAt: FieldValue.serverTimestamp(),
     });
+
+    await enqueueAttendanceChanged(db, context.params.attendanceId, null, data, booking);
+  });
+
+export const onAttendanceUpdated = lineRuntime().region('asia-southeast1').firestore
+  .database('tutor')
+  .document('attendance/{attendanceId}')
+  .onUpdate(async (change, context) => {
+    const before = change.before.data();
+    const after = change.after.data();
+    if (before.status === after.status) return;
+    const bookingSnap = await db.collection('bookings').doc(after.bookingId).get();
+    if (!bookingSnap.exists) return;
+    await enqueueAttendanceChanged(db, context.params.attendanceId, before, after, bookingSnap.data()!);
   });
 
 // 3. เมื่อ session report ถูกสร้าง → แจ้งผู้ปกครอง
-export const onSessionReportCreated = functions.region('asia-southeast1').firestore
+export const onSessionReportCreated = lineRuntime().region('asia-southeast1').firestore
+  .database('tutor')
   .document('sessionReports/{reportId}')
   .onCreate(async (snap, context) => {
     const data = snap.data();
@@ -198,7 +219,8 @@ export const onSessionReportCreated = functions.region('asia-southeast1').firest
   });
 
 // 4. เมื่อ review ถูกสร้าง → แจ้งครู
-export const onReviewCreated = functions.region('asia-southeast1').firestore
+export const onReviewCreated = lineRuntime().region('asia-southeast1').firestore
+  .database('tutor')
   .document('reviews/{reviewId}')
   .onCreate(async (snap, context) => {
     const data = snap.data();
@@ -215,8 +237,10 @@ export const onReviewCreated = functions.region('asia-southeast1').firestore
     });
   });
 
-// 5. เมื่อ payment status เปลี่ยน → อัปเดต booking + แจ้ง
-export const onPaymentStatusChange = functions.region('asia-southeast1').firestore
+// 5. เมื่อ payment status เปลี่ยน → อัปเดต booking + escrow + แจ้ง
+//    ถ้าแอป (Next.js) ประมวลผลไปแล้ว (escrowProcessed=true) จะข้ามเพื่อกันซ้ำ
+export const onPaymentStatusChange = lineRuntime().region('asia-southeast1').firestore
+  .database('tutor')
   .document('payments/{paymentId}')
   .onUpdate(async (change, context) => {
     const before = change.before.data();
@@ -224,25 +248,53 @@ export const onPaymentStatusChange = functions.region('asia-southeast1').firesto
 
     if (before.status === after.status) return;
 
-    const { bookingId, parentId, amount } = after;
+    const bookingForLineSnap = await db.collection('bookings').doc(after.bookingId).get();
+    const bookingForLine = bookingForLineSnap.exists ? bookingForLineSnap.data()! : null;
+    await enqueuePaymentChanged(db, context.params.paymentId, before, after, bookingForLine);
+    if (after.escrowProcessed) return; // แอปประมวลผลแล้ว — ข้าม
+
+    const { bookingId, parentId, amount, teacherId, netAmount, studentName } = after;
 
     if (after.status === 'paid') {
       // Confirm booking
-      await db.collection('bookings').doc(bookingId).update({
-        status: 'confirmed',
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+      const bookingRef = db.collection('bookings').doc(bookingId);
+      const bookingSnap = await bookingRef.get();
+      const booking = bookingSnap.exists ? bookingSnap.data() : null;
+
+      if (booking && booking.status === 'pending') {
+        await bookingRef.update({
+          status: 'confirmed',
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        // Escrow: เติม pendingBalance ของครู (ครั้งแรกที่จ่าย)
+        if (teacherId && netAmount > 0) {
+          const walletRef = db.collection('wallets').doc(teacherId);
+          const walletSnap = await walletRef.get();
+          if (walletSnap.exists) {
+            await walletRef.update({
+              pendingBalance: FieldValue.increment(netAmount),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+          } else {
+            await walletRef.set({
+              teacherId,
+              pendingBalance: netAmount,
+              availableBalance: 0,
+              totalEarned: 0,
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      }
 
       // Notify parent
-      const bookingSnap = await db.collection('bookings').doc(bookingId).get();
-      const booking = bookingSnap.data();
-
       if (booking) {
         await db.collection('notifications').add({
           userId: parentId,
           type: 'payment',
           title: 'ชำระเงินสำเร็จ',
-          body: `การจองเรียนของ ${booking.studentName} ได้รับการยืนยันแล้ว`,
+          body: `การจองเรียนของ ${studentName || booking.studentName} ได้รับการยืนยันแล้ว (${amount} บาท)`,
           data: { bookingId, paymentId: context.params.paymentId },
           isRead: false,
           createdAt: FieldValue.serverTimestamp(),
@@ -251,10 +303,65 @@ export const onPaymentStatusChange = functions.region('asia-southeast1').firesto
     }
 
     if (after.status === 'refunded') {
+      // ลด pending balance ของครู (ถ้ามี)
+      if (teacherId && netAmount > 0) {
+        const walletRef = db.collection('wallets').doc(teacherId);
+        const walletSnap = await walletRef.get();
+        if (walletSnap.exists) {
+          await walletRef.update({
+            pendingBalance: FieldValue.increment(-netAmount),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      }
       await db.collection('bookings').doc(bookingId).update({
         status: 'cancelled',
         updatedAt: FieldValue.serverTimestamp(),
       });
+    }
+  });
+
+export const onPaymentCreated = lineRuntime().region('asia-southeast1').firestore
+  .database('tutor')
+  .document('payments/{paymentId}')
+  .onCreate(async (snap, context) => {
+    const payment = snap.data();
+    const bookingSnap = await db.collection('bookings').doc(payment.bookingId).get();
+    if (!bookingSnap.exists) return;
+    await enqueuePaymentChanged(db, context.params.paymentId, null, payment, bookingSnap.data()!);
+  });
+
+// Outbox dispatcher — ส่งทันทีเมื่อมี event และ retry failed records ทุกนาที
+export const onLineNotificationCreated = lineRuntime().region('asia-southeast1').firestore
+  .database('tutor')
+  .document(`${OUTBOX_COLLECTION}/{notificationId}`)
+  .onCreate(async (_snap, context) => {
+    await dispatchLineOutbox(db, context.params.notificationId);
+  });
+
+export const onUserLineLinked = lineRuntime().region('asia-southeast1').firestore
+  .database('tutor')
+  .document('users/{uid}')
+  .onUpdate(async (change) => {
+    const before = change.before.data();
+    const after = change.after.data();
+    if (before.lineUserId === after.lineUserId || !after.lineUserId) return;
+    if (after.role !== 'parent' && after.role !== 'teacher') return;
+    await assignRoleRichMenu(after.lineUserId, after.role);
+  });
+
+export const retryLineNotifications = lineRuntime().region('asia-southeast1').pubsub
+  .schedule('every 1 minutes')
+  .timeZone('Asia/Bangkok')
+  .onRun(async () => {
+    const snap = await db.collection(OUTBOX_COLLECTION)
+      .where('status', 'in', ['pending', 'failed'])
+      .limit(100)
+      .get();
+    const now = Date.now();
+    for (const doc of snap.docs) {
+      const nextAttemptAt = doc.data().nextAttemptAt?.toMillis?.() || 0;
+      if (nextAttemptAt <= now) await dispatchLineOutbox(db, doc.id);
     }
   });
 
@@ -263,7 +370,7 @@ export const onPaymentStatusChange = functions.region('asia-southeast1').firesto
 // =============================================
 
 // Payment webhook — รับ callback จาก Omise/2C2P
-export const paymentWebhook = functions.https.onRequest(async (req, res) => {
+export const paymentWebhook = lineRuntime().https.onRequest(async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).send('Method not allowed');
     return;
@@ -338,58 +445,67 @@ export const paymentWebhook = functions.https.onRequest(async (req, res) => {
   }
 });
 
-// LINE Webhook — รับข้อความจากผู้ใช้
-export const lineWebhook = functions.https.onRequest(async (req, res) => {
+// LINE Webhook — ตรวจ signature ก่อน parse และไม่ query ข้อมูลส่วนตัวโดยไม่มี link
+export const lineWebhook = lineRuntime().region('asia-southeast1').https.onRequest(async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).send('Method not allowed');
     return;
   }
 
+  const config = getLineServerConfig();
+  if (!config.enabled) {
+    res.json({ ok: true, disabled: true });
+    return;
+  }
+
   try {
-    const { events } = req.body;
+    const requestWithRawBody = req as typeof req & { rawBody?: Buffer };
+    const rawBody = requestWithRawBody.rawBody || Buffer.from(JSON.stringify(req.body || {}));
+    const signature = req.get('x-line-signature') || '';
+    if (!verifyLineWebhookSignature(rawBody, signature, config.channelSecret)) {
+      res.status(401).send('Invalid signature');
+      return;
+    }
+
+    const payload = JSON.parse(rawBody.toString('utf8')) as { events?: Array<any> };
+    const events = Array.isArray(payload.events) ? payload.events : [];
+    const liffUrl = config.liffId ? `https://liff.line.me/${config.liffId}` : `${config.appUrl}/my-profile`;
 
     for (const event of events) {
-      if (event.type === 'message' && event.message.type === 'text') {
-        const userId = event.source.userId;
-        const text = event.message.text;
+      if (!event.replyToken) continue;
+      let messages: Array<Record<string, unknown>> = [];
 
-        // Simple bot logic
-        let reply = '';
+      if (event.type === 'follow') {
+        messages = [
+          { type: 'text', text: `สวัสดีค่ะ ยินดีต้อนรับสู่ TutorPlatform 🎓\n\nเพิ่มเพื่อน OA ${config.officialAccountId} แล้วกดเชื่อมบัญชี เพื่อรับแจ้งเตือนการเรียนแบบน่ารัก ๆ นะคะ 💖` },
+          { type: 'template', altText: 'เชื่อมต่อบัญชี TutorPlatform', template: { type: 'buttons', text: 'พร้อมรับแจ้งเตือนแล้วหรือยังคะ?', actions: [{ type: 'uri', label: 'เชื่อมต่อบัญชี', uri: liffUrl }] } },
+        ];
+      } else if (event.type === 'postback') {
+        messages = [{ type: 'text', text: 'ได้รับคำสั่งแล้วค่ะ เปิดเมนูเพื่อไปต่อได้เลยนะคะ 🌈' }];
+      } else if (event.type === 'message' && event.message?.type === 'text') {
+        const text = String(event.message.text || '');
+        const reply = text.includes('ช่วยเหลือ')
+          ? `📋 เมนูช่วยเหลือ\n\nกด Rich Menu เพื่อดูการจอง ตารางเรียน เช็คชื่อ ค่าเรียน หรือเชื่อมบัญชีค่ะ\n\n${liffUrl}`
+          : text.includes('เชื่อมบัญชี')
+            ? `🔗 กดที่นี่เพื่อเชื่อมบัญชี TutorPlatform ค่ะ\n\n${liffUrl}`
+            : text.includes('จอง')
+              ? `📅 เปิดดูการจองของคุณได้ที่นี่ค่ะ\n\n${config.appUrl}/bookings`
+              : 'สวัสดีค่ะ 💖 พิมพ์ “ช่วยเหลือ” หรือกด Rich Menu เพื่อเริ่มใช้งานนะคะ';
+        messages = [{ type: 'text', text: reply }];
+      }
 
-        if (text.includes('สวัสดี') || text.includes('hello')) {
-          reply = 'สวัสดีครับ! ยินดีต้อนรับสู่ TutorFinder 🎓\n\nคุณสามารถ:\n- พิมพ์ "ค้นหา" เพื่อค้นหาครู\n- พิมพ์ "จอง" เพื่อดูการจอง\n- พิมพ์ "ช่วยเหลือ" เพื่อดูคำสั่งทั้งหมด';
-        } else if (text.includes('ค้นหา')) {
-          reply = 'กรุณาเปิดเว็บไซต์ TutorFinder เพื่อค้นหาครูพิเศษครับ 🔍\n\n🔗 https://tutor-platform-4e38f.web.app';
-        } else if (text.includes('จอง')) {
-          reply = 'กรุณาเปิดเว็บไซต์ TutorFinder เพื่อดูการจองของคุณครับ 📅';
-        } else if (text.includes('ช่วยเหลือ')) {
-          reply = '📋 คำสั่งที่ใช้ได้:\n- "ค้นหา" — ค้นหาครู\n- "จอง" — ดูการจอง\n- "ช่วยเหลือ" — ดูคำสั่งทั้งหมด';
-        } else {
-          reply = 'ขออภัยครับ ผมไม่เข้าใจ กรุณาพิมพ์ "ช่วยเหลือ" เพื่อดูคำสั่งที่ใช้ได้';
-        }
-
-        // Reply via LINE Messaging API
-        const channelAccessToken = functions.config().line?.channel_token;
-        if (channelAccessToken && event.replyToken) {
-          const fetch = (await import('node-fetch')).default;
-          await fetch('https://api.line.me/v2/bot/message/reply', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${channelAccessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              replyToken: event.replyToken,
-              messages: [{ type: 'text', text: reply }],
-            }),
-          });
+      if (messages.length > 0) {
+        try {
+          await replyLineMessages(event.replyToken, messages);
+        } catch (error) {
+          console.error('LINE reply failed:', error instanceof Error ? error.message : 'unknown_error');
         }
       }
     }
 
     res.json({ ok: true });
   } catch (error) {
-    console.error('LINE webhook error:', error);
+    console.error('LINE webhook error:', error instanceof Error ? error.message : 'unknown_error');
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
@@ -399,7 +515,7 @@ export const lineWebhook = functions.https.onRequest(async (req, res) => {
 // =============================================
 
 // ทุกเช้า 9:00 น. — ส่ง reminder สำหรับเซสชันวันนี้
-export const dailyBookingReminder = functions.pubsub
+export const dailyBookingReminder = lineRuntime().pubsub
   .schedule('0 9 * * *')
   .timeZone('Asia/Bangkok')
   .onRun(async (context) => {
@@ -427,7 +543,7 @@ export const dailyBookingReminder = functions.pubsub
   });
 
 // ทุก 1 ชั่วโมง — อัปเดต teacher stats
-export const updateTeacherStats = functions.pubsub
+export const updateTeacherStats = lineRuntime().pubsub
   .schedule('0 * * * *')
   .onRun(async (context) => {
     const teachersSnap = await db.collection('teachers').get();
@@ -450,4 +566,78 @@ export const updateTeacherStats = functions.pubsub
     }
 
     console.log(`Updated stats for ${teachersSnap.size} teachers`);
+  });
+
+// =============================================
+// WEEKLY PAYOUT CYCLE (รอบโอนเงินรายสัปดาห์)
+// - วันอังคาร 09:00: สรุปยอดที่ต้องโอน → แจ้งแอดมิน
+// - วันพฤหัสบดี 16:00: แจ้งเตือนให้โอน (โอนตั้งแต่ 17:00 เป็นต้นไป)
+// =============================================
+
+async function notifyAdmins(title: string, body: string, data?: Record<string, unknown>): Promise<void> {
+  const adminsSnap = await db.collection('users').where('role', '==', 'admin').get();
+  for (const doc of adminsSnap.docs) {
+    await db.collection('notifications').add({
+      userId: doc.id,
+      type: 'payout',
+      title,
+      body,
+      data: data || {},
+      isRead: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+}
+
+// ทุกวันอังคาร 09:00 (เวลาไทย) — สรุปยอดคำขอเบิกเงินที่รออยู่
+export const weeklyPayoutSummary = lineRuntime().pubsub
+  .schedule('0 9 * * 2')
+  .timeZone('Asia/Bangkok')
+  .onRun(async (context) => {
+    const requestedSnap = await db.collection('payouts')
+      .where('status', '==', 'requested')
+      .get();
+
+    let totalAmount = 0;
+    const teacherIds = new Set<string>();
+    for (const doc of requestedSnap.docs) {
+      totalAmount += Number(doc.data().amount) || 0;
+      teacherIds.add(doc.data().teacherId);
+    }
+
+    await notifyAdmins(
+      '📊 สรุปยอดโอนเงินประจำสัปดาห์',
+      `มีคำขอเบิกเงินรอดำเนินการ ${requestedSnap.size} รายการ (${teacherIds.size} ครู)\nยอดรวม: ${totalAmount.toLocaleString('th-TH')} บาท\n\n📅 กำหนดโอน: พฤหัสบดีนี้ 17:00 เป็นต้นไป`,
+      { count: requestedSnap.size, totalAmount },
+    );
+
+    console.log(`Payout summary: ${requestedSnap.size} requests, total ${totalAmount} THB`);
+  });
+
+// ทุกวันพฤหัสบดี 16:00 (เวลาไทย) — เตือนให้โอนเงิน (โอนได้ตั้งแต่ 17:00)
+export const weeklyPayoutReminder = lineRuntime().pubsub
+  .schedule('0 16 * * 4')
+  .timeZone('Asia/Bangkok')
+  .onRun(async (context) => {
+    const pendingSnap = await db.collection('payouts')
+      .where('status', 'in', ['requested', 'processing'])
+      .get();
+
+    if (pendingSnap.empty) {
+      console.log('No payouts to transfer this week');
+      return;
+    }
+
+    let totalAmount = 0;
+    for (const doc of pendingSnap.docs) {
+      totalAmount += Number(doc.data().amount) || 0;
+    }
+
+    await notifyAdmins(
+      '⏰ ถึงเวลาโอนเงินครู',
+      `วันนี้ 17:00 เป็นต้นไป ถึงรอบโอนเงินประจำสัปดาห์\n\nรายการค้าง: ${pendingSnap.size} รายการ\nยอดรวม: ${totalAmount.toLocaleString('th-TH')} บาท\n\nกรุณาโอนและแนบหลักฐานในหน้าจัดการการเบิกเงิน`,
+      { count: pendingSnap.size, totalAmount },
+    );
+
+    console.log(`Payout reminder sent: ${pendingSnap.size} payouts, total ${totalAmount} THB`);
   });

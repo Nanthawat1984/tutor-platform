@@ -347,7 +347,7 @@ export default function HomePage() {
             <div className="flex items-center gap-1">
               {[
                 { label: 'นโยบายความเป็นส่วนตัว', href: '/privacy' },
-                { label: 'ข้อกำหนด', href: '/terms' },
+                { label: 'ข้อตกลงผู้ใช้บริการ', href: '/terms' },
               ].map((item) => (
                 <Link
                   key={item.label}

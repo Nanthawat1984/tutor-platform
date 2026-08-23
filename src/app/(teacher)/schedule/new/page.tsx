@@ -8,6 +8,7 @@ import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { requireSessionUser } from '@/lib/auth/session';
+import { requireRole } from '@/lib/auth/guards';
 
 const dayOptions = [
   { value: '0', label: 'อาทิตย์' },
@@ -32,14 +33,46 @@ export default async function NewSchedulePage() {
   const session = await requireSessionUser();
   const teacherId = session.uid;
 
+  // โหลดคอร์สที่เปิดสอนของครู (active เท่านั้น)
+  const db = getServerDb();
+  const coursesSnap = db
+    ? await db.collection(COLLECTIONS.COURSES)
+        .where('teacherId', '==', teacherId)
+        .where('isActive', '==', true)
+        .get()
+    : null;
+  const courseOptions =
+    coursesSnap && !coursesSnap.empty
+      ? [
+          { value: '', label: '-- เลือกคอร์ส --' },
+          ...coursesSnap.docs.map((doc) => ({
+            value: doc.id,
+            label: doc.data()?.title || 'คอร์สเรียน',
+          })),
+        ]
+      : [{ value: '', label: '-- ยังไม่มีคอร์ส (สร้างคอร์สก่อน) --' }];
+
   async function addScheduleAction(formData: FormData) {
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+    const current = (await requireRole(['teacher'])).session;
+    if (current.uid !== teacherId) return;
+
+    const courseId = formData.get('course_id') as string;
+    if (!courseId) return;
+
+    // ตรวจว่าคอร์สเป็นของครูคนนี้จริง + ดึงชื่อคอร์สที่ถูกต้อง
+    const courseSnap = await dbRef.collection(COLLECTIONS.COURSES).doc(courseId).get();
+    if (!courseSnap.exists || courseSnap.data()?.teacherId !== teacherId) {
+      redirect('/schedule/new');
+      return;
+    }
 
     await dbRef.collection(COLLECTIONS.SCHEDULES).add({
-      courseId: formData.get('course_id') as string,
-      courseTitle: formData.get('course_id') as string || 'คอร์สเรียน',
+      teacherId,
+      courseId,
+      courseTitle: courseSnap.data()?.title || 'คอร์สเรียน',
       dayOfWeek: parseInt(formData.get('day_of_week') as string),
       startTime: formData.get('start_time') as string,
       endTime: formData.get('end_time') as string,
@@ -65,7 +98,7 @@ export default async function NewSchedulePage() {
 
       <form action={addScheduleAction} className="space-y-6">
         <div className="form-card p-6 sm:p-8 space-y-5">
-          <Select label="คอร์สเรียน" name="course_id" options={[{ value: '', label: '-- เลือกคอร์ส --' }]} required />
+          <Select label="คอร์สเรียน" name="course_id" options={courseOptions} required />
           <Select label="วันในสัปดาห์" name="day_of_week" options={dayOptions} required />
           <div className="grid gap-4 sm:grid-cols-2">
             <Select label="เวลาเริ่ม" name="start_time" options={[{ value: '', label: '-- เลือก --' }, ...timeOptions]} required />

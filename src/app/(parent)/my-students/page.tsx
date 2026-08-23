@@ -10,6 +10,7 @@ import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { GraduationCap, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { requireSessionUser } from '@/lib/auth/session';
+import { requireRole } from '@/lib/auth/guards';
 
 export default async function MyStudentsPage() {
   const db = getServerDb();
@@ -19,14 +20,23 @@ export default async function MyStudentsPage() {
 
   const studentsSnap = await db.collection(COLLECTIONS.STUDENTS)
     .where('parentId', '==', parentId)
-    .orderBy('createdAt', 'asc')
     .get();
-  const students = studentsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  // Keep this query usable even when the production composite index has not
+  // been deployed yet; sort the small parent-owned result set in memory.
+  const students = [...studentsSnap.docs]
+    .sort((a: any, b: any) => {
+      const aCreatedAt = a.data().createdAt?.toMillis?.() || 0;
+      const bCreatedAt = b.data().createdAt?.toMillis?.() || 0;
+      return aCreatedAt - bCreatedAt;
+    })
+    .map((doc: any) => ({ id: doc.id, ...doc.data() }));
 
   async function addStudent(formData: FormData) {
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+    const current = (await requireRole(['parent'])).session;
+    if (current.uid !== parentId) return;
 
     await dbRef.collection(COLLECTIONS.STUDENTS).add({
       parentId,
@@ -45,9 +55,14 @@ export default async function MyStudentsPage() {
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+    const current = (await requireRole(['parent'])).session;
+    if (current.uid !== parentId) return;
     const id = formData.get('id') as string;
+    const studentRef = dbRef.collection(COLLECTIONS.STUDENTS).doc(id);
+    const studentSnap = await studentRef.get();
+    if (!studentSnap.exists || studentSnap.data()?.parentId !== current.uid) return;
 
-    await dbRef.collection(COLLECTIONS.STUDENTS).doc(id).update({
+    await studentRef.update({
       name: formData.get('name') as string,
       level: formData.get('level') as string || null,
       school: formData.get('school') as string || null,
@@ -62,9 +77,14 @@ export default async function MyStudentsPage() {
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+    const current = (await requireRole(['parent'])).session;
+    if (current.uid !== parentId) return;
     const id = formData.get('id') as string;
+    const studentRef = dbRef.collection(COLLECTIONS.STUDENTS).doc(id);
+    const studentSnap = await studentRef.get();
+    if (!studentSnap.exists || studentSnap.data()?.parentId !== current.uid) return;
 
-    await dbRef.collection(COLLECTIONS.STUDENTS).doc(id).delete();
+    await studentRef.delete();
     redirect('/my-students');
   }
 

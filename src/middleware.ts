@@ -25,9 +25,6 @@ const PROTECTED_ROUTES = [
   '/admin/',
 ];
 
-// Routes that should redirect to dashboard if already logged in
-const AUTH_ROUTES = ['/login', '/register'];
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -38,11 +35,6 @@ export function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(route + '/')
   );
 
-  // Check if the current path is an auth route
-  const isAuthRoute = AUTH_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + '/')
-  );
-
   // Redirect unauthenticated users away from protected routes
   if (isProtected && !isLoggedIn) {
     const loginUrl = new URL('/login', request.url);
@@ -50,16 +42,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect authenticated users away from login/register
-  if (isAuthRoute && isLoggedIn) {
-    // If there's a redirect parameter, use it (e.g., after Google redirect flow)
-    const redirectTo = request.nextUrl.searchParams.get('redirect');
-    if (redirectTo) {
-      return NextResponse.redirect(new URL(redirectTo, request.url));
-    }
-    return NextResponse.redirect(new URL('/my-bookings', request.url));
-  }
-
+  // Do not redirect away from /login based only on cookie presence. Firebase
+  // ID tokens expire, while middleware only checks whether __session exists.
+  // A stale token would otherwise cause /login -> protected page -> /login.
+  // LoginForm/AuthProvider handles valid Firebase users client-side, and the
+  // protected server route remains responsible for verifying the token.
   return NextResponse.next();
 }
 

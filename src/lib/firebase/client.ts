@@ -53,8 +53,12 @@ export function getFirebaseStorage() {
 }
 
 // Emulator helpers (สำหรับ local dev)
+// ⚠️ production build ห้ามต่อ emulator เด็ดขาด — เคยเจอ .env.local ค้าง flag=true
+// ตอน `firebase deploy --only hosting` แล้วผู้ใช้ production ยิงไป localhost:9099 ทั้งระบบ
 export function connectEmulators() {
-  if (emulatorsConnected || process.env.NEXT_PUBLIC_FIREBASE_EMULATOR !== 'true') return;
+  if (emulatorsConnected) return;
+  if (process.env.NODE_ENV === 'production') return;
+  if (process.env.NEXT_PUBLIC_FIREBASE_EMULATOR !== 'true') return;
 
   if (typeof window !== 'undefined') {
     const firebaseAuth = getFirebaseAuth();

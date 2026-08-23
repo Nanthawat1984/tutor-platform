@@ -25,6 +25,12 @@ export default async function TeacherDashboard() {
   const session = await requireSessionUser();
   const teacherId = session.uid;
 
+  // Role guard — /dashboard เป็นหน้าเฉพาะครู (กันผู้ปกครอง/แอดมินเห็นมุมมองครู)
+  const userDoc = await db.collection(COLLECTIONS.USERS).doc(teacherId).get();
+  const userRole = userDoc.exists ? (userDoc.data()?.role as string | undefined) : undefined;
+  if (userRole === 'parent') redirect('/my-bookings');
+  if (userRole === 'admin') redirect('/admin/dashboard');
+
   let upcomingBookings: any[] = [];
   let activeCourses = 0;
   let setupError = false;

@@ -6,11 +6,43 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    function isAuth() { return request.auth != null; }
+    function isAdmin() { return isAuth() && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
     match /profile-photos/{uid}/{fileName} {
       // รูปโปรไฟล์อ่านได้สาธารณะ (แสดงบนหน้าโปรไฟล์/explore)
-      allow read: if true;
+      allow read: if isAuth() && (request.auth.uid == uid || isAdmin());
       // อัปโหลด/ลบได้เฉพาะเจ้าของ
       allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /payment-slips/{bookingId}/{fileName} {
+      // สลิปโอนเงิน — อัปโหลดผ่านเซิร์ฟเวอร์ (Admin SDK) ที่ตรวจ session แล้ว
+      allow read: if isAuth() && (isAdmin() || firestore.get(/databases/(default)/documents/bookings/$(bookingId)).data.parentId == request.auth.uid || firestore.get(/databases/(default)/documents/bookings/$(bookingId)).data.teacherId == request.auth.uid);
+      allow create, update: if isAuth() && firestore.get(/databases/(default)/documents/bookings/$(bookingId)).data.parentId == request.auth.uid && request.resource.size < 5 * 1024 * 1024;
+      allow delete: if isAuth() && firestore.get(/databases/(default)/documents/bookings/$(bookingId)).data.parentId == request.auth.uid;
+    }
+
+    match /kyc/{uid}/{fileName} {
+      // เอกสาร KYC — เขียนได้เฉพาะเจ้าของ (≤10MB)
+      // หมายเหตุ: ไม่เช็ค contentType เพราะ resumable upload ส่งค่าไม่สม่ำเสมอ
+      // (แอดมินตรวจไฟล์ก่อนอนุมัติ KYC อีกชั้น)
+      allow read: if isAuth() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if isAuth() && request.auth.uid == uid && request.resource.size < 10 * 1024 * 1024;
+      allow delete: if isAuth() && request.auth.uid == uid;
+    }
+
+    match /parent-kyc/{uid}/{fileName} {
+      // บัตรประชาชนผู้ปกครอง — อ่าน/เขียนได้เฉพาะเจ้าของไฟล์
+      // แอดมิน/บริษัทต้องเปิดผ่าน backend ที่ใช้ Admin SDK เท่านั้น
+      allow read: if isAuth() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if isAuth() && request.auth.uid == uid && request.resource.size < 10 * 1024 * 1024;
+      allow delete: if isAuth() && request.auth.uid == uid;
+    }
+
+    match /payout-slips/{payoutId}/{fileName} {
+      // หลักฐานการโอนเงินให้ครู — upload/read ผ่าน server/Admin SDK เท่านั้น
+      // เนื่องจาก role อยู่ใน named Firestore database `tutor` ซึ่ง Storage rules อ่านไม่ได้
+      allow read, write: if false;
     }
   }
 }

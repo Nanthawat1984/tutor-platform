@@ -36,7 +36,8 @@ export async function POST(request: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'missing_file' }, { status: 400 });
   }
-  if (!file.type.startsWith('image/')) {
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  if (!allowedTypes.has(file.type)) {
     return NextResponse.json({ error: 'invalid_file_type' }, { status: 400 });
   }
   if (file.size > 5 * 1024 * 1024) {
@@ -55,8 +56,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const ext = file.name.split('.').pop() || 'jpg';
-    const path = `payment-slips/${bookingId}/slip-${Date.now()}.${ext}`;
+    const extByType: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+    const path = `payment-slips/${bookingId}/slip-${Date.now()}.${extByType[file.type]}`;
 
     const bucketName =
       process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
@@ -67,9 +68,7 @@ export async function POST(request: NextRequest) {
       contentType: file.type,
       metadata: { contentType: file.type },
     });
-    await fileRef.makePublic();
-
-    const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media`;
+    const [url] = await fileRef.getSignedUrl({ action: 'read', expires: Date.now() + 24 * 60 * 60 * 1000 });
     return NextResponse.json({ url, path });
   } catch (error) {
     console.error('Slip upload error:', (error as any)?.message || error);

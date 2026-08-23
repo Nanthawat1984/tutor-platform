@@ -42,6 +42,7 @@ import type {
   SessionReport, Review, Notification, Payment, Center, Schedule
 } from '@/types/firestore';
 import { COLLECTIONS } from '@/types/firestore';
+import type { RegistrationConsent } from '@/lib/legal/consent';
 
 // Re-export for convenience
 export { getFirebaseStorage };
@@ -66,6 +67,28 @@ function getPendingGoogleRole(): AuthRole {
 function setPendingGoogleRole(role: AuthRole) {
   if (typeof window === 'undefined') return;
   window.sessionStorage.setItem('pendingGoogleRole', role);
+}
+
+function getPendingGoogleConsent(): RegistrationConsent | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const raw = window.sessionStorage.getItem('pendingGoogleConsent');
+  window.sessionStorage.removeItem('pendingGoogleConsent');
+  if (!raw) return undefined;
+  try {
+    const consent = JSON.parse(raw) as RegistrationConsent;
+    return consent.termsVersion && consent.privacyVersion ? consent : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function setPendingGoogleConsent(consent?: RegistrationConsent) {
+  if (typeof window === 'undefined') return;
+  if (consent) {
+    window.sessionStorage.setItem('pendingGoogleConsent', JSON.stringify(consent));
+  } else {
+    window.sessionStorage.removeItem('pendingGoogleConsent');
+  }
 }
 
 async function setSessionCookie(firebaseUser: FirebaseUser) {
@@ -104,7 +127,7 @@ async function fetchUserProfile(firebaseUser: FirebaseUser) {
   return data.user as User | null;
 }
 
-async function ensureUserProfile(firebaseUser: FirebaseUser, role: AuthRole = 'parent') {
+async function ensureUserProfile(firebaseUser: FirebaseUser, role: AuthRole = 'parent', consent?: RegistrationConsent) {
   const token = await firebaseUser.getIdToken();
   const response = await fetch('/api/auth/profile', {
     method: 'POST',
@@ -116,11 +139,13 @@ async function ensureUserProfile(firebaseUser: FirebaseUser, role: AuthRole = 'p
       role,
       displayName: firebaseUser.displayName || firebaseUser.email || undefined,
       photoURL: firebaseUser.photoURL || undefined,
+      ...(consent ? { consent } : {}),
     }),
   });
 
   if (!response.ok) {
-    throw new Error('profile-create-failed');
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'profile-create-failed');
   }
 
   const data = await response.json();
@@ -135,9 +160,9 @@ interface AuthContextType {
   userProfile: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<User | null>;
-  signUp: (email: string, password: string, fullName: string, role: AuthRole) => Promise<void>;
-  signInWithGoogle: (role?: AuthRole) => Promise<User>;
-  signInWithGoogleRedirect: (role?: AuthRole) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, role: AuthRole, consent: RegistrationConsent) => Promise<void>;
+  signInWithGoogle: (role?: AuthRole, consent?: RegistrationConsent) => Promise<User>;
+  signInWithGoogleRedirect: (role?: AuthRole, consent?: RegistrationConsent) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -156,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void getRedirectResult(auth).then(async (result) => {
       if (!result?.user || !isMounted) return;
-      const profile = await ensureUserProfile(result.user, getPendingGoogleRole());
+      const profile = await ensureUserProfile(result.user, getPendingGoogleRole(), getPendingGoogleConsent());
       // Set the session cookie BEFORE exposing the profile so that any
       // navigation triggered by setUserProfile has the cookie ready.
       // (Fixes bounce-back to /login after Google redirect sign-in.)
@@ -175,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // user through even if profile creation/read fails below.
           await setSessionCookie(firebaseUser);
           const profile = isGoogleProviderUser(firebaseUser.providerData)
-            ? await ensureUserProfile(firebaseUser, getPendingGoogleRole())
+            ? await ensureUserProfile(firebaseUser, getPendingGoogleRole(), getPendingGoogleConsent())
             : await fetchUserProfile(firebaseUser);
           if (profile) {
             setUserProfile(profile);
@@ -202,27 +227,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     const auth = getFirebaseAuth();
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    const profile = await fetchUserProfile(cred.user);
+    let profile = await fetchUserProfile(cred.user);
+    if (!profile) {
+      // บัญชีมีใน Firebase Auth แต่ยังไม่มีโปรไฟล์ใน Firestore
+      // (เช่น user doc หาย / สร้างบัญชีทางอื่น) — สร้างโปรไฟล์ให้อัตโนมัติ
+      // default role = parent (ครูที่ doc หายสามารถแก้ role ได้ภายหลัง)
+      profile = await ensureUserProfile(cred.user, 'parent');
+    }
     setUserProfile(profile);
     await setSessionCookie(cred.user);
     return profile;
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, fullName: string, role: AuthRole) => {
+  const signUp = useCallback(async (email: string, password: string, fullName: string, role: AuthRole, consent: RegistrationConsent) => {
     const auth = getFirebaseAuth();
     const cred = await createUserWithEmailAndPassword(auth, email, password);
 
     // Update Firebase Auth profile
     await firebaseUpdateProfile(cred.user, { displayName: fullName });
-    await ensureUserProfile(cred.user, role);
+    await ensureUserProfile(cred.user, role, consent);
 
     // Send email verification
     await sendEmailVerification(cred.user);
   }, []);
 
-  const signInWithGoogle = useCallback(async (role: AuthRole = 'parent') => {
+  const signInWithGoogle = useCallback(async (role: AuthRole = 'parent', consent?: RegistrationConsent) => {
     const auth = getFirebaseAuth();
     setPendingGoogleRole(role);
+    setPendingGoogleConsent(consent);
 
     // signInWithPopup จะ reject เองเมื่อ popup ถูกบล็อก (auth/popup-blocked)
     // หรือผู้ใช้ปิดหน้าต่าง (auth/popup-closed-by-user) — ไม่ต้องมี timeout
@@ -230,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // fallback ไป signInWithRedirect ซึ่ง route __/auth/handler ไม่มี → ระบบค้าง
     try {
       const result = await signInWithPopup(auth, createGoogleProvider());
-      const profile = await ensureUserProfile(result.user, role);
+      const profile = await ensureUserProfile(result.user, role, consent);
       // Set the session cookie BEFORE exposing the profile so any navigation
       // triggered by setUserProfile has the cookie ready.
       await setSessionCookie(result.user);
@@ -242,9 +274,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signInWithGoogleRedirect = useCallback(async (role: AuthRole = 'parent') => {
+  const signInWithGoogleRedirect = useCallback(async (role: AuthRole = 'parent', consent?: RegistrationConsent) => {
     const auth = getFirebaseAuth();
     setPendingGoogleRole(role);
+    setPendingGoogleConsent(consent);
     await signInWithRedirect(auth, createGoogleProvider());
   }, []);
 

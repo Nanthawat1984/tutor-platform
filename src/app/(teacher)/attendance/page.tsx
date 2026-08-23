@@ -11,6 +11,8 @@ import { getServerDb } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { requireSessionUser } from '@/lib/auth/session';
+import { requireRole } from '@/lib/auth/guards';
+import { releaseEscrowForBooking } from '@/lib/payments/process';
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -29,7 +31,34 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
     .orderBy('startTime')
     .get();
 
-  const bookings = bookingsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  // Serialize เป็น plain object (หลีกเลี่ยง Timestamp class ถูกส่งไป Client Component)
+  const bookings = bookingsSnap.docs.map((doc: any) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      teacherId: data.teacherId,
+      parentId: data.parentId,
+      studentId: data.studentId,
+      studentName: data.studentName,
+      studentLevel: data.studentLevel,
+      courseId: data.courseId,
+      courseTitle: data.courseTitle,
+      bookingDate: data.bookingDate,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      status: data.status,
+      totalPrice: data.totalPrice,
+    };
+  });
+
+  // โหลด attendance ของวันนี้ เพื่อแสดงสถานะเช็คชื่อจริง (มา/ขาด/สาย/รอเช็ค)
+  const attendanceSnap = await db.collection(COLLECTIONS.ATTENDANCE)
+    .where('teacherId', '==', teacherId)
+    .where('sessionDate', '==', selectedDate)
+    .get();
+  const attendanceStatusByBooking = new Map<string, string>(
+    attendanceSnap.docs.map((d: any) => [d.data().bookingId, d.data().status])
+  );
 
   return (
     <DashboardLayout
@@ -67,7 +96,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                         {booking.studentLevel}
                       </span>
                     )}
-                    <AttendanceStatusBadge status="pending" />
+                    <AttendanceStatusBadge status={attendanceStatusByBooking.get(booking.id) || 'pending'} />
                   </div>
                   <p className="mt-1 text-sm text-gray-500">
                     {booking.courseTitle} • {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
@@ -79,6 +108,11 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                       'use server';
                       const dbRef = getServerDb();
                       if (!dbRef) return;
+                      const current = (await requireRole(['teacher'])).session;
+                      if (current.uid !== teacherId) return;
+                      const bookingRef = dbRef.collection(COLLECTIONS.BOOKINGS).doc(booking.id);
+                      const currentBooking = await bookingRef.get();
+                      if (!currentBooking.exists || currentBooking.data()?.teacherId !== current.uid) return;
                       await dbRef.collection(COLLECTIONS.ATTENDANCE).add({
                         bookingId: booking.id,
                         courseId: booking.courseId,
@@ -90,6 +124,15 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                         createdAt: FieldValue.serverTimestamp(),
                         updatedAt: FieldValue.serverTimestamp(),
                       });
+
+                      // ถ้านักเรียนมาเรียน → จบเซสชัน + ปล่อย escrow (ย้าย pending → available)
+                      if (status === 'present' && booking.status === 'confirmed') {
+                        await bookingRef.update({
+                          status: 'completed',
+                          updatedAt: FieldValue.serverTimestamp(),
+                        });
+                        await releaseEscrowForBooking(dbRef, booking.id);
+                      }
                     }}>
                       <Button type="submit" size="sm" variant={status === 'present' ? 'primary' : 'outline'} className="w-full">
                         {status === 'present' ? <><Check className="h-4 w-4" /> มา</> :

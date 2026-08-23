@@ -11,6 +11,7 @@ import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { CalendarDays, Clock } from 'lucide-react';
 import { requireSessionUser } from '@/lib/auth/session';
+import { requireRole } from '@/lib/auth/guards';
 
 export default async function BookingsPage() {
   const db = getServerDb();
@@ -24,6 +25,17 @@ export default async function BookingsPage() {
     .get();
 
   const bookings = bookingsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+
+  // ดึง payment ของผู้ปกครองเพื่อแสดงสถานะการชำระเงิน
+  const paymentsSnap = await db.collection(COLLECTIONS.PAYMENTS)
+    .where('parentId', '==', parentId)
+    .get();
+  const paymentsByBooking = new Map<string, any>();
+  paymentsSnap.docs.forEach((doc: any) => {
+    const p = { id: doc.id, ...doc.data() };
+    if (!paymentsByBooking.has(p.bookingId)) paymentsByBooking.set(p.bookingId, p);
+  });
+
   const upcoming = bookings.filter((b: any) => b.status === 'confirmed' || b.status === 'pending');
   const past = bookings.filter((b: any) => b.status === 'completed' || b.status === 'cancelled');
 
@@ -64,19 +76,30 @@ export default async function BookingsPage() {
                   <div className="w-full text-left sm:w-auto sm:text-right">
                     <p className="font-semibold text-pink-700">{formatCurrency(b.totalPrice)}</p>
                     {b.status === 'pending' && (
-                      <form action={async () => {
-                        'use server';
-                        const dbRef = getServerDb();
-                        if (!dbRef) return;
-                        await dbRef.collection(COLLECTIONS.BOOKINGS).doc(b.id).update({
-                          status: 'cancelled',
-                          updatedAt: FieldValue.serverTimestamp(),
-                        });
-                      }}>
-                        <Button type="submit" size="sm" variant="outline" className="mt-2 w-full border-rose-300 text-rose-600 sm:w-auto">
-                          ยกเลิก
-                        </Button>
-                      </form>
+                      <div className="mt-2 flex flex-col gap-2 sm:items-end">
+                        <Link href={`/bookings/${b.id}/payment`} className="w-full sm:w-auto">
+                          <Button size="sm" className="w-full sm:w-auto">
+                            {paymentsByBooking.get(b.id)?.status === 'paid' ? 'ดูใบเสร็จ' : 'ชำระเงิน'}
+                          </Button>
+                        </Link>
+                        <form action={async () => {
+                          'use server';
+                          const dbRef = getServerDb();
+                          if (!dbRef) return;
+                          const current = (await requireRole(['parent'])).session;
+                          const bookingRef = dbRef.collection(COLLECTIONS.BOOKINGS).doc(b.id);
+                          const currentBooking = await bookingRef.get();
+                          if (!currentBooking.exists || currentBooking.data()?.parentId !== current.uid || currentBooking.data()?.status !== 'pending') return;
+                          await bookingRef.update({
+                            status: 'cancelled',
+                            updatedAt: FieldValue.serverTimestamp(),
+                          });
+                        }}>
+                          <Button type="submit" size="sm" variant="outline" className="w-full border-rose-300 text-rose-600 sm:w-auto">
+                            ยกเลิก
+                          </Button>
+                        </form>
+                      </div>
                     )}
                   </div>
                 </div>

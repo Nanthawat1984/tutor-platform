@@ -8,6 +8,7 @@ import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { requireSessionUser } from '@/lib/auth/session';
+import { requireRole } from '@/lib/auth/guards';
 
 const levelOptions = [
   { value: '', label: '-- เลือกระดับ --' },
@@ -27,21 +28,70 @@ const formatOptions = [
   { value: 'hybrid', label: 'ผสม (Online + On-site)' },
 ];
 
+// Fallback เมื่อยังไม่มีข้อมูลวิชาใน Firestore
+const FALLBACK_SUBJECTS = [
+  'คณิตศาสตร์', 'วิทยาศาสตร์', 'ภาษาอังกฤษ', 'ภาษาไทย', 'สังคมศึกษา',
+  'ฟิสิกส์', 'เคมี', 'ชีววิทยา', 'ภาษาจีน', 'ภาษาญี่ปุ่น',
+  'คอมพิวเตอร์', 'ดนตรี', 'ศิลปะ',
+];
+
 export default async function NewCoursePage() {
   const session = await requireSessionUser();
   const teacherId = session.uid;
   const teacherName = session.displayName || 'คุณครู';
 
+  // โหลดรายวิชาจาก subjects collection (ถ้าว่างใช้ fallback)
+  const db = getServerDb();
+  const centersSnap = db
+    ? await db.collection(COLLECTIONS.CENTERS).where('teacherId', '==', teacherId).get()
+    : null;
+  const centers = centersSnap
+    ? centersSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }))
+    : [];
+
+  const subjectsSnap = db
+    ? await db.collection(COLLECTIONS.SUBJECTS).orderBy('order', 'asc').get()
+    : null;
+  const subjectOptions = subjectsSnap && !subjectsSnap.empty
+    ? [
+        { value: '', label: '-- เลือกวิชา --' },
+        ...subjectsSnap.docs.map((doc: any) => ({
+          value: doc.id,
+          label: doc.data()?.name || doc.id,
+        })),
+      ]
+    : [
+        { value: '', label: '-- เลือกวิชา --' },
+        ...FALLBACK_SUBJECTS.map((name) => ({ value: name, label: name })),
+      ];
+
   async function createCourseAction(formData: FormData) {
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+    const current = (await requireRole(['teacher'])).session;
+    if (current.uid !== teacherId) return;
+
+    const centerId = (formData.get('center_id') as string) || '';
+    let centerName = '';
+    if (centerId) {
+      const centerSnap = await dbRef.collection(COLLECTIONS.CENTERS).doc(centerId).get();
+      if (centerSnap.exists) centerName = centerSnap.data()?.name || '';
+    }
+
+    // Resolve ชื่อวิชาจาก id (fallback: ใช้ค่าที่ส่งมาเป็นชื่อตรงๆ)
+    const subjectId = (formData.get('subject_id') as string) || '';
+    let subjectName = subjectId;
+    if (subjectId) {
+      const subjectSnap = await dbRef.collection(COLLECTIONS.SUBJECTS).doc(subjectId).get();
+      if (subjectSnap.exists) subjectName = subjectSnap.data()?.name || subjectId;
+    }
 
     await dbRef.collection(COLLECTIONS.COURSES).add({
       teacherId,
       teacherName,
-      subjectId: formData.get('subject_id') as string,
-      subjectName: formData.get('subject_id') as string || 'ทั่วไป',
+      subjectId,
+      subjectName: subjectName || 'ทั่วไป',
       title: formData.get('title') as string,
       description: formData.get('description') as string,
       level: formData.get('level') as string,
@@ -49,6 +99,8 @@ export default async function NewCoursePage() {
       maxStudents: parseInt(formData.get('max_students') as string) || 1,
       pricePerSession: parseFloat(formData.get('price_per_session') as string) || 0,
       durationMinutes: parseInt(formData.get('duration_minutes') as string) || 60,
+      centerId: centerId || null,
+      centerName: centerName || null,
       isActive: true,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -73,7 +125,7 @@ export default async function NewCoursePage() {
           <Input label="ชื่อคอร์ส" name="title" required placeholder="เช่น คณิตศาสตร์ ป.6 เตรียมสอบ O-NET" />
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Select label="วิชา" name="subject_id" options={[{ value: '', label: '-- เลือกวิชา --' }]} required />
+            <Select label="วิชา" name="subject_id" options={subjectOptions} required />
             <Select label="ระดับชั้น" name="level" options={levelOptions} required />
           </div>
 
@@ -81,6 +133,19 @@ export default async function NewCoursePage() {
             <Select label="รูปแบบการสอน" name="format" options={formatOptions} required />
             <Input label="จำนวนนักเรียนสูงสุด" name="max_students" type="number" defaultValue="1" min="1" max="50" />
           </div>
+
+          <Select
+            label="สถานที่สอน"
+            name="center_id"
+            options={[
+              { value: '', label: '-- ไม่ระบุ / สอนออนไลน์ --' },
+              ...centers.map((c: any) => ({
+                value: c.id,
+                label: c.name || [c.address, c.subdistrict, c.district, c.province].filter(Boolean).join(' '),
+              })),
+            ]}
+            helperText="เลือกสถานที่ที่เปิดสอน — ผู้ปกครองจะเห็นคอร์สนี้บนแผนที่"
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="ราคาต่อเซสชัน (บาท)" name="price_per_session" type="number" required min="0" step="50" placeholder="500" />

@@ -3,6 +3,11 @@ import { Suspense } from 'react';
 import { LoginForm } from '@/components/auth/login-form';
 import { BookOpen, CheckCircle2, GraduationCap, Star, Users } from 'lucide-react';
 
+// force-dynamic — กันหน้า login ค้างที่ fallback "Loading..."
+// (useSearchParams ใน client component + static prerender ทำให้บาง network
+//  ไม่ได้รับข้อมูล swap-in หลัง hydration → ฟอร์มค้างตลอด)
+export const dynamic = 'force-dynamic';
+
 const FEATURES = [
   { icon: Users, text: 'ครูพิเศษกว่า 2,400 คน' },
   { icon: BookOpen, text: 'มากกว่า 120 วิชา' },

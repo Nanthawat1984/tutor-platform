@@ -10,6 +10,8 @@ import { COLLECTIONS } from '@/types/firestore';
 import { formatTime } from '@/lib/utils';
 import type { Schedule } from '@/types/firestore';
 import { requireSessionUser } from '@/lib/auth/session';
+import { requireRole } from '@/lib/auth/guards';
+import DeleteSubmitButton from '@/components/teacher/delete-submit-button';
 
 const dayNames = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
 
@@ -27,19 +29,52 @@ export default async function SchedulePage() {
 
   const courseIds = coursesSnap.docs.map((d) => d.id);
 
-  const schedulesSnap = await db.collection(COLLECTIONS.SCHEDULES)
-    .where('isActive', '==', true)
-    .orderBy('dayOfWeek')
-    .orderBy('startTime')
-    .get();
+  // ดึงเฉพาะตารางของคอร์สของครูคนนี้ (in-query ฟิลด์เดียว ไม่ต้องใช้ composite index)
+  const schedulesSnap = courseIds.length
+    ? await db.collection(COLLECTIONS.SCHEDULES)
+        .where('courseId', 'in', courseIds)
+        .get()
+    : null;
 
-  const schedules = schedulesSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Schedule));
+  const schedules = (schedulesSnap?.docs ?? [])
+    .map((doc: any) => ({ id: doc.id, ...doc.data() } as Schedule))
+    .filter((s: any) => s.isActive !== false)
+    .sort(
+      (a: any, b: any) =>
+        a.dayOfWeek - b.dayOfWeek ||
+        String(a.startTime || '').localeCompare(String(b.startTime || ''))
+    );
 
   const byDay: Record<number, Schedule[]> = {};
   schedules.forEach((s) => {
     if (!byDay[s.dayOfWeek]) byDay[s.dayOfWeek] = [];
     byDay[s.dayOfWeek].push(s);
   });
+
+  async function deleteScheduleAction(formData: FormData) {
+    'use server';
+    const dbRef = getServerDb();
+    if (!dbRef) return;
+    const current = (await requireRole(['teacher'])).session;
+    if (current.uid !== teacherId) return;
+    const scheduleId = formData.get('schedule_id') as string;
+    if (!scheduleId) return;
+
+    const snap = await dbRef.collection(COLLECTIONS.SCHEDULES).doc(scheduleId).get();
+    if (!snap.exists) {
+      redirect('/schedule');
+      return;
+    }
+    const data = snap.data() as any;
+    // ตรวจสิทธิ์: เป็นตารางของครูคนนี้ หรืออยู่ในคอร์สของครูคนนี้
+    const ownsDirectly = data?.teacherId === teacherId;
+    const ownsViaCourse =
+      typeof data?.courseId === 'string' && courseIds.includes(data.courseId);
+    if (ownsDirectly || ownsViaCourse) {
+      await dbRef.collection(COLLECTIONS.SCHEDULES).doc(scheduleId).delete();
+    }
+    redirect('/schedule');
+  }
 
   return (
     <DashboardLayout
@@ -74,7 +109,11 @@ export default async function SchedulePage() {
                   {daySchedules.map((s) => (
                     <div key={s.id} className="rounded-lg border border-pink-100/70 bg-pink-50/40 p-3">
                       <div className="flex items-center justify-between gap-3">
-                        <p className="font-medium text-sm">{s.courseTitle}</p>
+                        <p className="min-w-0 flex-1 truncate font-medium text-sm">{s.courseTitle}</p>
+                        <form action={deleteScheduleAction} className="shrink-0">
+                          <input type="hidden" name="schedule_id" value={s.id} />
+                          <DeleteSubmitButton label="ลบตารางนี้" />
+                        </form>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
                         <span className="flex items-center gap-1 whitespace-nowrap">

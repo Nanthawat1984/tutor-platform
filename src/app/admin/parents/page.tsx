@@ -9,6 +9,7 @@ import { DashboardLayout, StatCard, EmptyState } from '@/components/layout/dashb
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { ConfirmDeleteButton } from '@/components/admin/confirm-delete-button';
 import { FieldValue } from 'firebase-admin/firestore';
+import { requireAdmin } from '@/lib/auth/guards';
 import { GraduationCap, Mail, Phone, Search, User, Users, X } from 'lucide-react';
 
 interface ParentsSearchParams {
@@ -19,6 +20,7 @@ async function deleteParentAction(formData: FormData) {
   'use server';
   const dbRef = getServerDb();
   if (!dbRef) return;
+  await requireAdmin();
   const parentId = formData.get('parentId') as string;
 
   const [students, bookings] = await Promise.all([

@@ -1,38 +1,83 @@
 import Link from 'next/link';
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
-import { Input } from '@/components/ui/input';
+import { Input, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/dashboard';
-import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
+import { PARENT_NAV_ITEMS, TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { ProfilePhotoUploader } from '@/components/teacher/profile-photo-uploader';
+import { ParentIdCardUploader } from '@/components/parent/parent-id-card-uploader';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { requireSessionUser } from '@/lib/auth/session';
+import { requireRole } from '@/lib/auth/guards';
+import { LineLinkCard } from '@/components/line/line-link-card';
 
-export default async function MyProfilePage() {
+export default async function MyProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ line_link?: string; return_to?: string }>;
+}) {
   const db = getServerDb();
   if (!db) return redirect('/login');
   const session = await requireSessionUser();
+  const params = await searchParams;
   const parentId = session.uid;
 
   const userSnap = await db.collection(COLLECTIONS.USERS).doc(parentId).get();
   const user = userSnap.exists ? { id: userSnap.id, ...userSnap.data() } as any : null;
 
+  if (session.role === 'teacher' && params.line_link === '1') {
+    return (
+      <DashboardLayout
+        title="เชื่อมต่อ LINE OA"
+        navItems={TEACHER_NAV_ITEMS}
+        role="teacher"
+        userName={user?.displayName || session.displayName || 'คุณครู'}
+      >
+        <p className="mb-6 text-sm text-slate-500">
+          เชื่อมต่อบัญชี LINE เพื่อรับแจ้งเตือนการจองเรียน ตารางสอน สถานที่ จำนวนผู้เรียน และค่าตอบแทน
+        </p>
+        <div className="max-w-2xl">
+          <LineLinkCard
+            initialLinked={Boolean(user?.lineUserId)}
+            initialEnabled={user?.lineNotificationEnabled !== false}
+          />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   async function updateProfileAction(formData: FormData) {
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+    const current = (await requireRole(['parent', 'teacher'])).session;
+    if (current.uid !== parentId) return;
 
     const displayName = (formData.get('display_name') as string || '').trim();
     const phone = (formData.get('phone') as string || '').trim();
+    const address = (formData.get('address') as string || '').trim();
     const photoUrl = (formData.get('photo_url') as string || '').trim();
+    const idCardPath = (formData.get('id_card_path') as string || '').trim();
+    const idCardPrefix = `parent-kyc/${parentId}/`;
+    const idCardFileName = idCardPath.slice(idCardPrefix.length);
+    const validIdCardPath = !idCardPath || (
+      idCardPath.startsWith(idCardPrefix) &&
+      /^id-card-\d+\.[a-z0-9]+$/i.test(idCardFileName)
+    );
+
+    if (!validIdCardPath) {
+      redirect('/my-profile?error=idcard');
+    }
 
     await dbRef.collection(COLLECTIONS.USERS).doc(parentId).update({
       displayName,
       phone: phone || null,
+      address: address || null,
       photoURL: photoUrl || null,
+      idCardPath: idCardPath || null,
       updatedAt: FieldValue.serverTimestamp(),
     });
 
@@ -49,6 +94,13 @@ export default async function MyProfilePage() {
       <p className="mb-6 text-sm text-slate-500">
         จัดการข้อมูลส่วนตัวของคุณ — ใช้สำหรับการติดต่อและการจองเรียน
       </p>
+
+      <div className="mb-6 max-w-2xl">
+        <LineLinkCard
+          initialLinked={Boolean(user?.lineUserId)}
+          initialEnabled={user?.lineNotificationEnabled !== false}
+        />
+      </div>
 
       <form action={updateProfileAction} className="max-w-2xl space-y-6">
         <div className="form-card p-6 sm:p-8 space-y-5">
@@ -78,6 +130,14 @@ export default async function MyProfilePage() {
             />
           </div>
 
+          <Textarea
+            label="ที่อยู่"
+            name="address"
+            defaultValue={user?.address || ''}
+            placeholder="บ้านเลขที่ หมู่ ซอย ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด รหัสไปรษณีย์"
+            rows={4}
+          />
+
           {/* Email — อ่านอย่างเดียว (ผูกกับบัญชี) */}
           <div>
             <p className="mb-1.5 text-sm font-semibold text-slate-700">อีเมล</p>
@@ -90,6 +150,16 @@ export default async function MyProfilePage() {
               อีเมลใช้สำหรับเข้าสู่ระบบ ไม่สามารถเปลี่ยนได้
             </p>
           </div>
+        </div>
+
+        <div className="form-card p-6 sm:p-8 space-y-4">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <UserRound className="h-4 w-4" />
+            </span>
+            เอกสารยืนยันตัวตน
+          </h2>
+          <ParentIdCardUploader uid={parentId} initialPath={user?.idCardPath} />
         </div>
 
         <div className="responsive-actions">

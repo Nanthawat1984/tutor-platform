@@ -12,6 +12,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { formatCurrency } from '@/lib/utils';
 import { Users } from 'lucide-react';
 import { requireSessionUser } from '@/lib/auth/session';
+import { requireRole } from '@/lib/auth/guards';
+import { createPaymentForBooking } from '@/lib/payments/process';
 
 export default async function NewBookingPage({
   searchParams,
@@ -46,14 +48,26 @@ export default async function NewBookingPage({
 
   const studentsSnap = await db.collection(COLLECTIONS.STUDENTS)
     .where('parentId', '==', parentId)
-    .orderBy('createdAt', 'asc')
     .get();
-  const students = studentsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  // Serialize to plain objects — Firestore Timestamps (class instances) can't cross
+  // the Server → Client component boundary.
+  const students = [...studentsSnap.docs]
+    .sort((a: any, b: any) => {
+      const aCreatedAt = a.data().createdAt?.toMillis?.() || 0;
+      const bCreatedAt = b.data().createdAt?.toMillis?.() || 0;
+      return aCreatedAt - bCreatedAt;
+    })
+    .map((doc: any) => {
+    const data = doc.data();
+    return { id: doc.id, name: data.name, level: data.level };
+    });
 
   async function createBooking(formData: FormData) {
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+    const current = await requireRole(['parent']);
+    if (current.session.uid !== userId) return;
 
     const studentId = formData.get('student_id') as string;
     const isNewStudent = studentId === '__new__';
@@ -80,7 +94,7 @@ export default async function NewBookingPage({
       });
     }
 
-    await dbRef.collection(COLLECTIONS.BOOKINGS).add({
+    const bookingRef = await dbRef.collection(COLLECTIONS.BOOKINGS).add({
       courseId,
       courseTitle: course.title,
       teacherId: course.teacherId,
@@ -99,7 +113,17 @@ export default async function NewBookingPage({
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    redirect('/bookings?success=1');
+    // สร้าง payment record (รอชำระเงิน) — escrow model
+    await createPaymentForBooking(dbRef, {
+      id: bookingRef.id,
+      parentId: userId,
+      teacherId: course.teacherId,
+      studentName,
+      courseTitle: course.title,
+      totalPrice: course.pricePerSession,
+    });
+
+    redirect(`/bookings/${bookingRef.id}/payment`);
   }
 
   return (
@@ -144,7 +168,9 @@ export default async function NewBookingPage({
 
         <div className="responsive-actions">
           <Button type="submit" className="w-full sm:w-auto">ยืนยันการจอง</Button>
-          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => history.back()}>ยกเลิก</Button>
+          <Link href="/explore" className="w-full sm:w-auto">
+            <Button type="button" variant="outline" className="w-full sm:w-auto">ยกเลิก</Button>
+          </Link>
         </div>
       </form>
     </DashboardLayout>

@@ -10,6 +10,7 @@ import { DashboardLayout, StatCard, EmptyState } from '@/components/layout/dashb
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { ConfirmDeleteButton } from '@/components/admin/confirm-delete-button';
 import { FieldValue } from 'firebase-admin/firestore';
+import { requireAdmin } from '@/lib/auth/guards';
 import { GraduationCap, School, Search, StickyNote, Users, X } from 'lucide-react';
 
 interface StudentsSearchParams {
@@ -20,6 +21,7 @@ async function deleteStudentAction(formData: FormData) {
   'use server';
   const dbRef = getServerDb();
   if (!dbRef) return;
+  await requireAdmin();
   const studentId = formData.get('studentId') as string;
 
   const bookingsSnap = await dbRef.collection(COLLECTIONS.BOOKINGS)

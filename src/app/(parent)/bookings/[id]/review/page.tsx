@@ -8,20 +8,21 @@ import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { requireSessionUser } from '@/lib/auth/session';
+import { requireRole } from '@/lib/auth/guards';
 
 export default async function ReviewPage({
+  params,
   searchParams,
 }: {
-  searchParams: Promise<{ booking_id?: string }>;
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | undefined>>;
 }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
   const session = await requireSessionUser();
 
-  const params = await searchParams;
-  const bookingId = params.booking_id;
-
-  if (!bookingId) redirect('/bookings');
+  const routeParams = await params;
+  const bookingId = routeParams.id;
 
   const bookingSnap = await db.collection(COLLECTIONS.BOOKINGS).doc(bookingId).get();
 
@@ -36,14 +37,23 @@ export default async function ReviewPage({
   }
 
   const booking = { id: bookingSnap.id, ...bookingSnap.data() } as any;
+  if (booking.parentId !== session.uid || booking.status !== 'completed') redirect('/bookings');
 
   async function submitReview(formData: FormData) {
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+    const current = (await requireRole(['parent'])).session;
+    const currentBookingSnap = await dbRef.collection(COLLECTIONS.BOOKINGS).doc(bookingId).get();
+    const currentBooking = currentBookingSnap.data() as any;
+    if (!currentBookingSnap.exists || currentBooking?.parentId !== current.uid || currentBooking?.status !== 'completed') {
+      redirect('/bookings');
+      return;
+    }
     const rating = parseInt(formData.get('rating') as string);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return;
     const comment = formData.get('comment') as string;
-    const parentId = session.uid;
+    const parentId = current.uid;
 
     await dbRef.collection(COLLECTIONS.REVIEWS).add({
       bookingId,

@@ -11,6 +11,7 @@ import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { CheckCircle, Clock3, Search, Star, Users, UserCheck, X, XCircle } from 'lucide-react';
 import { getServerAuth } from '@/lib/firebase/server';
 import { formatCurrency } from '@/lib/utils';
+import { requireAdmin } from '@/lib/auth/guards';
 
 interface TeachersSearchParams {
   searchParams: Promise<{ q?: string; status?: string; sort?: string }>;
@@ -121,6 +122,7 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+    await requireAdmin();
     await dbRef.collection(COLLECTIONS.USERS).doc(teacherId).update({
       isVerified: true,
       verificationLevel: 'full',
@@ -131,6 +133,7 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
+    await requireAdmin();
     await dbRef.collection(COLLECTIONS.USERS).doc(teacherId).update({
       verificationLevel: 'none',
     });

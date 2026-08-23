@@ -77,7 +77,8 @@ function LoginFormFields() {
       const password = String(formData.get('password') || '');
       const profile = await signIn(email, password);
       // signIn already calls setSessionCookie inside useFirebase
-      const destination = redirectTo || (profile ? getPostLoginPath(profile.role) : '/dashboard');
+      // fallback = /my-bookings (ปลอดภัยทุก role — /dashboard เป็นหน้าเฉพาะครู)
+      const destination = redirectTo || (profile ? getPostLoginPath(profile.role) : '/my-bookings');
       router.push(destination);
       router.refresh();
     } catch (loginError) {

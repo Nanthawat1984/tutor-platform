@@ -2,7 +2,7 @@
 // สำหรับใช้ใน server-side (API routes, server actions)
 // ⚠️ Lazy init — ไม่ connect ตอน build time
 
-import { initializeApp, getApps, cert, type App } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, applicationDefault, type App } from 'firebase-admin/app';
 import { getAuth as getAdminAuth, type Auth } from 'firebase-admin/auth';
 import { getFirestore as getAdminFirestore, type Firestore } from 'firebase-admin/firestore';
 import { getStorage as getAdminStorage, type Storage } from 'firebase-admin/storage';
@@ -14,6 +14,8 @@ let adminDb: Firestore | null = null;
 let adminStorage: Storage | null = null;
 
 function connectServerEmulators() {
+  // ⚠️ production (Cloud Run/Hosting backend) ห้ามต่อ emulator เด็ดขาด
+  if (process.env.NODE_ENV === 'production') return;
   if (process.env.FIREBASE_EMULATOR !== 'true') return;
 
   process.env.FIRESTORE_EMULATOR_HOST ||= '127.0.0.1:8080';
@@ -24,17 +26,17 @@ function connectServerEmulators() {
 function initAdmin() {
   if (adminApp) return adminApp;
   connectServerEmulators();
-  
+
   const { projectId, clientEmail, privateKey } = getFirebaseAdminEnv();
-  
-  if (!projectId || !clientEmail || !privateKey || privateKey.includes('YOUR_PRIVATE_KEY')) {
-    return null;
-  }
 
   try {
+    const credential = projectId && clientEmail && privateKey
+      ? cert({ projectId, clientEmail, privateKey } as any)
+      : applicationDefault();
     adminApp = getApps().length === 0
       ? initializeApp({
-          credential: cert({ projectId, clientEmail, privateKey } as any),
+          credential,
+          projectId: projectId || process.env.GCLOUD_PROJECT,
           databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
         })
       : getApps()[0];

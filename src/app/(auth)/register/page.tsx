@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from '@/hooks/useFirebase';
 import { getPreferredGoogleSignInMethod, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
 import { getPostLoginPath } from '@/lib/auth/redirects';
+import { ConsentGate } from '@/components/legal/consent-gate';
+import { PRIVACY_VERSION, TERMS_VERSION, type RegistrationConsent } from '@/lib/legal/consent';
 
 type RegisterRole = 'parent' | 'teacher';
 
@@ -45,6 +47,7 @@ function getAuthErrorMessage(error: unknown) {
     if (error.code === 'auth/account-exists-with-different-credential') return 'อีเมลนี้เคยสมัครด้วยวิธีอื่นแล้ว กรุณาเข้าสู่ระบบด้วยวิธีเดิม';
   }
   if (error instanceof Error) {
+    if (error.message === 'consent_required') return 'กรุณาอ่านและยอมรับข้อตกลงผู้ใช้บริการและนโยบายความเป็นส่วนตัวก่อนสมัคร';
     if (error.message === 'profile-create-failed') return 'สร้างโปรไฟล์ผู้ใช้ไม่สำเร็จ กรุณาลองเข้าสู่ระบบด้วยบัญชีเดิมอีกครั้ง';
     if (error.message === 'profile-read-failed') return 'อ่านข้อมูลโปรไฟล์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
     if (error.name === 'GooglePopupTimeoutError') return error.message;
@@ -69,6 +72,10 @@ function RegisterFields() {
   const [role, setRole] = useState<RegisterRole>('parent');
   const [error, setError] = useState<string | null>(null);
   const [pendingMethod, setPendingMethod] = useState<'email' | 'google' | null>(null);
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const registrationConsent: RegistrationConsent | null = consentAccepted
+    ? { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }
+    : null;
 
   useEffect(() => {
     if (!userProfile || pendingMethod) return;
@@ -77,6 +84,10 @@ function RegisterFields() {
 
   async function handleEmailRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!registrationConsent) {
+      setError('กรุณาอ่านและยอมรับข้อตกลงก่อนสมัคร');
+      return;
+    }
     setError(null);
     setPendingMethod('email');
 
@@ -85,7 +96,7 @@ function RegisterFields() {
       const fullName = String(formData.get('full_name') || '').trim();
       const email = String(formData.get('email') || '').trim();
       const password = String(formData.get('password') || '');
-      await signUp(email, password, fullName, role);
+      await signUp(email, password, fullName, role, registrationConsent);
       router.push(getPostLoginPath(role));
       router.refresh();
     } catch (registerError) {
@@ -96,16 +107,20 @@ function RegisterFields() {
   }
 
   async function handleGoogleRegister() {
+    if (!registrationConsent) {
+      setError('กรุณาอ่านและยอมรับข้อตกลงก่อนสมัคร');
+      return;
+    }
     setError(null);
     setPendingMethod('google');
 
     try {
       if (getPreferredGoogleSignInMethod() === 'redirect') {
-        await signInWithGoogleRedirect(role);
+        await signInWithGoogleRedirect(role, registrationConsent);
         return;
       }
 
-      const profile = await signInWithGoogle(role);
+      const profile = await signInWithGoogle(role, registrationConsent);
       router.push(getPostLoginPath(profile.role));
       router.refresh();
     } catch (registerError) {
@@ -113,7 +128,7 @@ function RegisterFields() {
       // (จะ fail ซ้ำและกลายเป็น unhandled rejection → หน้าค้าง)
       if (getPreferredGoogleSignInMethod() !== 'redirect' && shouldFallbackToGoogleRedirect(registerError)) {
         try {
-          await signInWithGoogleRedirect(role);
+          await signInWithGoogleRedirect(role, registrationConsent);
         } catch (redirectError) {
           setError(getAuthErrorMessage(redirectError));
         }
@@ -198,9 +213,15 @@ function RegisterFields() {
             💡 มีบัญชีอยู่แล้ว? บทบาทของคุณจะใช้จากบัญชีเดิมโดยอัตโนมัติ (เช่น ผู้ดูแลระบบ) — เลือกบทบาทนี้สำหรับบัญชีใหม่เท่านั้น
           </p>
 
+          <ConsentGate
+            accepted={consentAccepted}
+            onAcceptedChange={setConsentAccepted}
+            disabled={isPending}
+          />
+
           <button
             type="button"
-            disabled={isPending}
+            disabled={isPending || !consentAccepted}
             onClick={handleGoogleRegister}
             className="relative flex min-h-[48px] w-full items-center justify-center gap-3 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -236,7 +257,7 @@ function RegisterFields() {
             helperText="ควรมีตัวอักษรพิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ"
           />
 
-          <Button type="submit" size="lg" className="w-full" isLoading={pendingMethod === 'email'} disabled={isPending}>
+          <Button type="submit" size="lg" className="w-full" isLoading={pendingMethod === 'email'} disabled={isPending || !consentAccepted}>
             <Sparkles className="h-4 w-4" />
             สร้างบัญชีฟรี
           </Button>
@@ -249,10 +270,7 @@ function RegisterFields() {
           </p>
 
           <p className="text-center text-xs text-slate-400 leading-relaxed">
-            การสมัครถือว่าคุณยอมรับ{' '}
-            <span className="text-pink-500 hover:underline cursor-pointer">ข้อกำหนดการใช้งาน</span>
-            {' '}และ{' '}
-            <span className="text-pink-500 hover:underline cursor-pointer">นโยบายความเป็นส่วนตัว</span>
+            สมัครสมาชิกได้เมื่ออ่านและยอมรับข้อตกลงครบถ้วนแล้วเท่านั้น
           </p>
         </form>
       </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getServerAuth, getServerDb } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
+import { PRIVACY_VERSION, TERMS_VERSION, type RegistrationConsent } from '@/lib/legal/consent';
 
 type AuthRole = 'parent' | 'teacher';
 
@@ -13,6 +14,13 @@ function getBearerToken(request: NextRequest) {
 
 function toAuthRole(value: unknown): AuthRole {
   return value === 'teacher' ? 'teacher' : 'parent';
+}
+
+function parseRegistrationConsent(value: unknown): RegistrationConsent | null {
+  if (!value || typeof value !== 'object') return null;
+  const consent = value as Record<string, unknown>;
+  if (consent.termsVersion !== TERMS_VERSION || consent.privacyVersion !== PRIVACY_VERSION) return null;
+  return { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION };
 }
 
 async function verifyRequest(request: NextRequest) {
@@ -76,13 +84,27 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   const requestedRole = toAuthRole(body.role);
+  const consent = parseRegistrationConsent(body.consent);
   const uid = verified.decodedToken.uid;
   const userRef = db.collection(COLLECTIONS.USERS).doc(uid);
   const userDoc = await userRef.get();
 
   if (userDoc.exists) {
-    const user = { uid: userDoc.id, ...userDoc.data() };
+    if (consent) {
+      await userRef.update({
+        termsVersion: consent.termsVersion,
+        privacyVersion: consent.privacyVersion,
+        consentAcceptedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    const latestUserDoc = consent ? await userRef.get() : userDoc;
+    const user = { uid: latestUserDoc.id, ...latestUserDoc.data() };
     return NextResponse.json({ user, created: false });
+  }
+
+  if (!consent) {
+    return NextResponse.json({ error: 'consent_required' }, { status: 400 });
   }
 
   const email = verified.decodedToken.email || '';
@@ -102,6 +124,9 @@ export async function POST(request: NextRequest) {
     role: requestedRole,
     isVerified: Boolean(verified.decodedToken.email_verified),
     verificationLevel: verified.decodedToken.email_verified ? 'basic' : 'none',
+    termsVersion: consent.termsVersion,
+    privacyVersion: consent.privacyVersion,
+    consentAcceptedAt: FieldValue.serverTimestamp(),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
     ...(photoURL ? { photoURL } : {}),
