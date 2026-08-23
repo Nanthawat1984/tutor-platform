@@ -37,6 +37,10 @@ assert.match(reviewPage, /booking\.parentId\s*!==\s*session\.uid|booking\.status
   'review page must enforce booking ownership and completion');
 assert.match(parentBookings, /requireSessionUser\(\)/,
   'booking cancellation action must re-check the session');
+assert.match(parentBookings, /COLLECTIONS\.PAYMENTS[\s\S]*status[\s\S]*cancelled/,
+  'booking cancellation must cancel pending payment records');
+assert.match(parentBookings, /dbRef\.batch\(\)/,
+  'booking and pending payment cancellation must be committed together');
 for (const [name, source] of Object.entries({ adminParents, adminStudents, adminTeachers })) {
   assert.match(source, /requireAdmin\(\)/, `${name} actions must re-check admin session`);
 }

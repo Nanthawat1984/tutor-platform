@@ -249,7 +249,11 @@ export async function cancelBooking(id: string) {
     .get();
 
   const batch = db().batch();
-  paymentsSnap.docs.forEach((d) => batch.update(d.ref, { status: 'failed' }));
+  paymentsSnap.docs.forEach((d) => batch.update(d.ref, {
+    status: 'cancelled',
+    note: 'booking_cancelled',
+    updatedAt: serverTimestamp(),
+  }));
   await batch.commit();
 }
 

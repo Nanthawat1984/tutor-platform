@@ -94,10 +94,24 @@ export default async function BookingsPage() {
                           const bookingRef = dbRef.collection(COLLECTIONS.BOOKINGS).doc(b.id);
                           const currentBooking = await bookingRef.get();
                           if (!currentBooking.exists || currentBooking.data()?.parentId !== current.uid || currentBooking.data()?.status !== 'pending') return;
-                          await bookingRef.update({
+                          const paymentsSnap = await dbRef.collection(COLLECTIONS.PAYMENTS)
+                            .where('bookingId', '==', b.id)
+                            .get();
+                          const batch = dbRef.batch();
+                          batch.update(bookingRef, {
                             status: 'cancelled',
                             updatedAt: FieldValue.serverTimestamp(),
                           });
+                          paymentsSnap.docs.forEach((paymentDoc) => {
+                            if (paymentDoc.data()?.status === 'pending') {
+                              batch.update(paymentDoc.ref, {
+                                status: 'cancelled',
+                                note: 'booking_cancelled',
+                                updatedAt: FieldValue.serverTimestamp(),
+                              });
+                            }
+                          });
+                          await batch.commit();
                         }}>
                           <Button type="submit" size="sm" variant="outline" className="w-full border-rose-300 text-rose-600 sm:w-auto">
                             ยกเลิก
