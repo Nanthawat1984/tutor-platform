@@ -38,6 +38,8 @@ export default async function PaymentReceiptPage({
   const methodLabel = PAYMENT_METHODS.find((method) => method.id === payment.method)?.label
     || (payment.method === 'bank_transfer' ? 'โอนเงิน / สลิป' : 'ชำระเงิน');
   const paidDate = asDate(payment.paidAt);
+  const parentSnap = await db.collection(COLLECTIONS.USERS).doc(session.uid).get();
+  const parent = parentSnap.exists ? parentSnap.data() as any : {};
 
   return (
     <DashboardLayout
@@ -60,6 +62,9 @@ export default async function PaymentReceiptPage({
           amount={Number(payment.amount) || 0}
           paidDateLabel={paidDate ? formatDate(paidDate, 'd MMMM yyyy') : undefined}
           status={payment.status}
+          buyerName={parent.displayName || session.displayName}
+          buyerEmail={parent.email || session.email}
+          buyerAddress={parent.address || ''}
         />
         <div className="mt-5 print:hidden">
           <Link href={`/bookings/${payment.bookingId}`}>

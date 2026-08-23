@@ -15,9 +15,15 @@ const appHosting = read('apphosting.yaml');
 const example = read('.env.example');
 const payoutPage = read('src/app/(teacher)/profile/payout/page.tsx');
 const adminPayouts = read('src/app/admin/payouts/page.tsx');
+const bookingDetails = fs.existsSync(path.join(root, 'src/app/(parent)/bookings/[id]/page.tsx'))
+  ? read('src/app/(parent)/bookings/[id]/page.tsx')
+  : '';
+const globalStyles = read('src/app/globals.css');
 
 assert(receipt.includes('<PrintButton'), 'parent receipt must offer browser PDF printing');
 assert(receipt.includes('print:hidden'), 'receipt print action must be hidden in print output');
+assert(receipt.includes('receipt-a4-document'), 'parent receipt must use the A4 print document layout');
+assert(globalStyles.includes('@page') && globalStyles.includes('size: A4'), 'print styles must define A4 paper size');
 assert(paymentsPage.includes('/payments/${p.id}/receipt'), 'payments history must link to the protected receipt page');
 assert(successPage.includes("PaymentReceipt"), 'payment success must render the shared receipt');
 assert(connect.includes('STRIPE_CONNECT_ENABLED'), 'Connect must have an explicit feature flag');
@@ -35,5 +41,7 @@ assert(adminPayouts.includes('isStripeConnectReadyForTransfers'), 'admin payout 
 assert(adminPayouts.includes("payoutMethod: 'stripe_connect'"), 'Connect payout must be auditable on the payout record');
 assert(adminPayouts.includes('runTransaction'), 'payout approval must atomically mark payout and debit the wallet');
 assert(appHosting.includes('value: "false"'), 'Connect must remain fail-closed in App Hosting by default');
+assert(bookingDetails.includes('booking.parentId !== session.uid'), 'booking details must enforce parent ownership');
+assert(bookingDetails.includes('PaymentStatusBadge'), 'booking details must show payment status');
 
 console.log('Receipt and Stripe Connect contract checks passed');
