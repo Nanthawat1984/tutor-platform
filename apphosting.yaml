@@ -5,6 +5,21 @@ runConfig:
   concurrency: 80
 
 env:
+  - variable: ADMIN_FIREBASE_PROJECT_ID
+    value: tutor-platform-4e38f
+    availability:
+      - RUNTIME
+
+  - variable: ADMIN_FIREBASE_CLIENT_EMAIL
+    value: firebase-adminsdk-fbsvc@tutor-platform-4e38f.iam.gserviceaccount.com
+    availability:
+      - RUNTIME
+
+  - variable: ADMIN_FIREBASE_PRIVATE_KEY
+    secret: ADMIN_FIREBASE_PRIVATE_KEY
+    availability:
+      - RUNTIME
+
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: AIzaSyAruhI20eFBNsQQS1Dm6yMA03TZAmeh9XM
     availability:
