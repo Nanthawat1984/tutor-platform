@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { getServerDb } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
-import { markPaymentFailed, markPaymentPaid, refundPayment } from '@/lib/payments/process';
+import { markPaymentExpired, markPaymentFailed, markPaymentPaid, refundPayment } from '@/lib/payments/process';
 import { constructStripeWebhookEvent } from '@/lib/payments/stripe';
 
 export async function POST(request: NextRequest) {
@@ -46,6 +46,11 @@ export async function POST(request: NextRequest) {
       case 'checkout.session.async_payment_failed':
       case 'payment_intent.payment_failed':
         if (paymentId) await markPaymentFailed(db, paymentId, 'stripe_payment_failed');
+        break;
+      case 'checkout.session.expired':
+        if (paymentId) {
+          await markPaymentExpired(db, paymentId, { providerRef: data.id });
+        }
         break;
       case 'charge.refunded':
         if (paymentId) await refundPayment(db, paymentId);

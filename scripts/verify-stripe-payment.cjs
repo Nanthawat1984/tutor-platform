@@ -13,6 +13,7 @@ const paymentConfig = read('src/lib/payments/config.ts');
 const paymentFlow = read('src/components/booking/payment-flow.tsx');
 const confirmRoute = read('src/app/api/payments/confirm/route.ts');
 const successPage = read('src/app/(parent)/bookings/[id]/payment/success/page.tsx');
+const processPayments = read('src/lib/payments/process.ts');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -28,6 +29,10 @@ assert(gateway.includes('booking_id') && gateway.includes('payment_id'), 'Stripe
 assert(!gateway.includes('payment_method_types'), 'Stripe Checkout must use Dashboard-managed dynamic methods');
 assert(gateway.includes('constructEvent') && webhookRoute.includes('constructStripeWebhookEvent'), 'Stripe webhook must verify the raw body signature');
 assert(webhookRoute.includes('checkout.session.completed') && webhookRoute.includes('payment_intent.succeeded'), 'Stripe webhook must handle completed Stripe payments');
+assert(webhookRoute.includes('checkout.session.expired'), 'Stripe webhook must handle expired Checkout Sessions');
+assert(webhookRoute.includes('markPaymentExpired'), 'expired Checkout Sessions must use the safe expiration transition');
+assert(processPayments.includes('export async function markPaymentExpired'), 'payment processing must expose an expiration transition');
+assert(processPayments.includes('provider_mismatch'), 'expiration transition must reject mismatched Stripe sessions');
 assert(webhookRoute.includes('markPaymentPaid'), 'Stripe webhook must use the existing escrow payment transition');
 assert(paymentFlow.includes('checkoutUrl') && paymentFlow.includes('window.location.assign'), 'Payment UI must redirect to Stripe Checkout');
 assert(!paymentFlow.includes('placeholder="4242 4242 4242 4242"'), 'Payment UI must not collect raw card details');

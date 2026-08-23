@@ -134,6 +134,7 @@ node scripts/setup-line-rich-menus.cjs --dry-run
 - **ค่าบริการแพลตฟอร์ม:** 20% ของรายได้ต่อเซสชัน (ดู `src/lib/payments/config.ts`)
 - **Mock Gateway:** ทำงานเมื่อไม่มี Stripe key หรือ `PAYMENT_PROVIDER` ไม่ใช่ `stripe` — ไม่มีการหักเงินจริง
 - **Stripe Test Mode:** ตั้ง `PAYMENT_PROVIDER=stripe`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` และตั้ง webhook ไปที่ `/api/payments/webhook`
+- **Checkout หมดอายุ:** webhook `checkout.session.expired` จะเปลี่ยนรายการที่ยัง `pending` เป็น `cancelled` และแจ้งผู้ปกครองให้เริ่มชำระใหม่ โดยไม่ยกเลิกรายการที่จ่ายสำเร็จแล้ว
 - **ใบเสร็จ PDF:** ผู้ปกครองเปิด `/payments` แล้วกด `ดู / พิมพ์ใบเสร็จ PDF` ระบบใช้หน้าพิมพ์ของเบราว์เซอร์เพื่อเลือก `Save as PDF` โดยไม่เพิ่มค่า PDF service และไม่แสดงค่าบริการแพลตฟอร์มหรือรายได้ครู
 - **Stripe Connect:** ครูเริ่ม onboarding ที่ `/profile/payout`; แอดมินยังเป็นผู้อนุมัติ payout และเลือก `ส่งผ่าน Stripe Connect` ได้เฉพาะบัญชีที่ Stripe แจ้งว่า transfers พร้อม
 - **Connect safety flags:** `STRIPE_CONNECT_ENABLED=false` และ `STRIPE_CONNECT_LIVE_ENABLED=false` เป็นค่าเริ่มต้น ระบบจึงไม่สร้างบัญชีหรือโอนเงินจริงจนกว่าจะเปิดอย่างตั้งใจใน Test Mode ก่อน

@@ -176,6 +176,51 @@ export async function cancelPendingPayment(db: AdminFirestore, paymentId: string
   });
 }
 
+/**
+ * Cancel a Stripe Checkout payment after its session expires.
+ * This transition is deliberately pending-only: a late/duplicate expiry
+ * event must never undo a payment that already became paid.
+ */
+export async function markPaymentExpired(
+  db: AdminFirestore,
+  paymentId: string,
+  opts: { providerRef?: string } = {},
+): Promise<{ ok: boolean; reason?: string }> {
+  const paymentRef = db.collection(COLLECTIONS.PAYMENTS).doc(paymentId);
+  const paymentSnap = await paymentRef.get();
+  if (!paymentSnap.exists) return { ok: false, reason: 'payment_not_found' };
+
+  const payment = paymentSnap.data() as any;
+  if (opts.providerRef && payment.providerRef && opts.providerRef !== payment.providerRef) {
+    return { ok: false, reason: 'provider_mismatch' };
+  }
+  if (payment.status !== 'pending') {
+    return { ok: true, reason: `already_${payment.status}` };
+  }
+
+  await paymentRef.update({
+    status: 'cancelled',
+    note: 'stripe_checkout_expired',
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  try {
+    await db.collection(COLLECTIONS.NOTIFICATIONS).add({
+      userId: payment.parentId,
+      type: 'payment',
+      title: 'รายการชำระเงินหมดอายุ',
+      body: `รายการชำระเงินของ ${payment.studentName || 'นักเรียน'} หมดเวลาแล้ว กรุณาเริ่มชำระเงินใหม่`,
+      data: { bookingId: payment.bookingId, paymentId },
+      isRead: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('payment expiry notification failed:', error instanceof Error ? error.message : 'unknown');
+  }
+
+  return { ok: true };
+}
+
 // ─────────────────────────────────────────────
 // RELEASE ESCROW — เมื่อ booking เสร็จสมบูรณ์
 // ย้าย pendingBalance → availableBalance ของครู
