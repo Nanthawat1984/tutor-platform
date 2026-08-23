@@ -20,12 +20,10 @@ export function isMobile(): boolean {
 }
 
 export function getPreferredGoogleSignInMethod(): GoogleSignInMethod {
-  // Desktop: popup gives a smoother experience (no full-page redirect) and
-  // returns the result directly via window.opener.postMessage.
-  // Mobile: redirect works in ALL mobile browsers including in-app browsers
-  // (LINE, Facebook, etc.) that block popups. The redirect flow is now
-  // same-origin (authDomain === app domain) so it completes reliably.
-  return isMobile() ? 'redirect' : 'popup';
+  // App Hosting cannot serve Firebase's reserved /__/auth callback namespace.
+  // Popup keeps the OAuth callback inside the opener and works with the
+  // project's Firebase authDomain on both desktop and mobile browsers.
+  return 'popup';
 }
 
 export function isGoogleProviderUser(providerData: ReadonlyArray<{ providerId?: string | null }>) {

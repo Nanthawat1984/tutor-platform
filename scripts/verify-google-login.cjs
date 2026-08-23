@@ -7,8 +7,8 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const loginForm = read('src/components/auth/login-form.tsx');
 const googleAuth = read('src/lib/auth/google.ts');
 
-assert.match(googleAuth, /return isMobile\(\) \? 'redirect' : 'popup'/,
-  'mobile must use redirect sign-in');
+assert.match(googleAuth, /return 'popup'/,
+  'mobile must use popup sign-in to avoid the App Hosting callback domain');
 assert.match(loginForm, /auth\/requests-from-referer/,
   'blocked Firebase API key referrers must have a specific user-facing message');
 

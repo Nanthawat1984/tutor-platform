@@ -8,7 +8,7 @@ import { Mail } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from '@/hooks/useFirebase';
-import { getPreferredGoogleSignInMethod, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
+import { getPreferredGoogleSignInMethod, isMobile, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
 import { getPostLoginPath } from '@/lib/auth/redirects';
 
 function getAuthErrorMessage(error: unknown) {
@@ -107,9 +107,9 @@ function LoginFormFields() {
       router.push(destination);
       router.refresh();
     } catch (loginError) {
-      // ถ้าใช้ redirect อยู่แล้ว (มือถือ) ไม่ต้อง fallback ไป redirect ซ้ำ
-      // (จะ fail ซ้ำและกลายเป็น unhandled rejection → หน้าค้าง)
-      if (getPreferredGoogleSignInMethod() !== 'redirect' && shouldFallbackToGoogleRedirect(loginError)) {
+      // บนมือถือไม่ fallback เป็น redirect เพราะ App Hosting ไม่มี reserved
+      // /__/auth callback; ให้แสดง popup-blocked message แทนการวนกลับ Login
+      if (!isMobile() && getPreferredGoogleSignInMethod() !== 'redirect' && shouldFallbackToGoogleRedirect(loginError)) {
         try {
           await signInWithGoogleRedirect();
         } catch (redirectError) {
