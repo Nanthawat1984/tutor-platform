@@ -19,6 +19,7 @@ const bookingDetails = fs.existsSync(path.join(root, 'src/app/(parent)/bookings/
   ? read('src/app/(parent)/bookings/[id]/page.tsx')
   : '';
 const globalStyles = read('src/app/globals.css');
+const paymentProcess = read('src/lib/payments/process.ts');
 
 assert(receipt.includes('<PrintButton'), 'parent receipt must offer browser PDF printing');
 assert(receipt.includes('print:hidden'), 'receipt print action must be hidden in print output');
@@ -26,6 +27,9 @@ assert(receipt.includes('receipt-a4-document'), 'parent receipt must use the A4 
 assert(globalStyles.includes('@page') && globalStyles.includes('size: A4'), 'print styles must define A4 paper size');
 assert(paymentsPage.includes('/payments/${p.id}/receipt'), 'payments history must link to the protected receipt page');
 assert(successPage.includes("PaymentReceipt"), 'payment success must render the shared receipt');
+assert(paymentProcess.includes('generateReceiptNumber'), 'successful payments must receive a deterministic receipt number');
+assert(paymentProcess.includes('receiptNumber') && paymentProcess.includes('receiptIssuedAt'), 'successful payments must persist receipt issuance metadata');
+assert(successPage.includes('receiptNumber') || read('src/app/(parent)/payments/[id]/receipt/page.tsx').includes('receiptNumber'), 'receipt pages must prefer the issued receipt number');
 assert(connect.includes('STRIPE_CONNECT_ENABLED'), 'Connect must have an explicit feature flag');
 assert(connect.includes('STRIPE_CONNECT_LIVE_ENABLED'), 'live Connect transfers must have a separate kill switch');
 assert(connect.includes('/v2/core/accounts'), 'new connected accounts must use Stripe Accounts v2');

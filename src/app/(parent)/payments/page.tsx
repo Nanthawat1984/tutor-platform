@@ -90,8 +90,8 @@ export default async function PaymentsPage() {
                       <CalendarDays className="h-3 w-3" />
                       {p.paidAt ? formatDate(p.paidAt.toDate?.() || p.paidAt, 'd MMM yyyy') : formatDate(p.createdAt.toDate?.() || p.createdAt, 'd MMM yyyy')}
                     </span>
-                    {p.transactionId && (
-                      <span className="font-mono">#{p.transactionId}</span>
+                    {(p.receiptNumber || p.transactionId) && (
+                      <span className="font-mono">#{p.receiptNumber || p.transactionId}</span>
                     )}
                   </p>
                 </div>

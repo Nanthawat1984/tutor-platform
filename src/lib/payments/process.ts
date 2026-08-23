@@ -90,6 +90,18 @@ export async function getPaymentForBooking(db: AdminFirestore, bookingId: string
 // 3. escrow: เติม pendingBalance ของครู (เฉพาะครั้งแรก — กันซ้ำ)
 // 4. แจ้งเตือนผู้ปกครอง
 // ─────────────────────────────────────────────
+export function generateReceiptNumber(paymentId: string, issuedAt: Date = new Date()): string {
+  const dateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(issuedAt);
+  const date = Object.fromEntries(dateParts.map((part) => [part.type, part.value]));
+  const suffix = paymentId.replace(/[^a-zA-Z0-9]/g, '').slice(-8).toUpperCase().padStart(8, '0');
+  return `TF-RC-${date.year}${date.month}${date.day}-${suffix}`;
+}
+
 export async function markPaymentPaid(
   db: AdminFirestore,
   paymentId: string,
@@ -99,7 +111,16 @@ export async function markPaymentPaid(
   const paymentSnap = await paymentRef.get();
   if (!paymentSnap.exists) return { ok: false, reason: 'payment_not_found' };
   const payment = paymentSnap.data() as any;
-  if (payment.status === 'paid') return { ok: true, reason: 'already_paid' };
+  if (payment.status === 'paid') {
+    if (!payment.receiptNumber) {
+      await paymentRef.update({
+        receiptNumber: generateReceiptNumber(paymentId),
+        receiptIssuedAt: payment.receiptIssuedAt || FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    return { ok: true, reason: 'already_paid' };
+  }
 
   // กันประมวลผลซ้ำ — ถ้ามี escrowProcessed=true แปลว่าทำไปแล้ว
   if (payment.escrowProcessed) return { ok: true, reason: 'already_processed' };
@@ -117,6 +138,8 @@ export async function markPaymentPaid(
     transactionId: opts.transactionId || payment.transactionId || null,
     providerRef: opts.providerRef || payment.providerRef || null,
     paidAt: FieldValue.serverTimestamp(),
+    receiptNumber: payment.receiptNumber || generateReceiptNumber(paymentId),
+    receiptIssuedAt: payment.receiptIssuedAt || FieldValue.serverTimestamp(),
     escrowProcessed: true,
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -210,7 +233,11 @@ export async function markPaymentExpired(
       type: 'payment',
       title: 'รายการชำระเงินหมดอายุ',
       body: `รายการชำระเงินของ ${payment.studentName || 'นักเรียน'} หมดเวลาแล้ว กรุณาเริ่มชำระเงินใหม่`,
-      data: { bookingId: payment.bookingId, paymentId },
+      data: {
+        bookingId: payment.bookingId,
+        paymentId,
+        receiptNumber: payment.receiptNumber || generateReceiptNumber(paymentId),
+      },
       isRead: false,
       createdAt: FieldValue.serverTimestamp(),
     });

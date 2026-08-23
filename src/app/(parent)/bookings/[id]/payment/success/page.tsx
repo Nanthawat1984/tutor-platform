@@ -64,7 +64,7 @@ export default async function PaymentSuccessPage({
 
         <div className="mt-7 text-left">
           <PaymentReceipt
-            reference={payment?.transactionId || payment?.id || '-'}
+            reference={payment?.receiptNumber || payment?.transactionId || payment?.id || '-'}
             courseTitle={booking.courseTitle}
             studentName={booking.studentName}
             methodLabel={methodLabel}

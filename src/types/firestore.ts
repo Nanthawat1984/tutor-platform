@@ -313,6 +313,8 @@ export interface Payment {
   transactionId?: string;   // เลข transaction จาก gateway
   providerRef?: string;     // ref จาก gateway (เช่น Omise charge id)
   paidAt?: Timestamp;
+  receiptNumber?: string;    // เลขที่ใบเสร็จที่ออกเมื่อชำระสำเร็จ
+  receiptIssuedAt?: Timestamp;
   slipURL?: string;         // สำหรับวิธี bank_transfer (อัปโหลดสลิป)
   slipPath?: string;        // private Storage path สำหรับ Admin ตรวจสอบ
   submittedAt?: Timestamp;  // เวลาที่ผู้ปกครองส่งสลิปเข้าตรวจ

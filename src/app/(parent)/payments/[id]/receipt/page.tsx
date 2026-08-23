@@ -55,7 +55,7 @@ export default async function PaymentReceiptPage({
           </Link>
         </div>
         <PaymentReceipt
-          reference={payment.transactionId || payment.id}
+          reference={payment.receiptNumber || payment.transactionId || payment.id}
           courseTitle={payment.courseTitle}
           studentName={payment.studentName}
           methodLabel={methodLabel}
