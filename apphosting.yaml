@@ -134,7 +134,7 @@ env:
       - RUNTIME
 
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://tutor-platform--tutor-platform-4e38f.asia-southeast1.hosted.app
+    value: https://tutorfinder.pilotai.space
     availability:
       - BUILD
       - RUNTIME
