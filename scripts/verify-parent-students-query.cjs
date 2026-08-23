@@ -16,6 +16,12 @@ for (const relativePath of pages) {
     /collection\(COLLECTIONS\.STUDENTS\)[\s\S]{0,180}\.orderBy\(['"]createdAt['"],\s*['"]asc['"]\)/,
     `${relativePath} must not require the unavailable students composite index`,
   );
+
+  assert.doesNotMatch(
+    source,
+    /onClick\s*=/,
+    `${relativePath} must not pass event handlers from a Server Component`,
+  );
 }
 
 console.log('Parent students query check passed');

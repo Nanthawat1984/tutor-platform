@@ -8,9 +8,10 @@ import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
-import { GraduationCap, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { GraduationCap, Pencil, Plus, Users } from 'lucide-react';
 import { requireSessionUser } from '@/lib/auth/session';
 import { requireRole } from '@/lib/auth/guards';
+import DeleteSubmitButton from '@/components/teacher/delete-submit-button';
 
 export default async function MyStudentsPage() {
   const db = getServerDb();
@@ -162,29 +163,14 @@ export default async function MyStudentsPage() {
                         <Input name="level" defaultValue={student.level || ''} placeholder="ระดับชั้น" />
                         <Input name="school" defaultValue={student.school || ''} placeholder="โรงเรียน" />
                         <Textarea name="notes" defaultValue={student.notes || ''} placeholder="หมายเหตุ" />
-                        <div className="flex gap-2">
-                          <Button type="submit" size="sm" className="flex-1">บันทึก</Button>
-                          <Button type="button" size="sm" variant="ghost" className="flex-1" onClick={(e) => (e.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute('open')}>
-                            ปิด
-                          </Button>
-                        </div>
+                        <Button type="submit" size="sm" className="w-full">บันทึก</Button>
                       </form>
                     </div>
                   </details>
 
                   <form action={deleteStudentAction}>
                     <input type="hidden" name="id" value={student.id} />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      variant="outline"
-                      className="border-rose-200 text-rose-600 hover:bg-rose-50"
-                      onClick={(e) => {
-                        if (!confirm(`ลบรายชื่อ ${student.name} ออกจากระบบ?`)) e.preventDefault();
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DeleteSubmitButton label={`ลบรายชื่อ ${student.name}`} />
                   </form>
                 </div>
               </div>
