@@ -7,7 +7,7 @@ import { MOCK_MODE, generateRef } from '@/lib/payments/config';
 
 /**
  * POST /api/payments/confirm
- * Body: { paymentId, slipURL? }
+ * Body: { paymentId, slipPath? }
  *
  * MOCK MODE: จำลอง gateway สำเร็จทันที (transactionId = mock_xxx) แล้วประมวลผลชำระเงิน
  * STRIPE MODE: Checkout Session จะยืนยันผ่าน Stripe webhook
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   const paymentId = body.paymentId as string | undefined;
-  const slipURL = body.slipURL as string | undefined;
+  const slipPath = typeof body.slipPath === 'string' ? body.slipPath.trim() : '';
 
   if (!paymentId) return NextResponse.json({ error: 'missing_payment_id' }, { status: 400 });
 
@@ -36,12 +36,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'payment_not_pending', status: payment.status }, { status: 409 });
   }
 
-  // เก็บ slipURL (สำหรับวิธี bank_transfer) ก่อนยืนยัน
-  if (slipURL && payment.method === 'bank_transfer') {
+  // การโอนเข้าบัญชีบริษัทต้องผ่าน Admin review ห้าม mark paid จาก client
+  if (payment.method === 'bank_transfer') {
+    const expectedPrefix = `payment-slips/${payment.bookingId}/`;
+    if (!slipPath || !slipPath.startsWith(expectedPrefix) || slipPath.length > 512) {
+      return NextResponse.json({ error: 'invalid_slip_path' }, { status: 400 });
+    }
     await db.collection(COLLECTIONS.PAYMENTS).doc(paymentId).update({
-      slipURL,
+      slipPath,
+      status: 'awaiting_review',
+      submittedAt: new Date(),
+      reviewNote: null,
       updatedAt: new Date(),
     } as any);
+    return NextResponse.json({ ok: true, awaitingReview: true, bookingId: payment.bookingId }, { status: 202 });
   }
 
   try {

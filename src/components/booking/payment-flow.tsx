@@ -45,6 +45,7 @@ export function PaymentFlow({ bookingId, amount, studentName, courseTitle }: Pay
   const [data, setData] = useState<InitiateResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [slipURL, setSlipURL] = useState<string | null>(null);
+  const [slipPath, setSlipPath] = useState<string | null>(null);
   const [uploadingSlip, setUploadingSlip] = useState(false);
 
   async function selectMethod(selectedMethod: PaymentMethodInfo) {
@@ -52,6 +53,7 @@ export function PaymentFlow({ bookingId, amount, studentName, courseTitle }: Pay
     setError(null);
     setData(null);
     setSlipURL(null);
+    setSlipPath(null);
     setInitiating(true);
     try {
       const res = await fetch('/api/payments/initiate', {
@@ -98,6 +100,7 @@ export function PaymentFlow({ bookingId, amount, studentName, courseTitle }: Pay
         return;
       }
       setSlipURL(json.url);
+      setSlipPath(json.path || null);
     } catch {
       setError('อัปโหลดสลิปไม่สำเร็จ กรุณาลองใหม่');
     } finally {
@@ -115,7 +118,7 @@ export function PaymentFlow({ bookingId, amount, studentName, courseTitle }: Pay
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: data.paymentId,
-          slipURL: method?.id === 'bank_transfer' ? slipURL : undefined,
+          slipPath: method?.id === 'bank_transfer' ? slipPath : undefined,
         }),
       });
       const json = await res.json();

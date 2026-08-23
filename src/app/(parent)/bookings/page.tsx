@@ -77,11 +77,15 @@ export default async function BookingsPage() {
                     <p className="font-semibold text-pink-700">{formatCurrency(b.totalPrice)}</p>
                     {b.status === 'pending' && (
                       <div className="mt-2 flex flex-col gap-2 sm:items-end">
-                        <Link href={`/bookings/${b.id}/payment`} className="w-full sm:w-auto">
-                          <Button size="sm" className="w-full sm:w-auto">
-                            {paymentsByBooking.get(b.id)?.status === 'paid' ? 'ดูใบเสร็จ' : 'ชำระเงิน'}
-                          </Button>
-                        </Link>
+                        {paymentsByBooking.get(b.id)?.status === 'awaiting_review' ? (
+                          <span className="text-xs font-semibold text-sky-700">รอตรวจสอบสลิป</span>
+                        ) : (
+                          <Link href={`/bookings/${b.id}/payment`} className="w-full sm:w-auto">
+                            <Button size="sm" className="w-full sm:w-auto">
+                              {paymentsByBooking.get(b.id)?.status === 'paid' ? 'ดูใบเสร็จ' : 'ชำระเงิน'}
+                            </Button>
+                          </Link>
+                        )}
                         <form action={async () => {
                           'use server';
                           const dbRef = getServerDb();

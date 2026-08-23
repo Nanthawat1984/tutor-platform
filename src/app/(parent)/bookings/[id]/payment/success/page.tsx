@@ -38,6 +38,7 @@ export default async function PaymentSuccessPage({
   const methodLabel = PAYMENT_METHODS.find((m) => m.id === payment?.method)?.label
     || (payment?.method === 'promptpay' ? 'พร้อมเพย์' : payment?.method === 'credit_card' ? 'บัตรเครดิต / เดบิต' : 'ชำระเงิน');
   const paymentConfirmed = payment?.status === 'paid';
+  const paymentAwaitingReview = payment?.status === 'awaiting_review';
 
   return (
     <DashboardLayout
@@ -51,12 +52,14 @@ export default async function PaymentSuccessPage({
           <CheckCircle2 className="h-11 w-11 text-emerald-600" />
         </div>
           <h2 className="mt-5 text-2xl font-extrabold text-slate-900">
-            {paymentConfirmed ? 'ชำระเงินสำเร็จ 🎉' : 'กำลังตรวจสอบการชำระเงิน'}
+            {paymentConfirmed ? 'ชำระเงินสำเร็จ 🎉' : paymentAwaitingReview ? 'รอตรวจสอบสลิป' : 'กำลังตรวจสอบการชำระเงิน'}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
           {paymentConfirmed
             ? <>การจองเรียนของ <span className="font-bold text-slate-700">{booking.studentName}</span> ได้รับการยืนยันแล้ว</>
-            : <>ระบบได้รับข้อมูลการชำระเงินของ <span className="font-bold text-slate-700">{booking.studentName}</span> แล้ว กำลังรอ Stripe ยืนยัน</>}
+            : paymentAwaitingReview
+              ? <>ระบบได้รับสลิปของ <span className="font-bold text-slate-700">{booking.studentName}</span> แล้ว ทีมงานกำลังตรวจสอบยอดโอน</>
+              : <>ระบบได้รับข้อมูลการชำระเงินของ <span className="font-bold text-slate-700">{booking.studentName}</span> แล้ว กำลังรอการยืนยัน</>}
         </p>
 
         {/* ใบเสร็จ */}
@@ -67,7 +70,7 @@ export default async function PaymentSuccessPage({
               <span className="font-bold text-slate-900">ใบเสร็จรับเงิน</span>
             </div>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600 ring-1 ring-emerald-200">
-              {paymentConfirmed ? 'ชำระแล้ว' : 'กำลังตรวจสอบ'}
+              {paymentConfirmed ? 'ชำระแล้ว' : paymentAwaitingReview ? 'รอตรวจสอบสลิป' : 'กำลังตรวจสอบ'}
             </span>
           </div>
 

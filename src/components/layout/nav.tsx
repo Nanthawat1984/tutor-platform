@@ -42,6 +42,7 @@ export const PARENT_NAV_ITEMS: NavItem[] = [
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: '/admin/dashboard', label: 'แดชบอร์ด', icon: <LayoutDashboard className="h-4 w-4" /> },
+  { href: '/admin/payments', label: 'ตรวจสอบการชำระเงิน', icon: <Wallet className="h-4 w-4" /> },
   { href: '/admin/teachers', label: 'จัดการครู', icon: <Users className="h-4 w-4" /> },
   { href: '/admin/parents', label: 'ผู้ปกครอง', icon: <UserRound className="h-4 w-4" /> },
   { href: '/admin/students', label: 'นักเรียน', icon: <School className="h-4 w-4" /> },

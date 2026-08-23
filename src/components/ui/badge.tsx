@@ -103,6 +103,7 @@ export function VerificationBadge({ level }: { level: string }) {
 export function PaymentStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: BadgeVariant }> = {
     pending:  { label: 'รอชำระเงิน', variant: 'warning' },
+    awaiting_review: { label: 'รอตรวจสอบสลิป', variant: 'info' },
     paid:     { label: 'ชำระแล้ว',   variant: 'success' },
     failed:   { label: 'ชำระไม่สำเร็จ', variant: 'danger' },
     refunded: { label: 'คืนเงินแล้ว', variant: 'info' },

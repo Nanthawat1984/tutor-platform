@@ -61,6 +61,7 @@ export default async function AdminDashboard() {
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { href: '/admin/teachers', label: 'จัดการครู', gradient: 'from-pink-500 to-rose-600' },
+          { href: '/admin/payments', label: 'ตรวจสอบโอนเงิน', gradient: 'from-sky-500 to-cyan-600' },
           { href: '/admin/payouts', label: 'อนุมัติเบิกเงินครู', gradient: 'from-emerald-500 to-teal-600' },
           { href: '/admin/tax-report', label: 'ภาษีหัก ณ ที่จ่าย (ภ.ง.ด.53)', gradient: 'from-amber-500 to-orange-600' },
           { href: '/admin/parents', label: 'ผู้ปกครอง', gradient: 'from-indigo-500 to-blue-600' },

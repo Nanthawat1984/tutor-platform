@@ -286,7 +286,7 @@ export interface Notification {
 //   3. Gateway สำเร็จ → status=paid → ระบบ escrow: ยืนยันการจอง + เข้า wallet pending ของครู
 //   4. เรียนเสร็จ (booking completed) → ปล่อย escrow pending → available ของครู
 export type PaymentMethod = 'stripe_checkout' | 'promptpay' | 'credit_card' | 'truemoney' | 'bank_transfer';
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
+export type PaymentStatus = 'pending' | 'awaiting_review' | 'paid' | 'failed' | 'refunded' | 'cancelled';
 // `omise` remains readable for historical records only; new payments use mock or Stripe.
 export type PaymentProvider = 'mock' | 'omise' | 'stripe';
 
@@ -308,6 +308,11 @@ export interface Payment {
   providerRef?: string;     // ref จาก gateway (เช่น Omise charge id)
   paidAt?: Timestamp;
   slipURL?: string;         // สำหรับวิธี bank_transfer (อัปโหลดสลิป)
+  slipPath?: string;        // private Storage path สำหรับ Admin ตรวจสอบ
+  submittedAt?: Timestamp;  // เวลาที่ผู้ปกครองส่งสลิปเข้าตรวจ
+  reviewedBy?: string;      // Admin UID ผู้ตรวจสอบ
+  reviewedAt?: Timestamp;
+  reviewNote?: string;
   escrowProcessed?: boolean;// guard — กันประมวลผลซ้ำ (แอป process แล้ว trigger จะข้าม)
   expiresAt?: Timestamp;    // วันหมดอายุของ QR/รายการชำระ
   // ── ภาษีหัก ณ ที่จ่าย (3% ของ netAmount — หักตอน release escrow) ──
