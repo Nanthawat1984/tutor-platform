@@ -5,6 +5,113 @@ runConfig:
   concurrency: 80
 
 env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyAruhI20eFBNsQQS1Dm6yMA03TZAmeh9XM
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: tutor-platform-4e38f.web.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+    value: https://tutor-platform-4e38f-default-rtdb.asia-southeast1.firebasedatabase.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: tutor-platform-4e38f
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: tutor-platform-4e38f.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "529847709469"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:529847709469:web:0e4fdf05a938a09cecfbf4"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: G-MQ31RFVKR8
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    value: AIzaSyD2Tjwa6YZc81VqFpoWk015imGWASrKCW8
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_LINE_LIFF_ID
+    value: 2011204493-x3Zg7Ksl
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: LINE_LOGIN_CHANNEL_ID
+    value: "2011204493"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: LINE_CHANNEL_ID
+    value: "2011204232"
+    availability:
+      - RUNTIME
+
+  - variable: LINE_OFFICIAL_ACCOUNT_ID
+    value: "@966mqfzj"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: LINE_NOTIFICATIONS_ENABLED
+    value: "true"
+    availability:
+      - RUNTIME
+
+  - variable: LINE_RICH_MENU_DEFAULT_ID
+    value: richmenu-3cf9c5f04f576556101124a588c76403
+    availability:
+      - RUNTIME
+
+  - variable: LINE_RICH_MENU_PARENT_ID
+    value: richmenu-f522652d3b42c6d7bba0f4dab52cccd4
+    availability:
+      - RUNTIME
+
+  - variable: LINE_RICH_MENU_TEACHER_ID
+    value: richmenu-4685b7b1ac110fa14f644388256edff9
+    availability:
+      - RUNTIME
+
+  - variable: LINE_CHANNEL_SECRET
+    secret: LINE_CHANNEL_SECRET
+    availability:
+      - RUNTIME
+
+  - variable: LINE_CHANNEL_ACCESS_TOKEN
+    secret: LINE_CHANNEL_ACCESS_TOKEN
+    availability:
+      - RUNTIME
+
   - variable: PAYMENT_PROVIDER
     value: stripe
     availability:
