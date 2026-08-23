@@ -99,3 +99,15 @@ export function VerificationBadge({ level }: { level: string }) {
   const { label, variant } = map[level] ?? { label: level, variant: 'default' };
   return <Badge variant={variant} dot>{label}</Badge>;
 }
+
+export function PaymentStatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; variant: BadgeVariant }> = {
+    pending:  { label: 'รอชำระเงิน', variant: 'warning' },
+    paid:     { label: 'ชำระแล้ว',   variant: 'success' },
+    failed:   { label: 'ชำระไม่สำเร็จ', variant: 'danger' },
+    refunded: { label: 'คืนเงินแล้ว', variant: 'info' },
+    cancelled:{ label: 'ยกเลิก',     variant: 'default' },
+  };
+  const { label, variant } = map[status] ?? { label: status, variant: 'default' };
+  return <Badge variant={variant} dot>{label}</Badge>;
+}
