@@ -13,6 +13,9 @@ import { getPostLoginPath } from '@/lib/auth/redirects';
 
 function getAuthErrorMessage(error: unknown) {
   if (error instanceof FirebaseError) {
+    if (error.code.startsWith('auth/requests-from-referer-')) {
+      return 'โดเมนนี้ยังไม่ได้รับอนุญาตใน Firebase API Key กรุณาเพิ่ม tutorfinder.pilotai.space ใน HTTP referrers แล้วลองใหม่';
+    }
     if (error.code === 'auth/popup-closed-by-user') return 'คุณปิดหน้าต่าง Google ก่อนเข้าสู่ระบบ';
     if (error.code === 'auth/popup-blocked') return 'เบราว์เซอร์บล็อกหน้าต่าง Google กรุณาอนุญาต popup แล้วลองอีกครั้ง';
     if (error.code === 'auth/account-exists-with-different-credential') return 'อีเมลนี้เคยสมัครด้วยวิธีอื่นแล้ว กรุณาเข้าสู่ระบบด้วยวิธีเดิม';
