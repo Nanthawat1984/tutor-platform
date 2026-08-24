@@ -1,29 +1,39 @@
-import { getServerDb } from '@/lib/firebase/server';
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { COLLECTIONS, type User, type TeacherProfile } from '@/types/firestore';
-import { VerificationBadge } from '@/components/ui/badge';
+import { Badge, VerificationBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
 import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { DashboardLayout, StatCard, EmptyState } from '@/components/layout/dashboard';
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
-import { CheckCircle, Clock3, Search, Star, Users, UserCheck, X, XCircle } from 'lucide-react';
-import { getServerAuth } from '@/lib/firebase/server';
+import { Clock3, Search, Star, Users, UserCheck, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { requireAdmin } from '@/lib/auth/guards';
+import { deriveAdminReviewStatus } from '@/lib/auth/teacher-verification';
 
 interface TeachersSearchParams {
-  searchParams: Promise<{ q?: string; status?: string; sort?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; kyc?: string; sort?: string }>;
 }
 
-export default async function AdminTeachersPage({ searchParams }: TeachersSearchParams) {
-  const auth = getServerAuth();
-  const db = getServerDb();
-  if (!db) return redirect('/login');
+const REVIEW_STATUS_LABELS: Record<string, { label: string; variant: 'warning' | 'success' | 'danger' }> = {
+  pending: { label: 'รอ Admin ตรวจ', variant: 'warning' },
+  approved: { label: 'Admin อนุมัติแล้ว', variant: 'success' },
+  rejected: { label: 'ไม่ผ่านการตรวจ', variant: 'danger' },
+};
 
-  const { q = '', status = 'all', sort = 'newest' } = await searchParams;
+const KYC_STATUS_LABELS: Record<string, string> = {
+  none: 'ยังไม่มี KYC',
+  pending: 'KYC รอตรวจ',
+  verified: 'KYC ผ่านแล้ว',
+  rejected: 'KYC ไม่ผ่าน',
+};
+
+export default async function AdminTeachersPage({ searchParams }: TeachersSearchParams) {
+  const { db } = await requireAdmin();
+
+  const { q = '', status = 'all', kyc = 'all', sort = 'newest' } = await searchParams;
   const query = q.trim().toLowerCase();
+  const normalizedStatus = status === 'verified' ? 'approved' : status;
 
   const teachersSnap = await db.collection(COLLECTIONS.USERS)
     .where('role', '==', 'teacher')
@@ -69,18 +79,18 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
     teacherEarnings.set(teacherId, (teacherEarnings.get(teacherId) ?? 0) + (p.amount || 0));
   }
 
-  const hasFilters = query !== '' || status !== 'all' || sort !== 'newest';
+  const hasFilters = query !== '' || normalizedStatus !== 'all' || kyc !== 'all' || sort !== 'newest';
 
   const filteredTeachers = teachers.filter((t: any) => {
     if (query) {
-      const haystack = [t.displayName, t.email, t.bio, t.education]
+      const haystack = [t.uid, t.displayName, t.email, t.phone, t.bio, t.education]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
       if (!haystack.includes(query)) return false;
     }
-    if (status === 'pending' && t.isVerified) return false;
-    if (status === 'verified' && !t.isVerified) return false;
+    if (normalizedStatus !== 'all' && deriveAdminReviewStatus(t) !== normalizedStatus) return false;
+    if (kyc !== 'all' && (t.kycStatus || 'none') !== kyc) return false;
     return true;
   });
 
@@ -113,31 +123,8 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
     }
   });
 
-  const pendingTeachers = sortedTeachers.filter((t: any) => !t.isVerified);
-  const verifiedTeachers = sortedTeachers.filter((t: any) => t.isVerified);
-  const showPending = status === 'all' || status === 'pending';
-  const showVerified = status === 'all' || status === 'verified';
-
-  async function approveTeacher(teacherId: string) {
-    'use server';
-    const dbRef = getServerDb();
-    if (!dbRef) return;
-    await requireAdmin();
-    await dbRef.collection(COLLECTIONS.USERS).doc(teacherId).update({
-      isVerified: true,
-      verificationLevel: 'full',
-    });
-  }
-
-  async function rejectTeacher(teacherId: string) {
-    'use server';
-    const dbRef = getServerDb();
-    if (!dbRef) return;
-    await requireAdmin();
-    await dbRef.collection(COLLECTIONS.USERS).doc(teacherId).update({
-      verificationLevel: 'none',
-    });
-  }
+  const pendingTeachers = teachers.filter((t: any) => deriveAdminReviewStatus(t) === 'pending');
+  const approvedTeachers = teachers.filter((t: any) => deriveAdminReviewStatus(t) === 'approved');
 
   const STATS = [
     {
@@ -154,7 +141,7 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
     },
     {
       label: 'อนุมัติแล้ว',
-      value: verifiedTeachers.length,
+      value: approvedTeachers.length,
       icon: <UserCheck className="h-6 w-6" />,
       iconGradient: 'from-emerald-500 to-teal-600',
     },
@@ -193,20 +180,32 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
         </div>
 
         {/* ── Filter bar ── */}
-        <form method="GET" action="/admin/teachers" className="mb-5 grid gap-3 rounded-2xl border border-pink-100 bg-white/70 p-4 backdrop-blur sm:grid-cols-2 lg:grid-cols-[1fr_180px_220px_auto]">
+        <form method="GET" action="/admin/teachers" className="mb-5 grid gap-3 rounded-2xl border border-pink-100 bg-white/70 p-4 backdrop-blur sm:grid-cols-2 lg:grid-cols-[1fr_180px_180px_220px_auto]">
           <Input
             name="q"
             defaultValue={q}
-            placeholder="ค้นหาชื่อ อีเมล bio หรือการศึกษา"
+            placeholder="ค้นหาชื่อ อีเมล UID หรือเบอร์โทร"
             leftIcon={<Search className="h-4 w-4" />}
           />
           <Select
             name="status"
-            defaultValue={status}
+            defaultValue={normalizedStatus}
             options={[
               { value: 'all', label: 'สถานะ: ทั้งหมด' },
-              { value: 'pending', label: 'สถานะ: รออนุมัติ' },
-              { value: 'verified', label: 'สถานะ: อนุมัติแล้ว' },
+              { value: 'pending', label: 'สถานะ: รอ Admin ตรวจ' },
+              { value: 'approved', label: 'สถานะ: อนุมัติแล้ว' },
+              { value: 'rejected', label: 'สถานะ: ไม่ผ่าน' },
+            ]}
+          />
+          <Select
+            name="kyc"
+            defaultValue={kyc}
+            options={[
+              { value: 'all', label: 'KYC: ทั้งหมด' },
+              { value: 'none', label: 'KYC: ยังไม่มี' },
+              { value: 'pending', label: 'KYC: รอตรวจ' },
+              { value: 'verified', label: 'KYC: ผ่านแล้ว' },
+              { value: 'rejected', label: 'KYC: ไม่ผ่าน' },
             ]}
           />
           <Select
@@ -236,128 +235,62 @@ export default async function AdminTeachersPage({ searchParams }: TeachersSearch
             description={hasFilters ? 'ลองเปลี่ยนคำค้นหรือตัวกรอง' : 'ครูที่สมัครใช้งานจะแสดงที่นี่'}
           />
         ) : (
-          <>
-            {showPending && (
-              <div className={status === 'pending' ? '' : 'mb-8'}>
-                <h2 className="mb-4 text-lg font-bold text-slate-900">รอการอนุมัติ ({pendingTeachers.length})</h2>
-                {pendingTeachers.length === 0 ? (
-                  <EmptyState
-                    icon={<UserCheck className="h-7 w-7" />}
-                    title="ไม่มีครูที่รอการอนุมัติ"
-                    description="ครูใหม่ที่สมัครจะแสดงที่นี่"
-                  />
-                ) : (
-                  <Table headers={['ครู', 'อีเมล', 'ประสบการณ์', 'คะแนน', 'คอร์ส', 'รายได้', 'การจัดการ']}>
-                    {pendingTeachers.map((teacher: any) => (
-                      <TableRow key={teacher.uid}>
-                        <TableCell>
-                          <div className="flex items-center gap-2.5">
-                            <Link href={`/admin/teachers/${teacher.uid}`} className="font-semibold text-slate-900 hover:text-pink-600 hover:underline">
-                              {teacher.displayName}
-                            </Link>
-                            <VerificationBadge level={teacher.verificationLevel} />
-                          </div>
-                          {teacher.bio && (
-                            <p className="mt-1 line-clamp-1 text-xs text-slate-400">{teacher.bio}</p>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-slate-500">{teacher.email}</TableCell>
-                        <TableCell className="text-slate-500">{teacher.experienceYears || 0} ปี</TableCell>
-                        <TableCell>
-                          {teacher.rating > 0 ? (
-                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-700">
-                              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                              {teacher.rating}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-slate-500">
-                          <span className="font-semibold text-slate-700">{courseStats.get(teacher.uid)?.total ?? 0}</span>
-                          {(courseStats.get(teacher.uid)?.active ?? 0) > 0 && (
-                            <span className="ml-1 text-xs text-emerald-600">({courseStats.get(teacher.uid)?.active} เปิด)</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {(teacherEarnings.get(teacher.uid) ?? 0) > 0 ? (
-                            <div className="leading-tight">
-                              <span className="font-semibold text-emerald-600">{formatCurrency(teacherEarnings.get(teacher.uid) ?? 0)}</span>
-                              <span className="ml-1.5 text-xs text-slate-400">สุทธิ {formatCurrency((teacherEarnings.get(teacher.uid) ?? 0) * 0.8)}</span>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <form action={approveTeacher.bind(null, teacher.uid)}>
-                              <Button type="submit" size="sm" variant="success">
-                                <CheckCircle className="h-4 w-4" /> อนุมัติ
-                              </Button>
-                            </form>
-                            <form action={rejectTeacher.bind(null, teacher.uid)}>
-                              <Button type="submit" size="sm" variant="outline" className="border-rose-300 text-rose-600">
-                                <XCircle className="h-4 w-4" /> ปฏิเสธ
-                              </Button>
-                            </form>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </Table>
-                )}
-              </div>
-            )}
-
-            {showVerified && verifiedTeachers.length > 0 && (
-              <div className={status === 'verified' ? '' : 'mt-8'}>
-                <h2 className="mb-4 text-lg font-bold text-slate-900">ครูที่อนุมัติแล้ว ({verifiedTeachers.length})</h2>
-                <Table headers={['ครู', 'อีเมล', 'ประสบการณ์', 'คะแนน', 'คอร์ส', 'รายได้']}>
-                  {verifiedTeachers.map((teacher: any) => (
-                    <TableRow key={teacher.uid} className="opacity-75">
-                      <TableCell>
-                        <div className="flex items-center gap-2.5">
-                          <Link href={`/admin/teachers/${teacher.uid}`} className="font-medium text-slate-900 hover:text-pink-600 hover:underline">
-                            {teacher.displayName}
-                          </Link>
-                          <VerificationBadge level={teacher.verificationLevel} />
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-slate-500">{teacher.email}</TableCell>
-                      <TableCell className="text-slate-500">{teacher.experienceYears || 0} ปี</TableCell>
-                      <TableCell>
-                        {teacher.rating > 0 ? (
-                          <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-700">
-                            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                            {teacher.rating}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-slate-500">
-                        <span className="font-semibold text-slate-700">{courseStats.get(teacher.uid)?.total ?? 0}</span>
-                        {(courseStats.get(teacher.uid)?.active ?? 0) > 0 && (
-                          <span className="ml-1 text-xs text-emerald-600">({courseStats.get(teacher.uid)?.active} เปิด)</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {(teacherEarnings.get(teacher.uid) ?? 0) > 0 ? (
-                          <div className="leading-tight">
-                            <span className="font-semibold text-emerald-600">{formatCurrency(teacherEarnings.get(teacher.uid) ?? 0)}</span>
-                            <span className="ml-1.5 text-xs text-slate-400">สุทธิ {formatCurrency((teacherEarnings.get(teacher.uid) ?? 0) * 0.8)}</span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </Table>
-              </div>
-            )}
-          </>
+          <Table headers={['ครู / UID', 'อีเมล', 'การยืนยัน', 'KYC / เอกสาร', 'คอร์ส', 'รายได้', 'รายละเอียด']}>
+            {sortedTeachers.map((teacher: any) => {
+              const reviewStatus = deriveAdminReviewStatus(teacher);
+              const reviewBadge = REVIEW_STATUS_LABELS[reviewStatus];
+              const kycStatus = teacher.kycStatus || 'none';
+              const hasDocuments = Boolean(teacher.idCardURL && teacher.bookBankURL);
+              return (
+                <TableRow key={teacher.uid} className={reviewStatus === 'approved' ? 'opacity-75' : undefined}>
+                  <TableCell>
+                    <Link href={`/admin/teachers/${teacher.uid}`} className="font-semibold text-slate-900 hover:text-pink-600 hover:underline">
+                      {teacher.displayName || 'ไม่ระบุชื่อ'}
+                    </Link>
+                    <p className="mt-1 break-all font-mono text-[11px] text-slate-400">{teacher.uid}</p>
+                  </TableCell>
+                  <TableCell className="text-slate-500">{teacher.email || '—'}</TableCell>
+                  <TableCell>
+                    <div className="space-y-1.5">
+                      <VerificationBadge level={teacher.verificationLevel || 'none'} />
+                      <Badge variant={reviewBadge.variant} size="sm" dot>{reviewBadge.label}</Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1 text-xs">
+                      <Badge variant={kycStatus === 'verified' ? 'success' : kycStatus === 'pending' ? 'warning' : 'default'} size="sm" dot>
+                        {KYC_STATUS_LABELS[kycStatus] || kycStatus}
+                      </Badge>
+                      <p className={hasDocuments ? 'text-emerald-600' : 'text-rose-500'}>
+                        {hasDocuments ? 'เอกสารครบ 2 รายการ' : 'เอกสารยังไม่ครบ'}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-slate-500">
+                    <span className="font-semibold text-slate-700">{courseStats.get(teacher.uid)?.total ?? 0}</span>
+                    {(courseStats.get(teacher.uid)?.active ?? 0) > 0 && (
+                      <span className="ml-1 text-xs text-emerald-600">({courseStats.get(teacher.uid)?.active} เปิด)</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {(teacherEarnings.get(teacher.uid) ?? 0) > 0 ? (
+                      <div className="leading-tight">
+                        <span className="font-semibold text-emerald-600">{formatCurrency(teacherEarnings.get(teacher.uid) ?? 0)}</span>
+                        <span className="ml-1.5 text-xs text-slate-400">สุทธิ {formatCurrency((teacherEarnings.get(teacher.uid) ?? 0) * 0.8)}</span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Link href={`/admin/teachers/${teacher.uid}`} className="text-sm font-semibold text-pink-600 hover:underline">
+                      ดูรายละเอียด →
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </Table>
         )}
       </div>
     </DashboardLayout>

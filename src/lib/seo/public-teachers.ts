@@ -1,5 +1,6 @@
 import { COLLECTIONS } from '@/types/firestore';
 import { getServerDb } from '@/lib/firebase/server';
+import { isTeacherAdminApproved } from '@/lib/auth/teacher-verification';
 
 export interface PublicTutorCourse {
   id: string;
@@ -158,7 +159,7 @@ function toPublicTutor(
     experienceYears: asNumber(teacher.experienceYears),
     teachingStyle: asStringArray(teacher.teachingStyle),
     photoURL: asString(user.photoURL),
-    isVerified: user.isVerified === true,
+    isVerified: isTeacherAdminApproved({ role: 'teacher', ...user }),
     rating: Math.max(0, Math.min(5, asNumber(teacher.rating))),
     totalReviews: Math.max(0, Math.floor(asNumber(teacher.totalReviews))),
     courses,
@@ -180,7 +181,7 @@ export async function getPublicTutorById(id: string): Promise<PublicTutor | null
 
     const user = asRecord(userSnapshot.data());
     const teacher = asRecord(teacherSnapshot.data());
-    if (teacher.isActive !== true || user.role !== 'teacher') return null;
+    if (teacher.isActive !== true || user.role !== 'teacher' || !isTeacherAdminApproved(user)) return null;
 
     const courses = await getPublicTutorCourses(db, id);
     if (courses.length === 0) return null;
@@ -206,7 +207,10 @@ export async function listPublicTutors(): Promise<PublicTutor[]> {
     const userSnapshots = await db.getAll(...teacherIds.map((id) => db.collection(COLLECTIONS.USERS).doc(id)));
     const users = new Map(
       userSnapshots
-        .filter((snapshot) => snapshot.exists && asRecord(snapshot.data()).role === 'teacher')
+        .filter((snapshot) => {
+          const user = asRecord(snapshot.data());
+          return snapshot.exists && user.role === 'teacher' && isTeacherAdminApproved(user);
+        })
         .map((snapshot) => [snapshot.id, asRecord(snapshot.data())]),
     );
     const publicTeacherIds = teacherIds.filter((id) => users.has(id));

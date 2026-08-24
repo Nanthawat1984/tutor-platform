@@ -1,6 +1,7 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import { COLLECTIONS } from '@/types/firestore';
+import { deriveAdminReviewStatus } from '@/lib/auth/teacher-verification';
 import { formatCurrency } from '@/lib/utils';
 import { Users, Clock, BookOpen, Star } from 'lucide-react';
 import Link from 'next/link';
@@ -19,7 +20,7 @@ export default async function AdminDashboard() {
     db.collection(COLLECTIONS.PAYMENTS).where('status', '==', 'paid').get(),
   ]);
   const teachers = teachersSnap.docs.map((doc: any) => ({ uid: doc.id, ...doc.data() }));
-  const pendingTeachers = teachers.filter((t: any) => !t.isVerified);
+  const pendingTeachers = teachers.filter((t: any) => deriveAdminReviewStatus(t) !== 'approved');
   const totalRevenue = paymentsSnap.docs.reduce((sum: number, d: any) => sum + ((d.data() as any).amount || 0), 0);
 
   const STATS = [

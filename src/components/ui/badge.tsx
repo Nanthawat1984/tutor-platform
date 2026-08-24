@@ -92,9 +92,9 @@ export function AttendanceStatusBadge({ status }: { status: string }) {
 
 export function VerificationBadge({ level }: { level: string }) {
   const map: Record<string, { label: string; variant: BadgeVariant }> = {
-    none:  { label: 'ยังไม่ยืนยัน',   variant: 'default' },
-    basic: { label: 'ยืนยันพื้นฐาน', variant: 'warning' },
-    full:  { label: 'ยืนยันแล้ว',    variant: 'success' },
+    none:  { label: 'ยังไม่ยืนยันอีเมล', variant: 'default' },
+    basic: { label: 'ยืนยันอีเมลแล้ว', variant: 'warning' },
+    full:  { label: 'Admin อนุมัติแล้ว', variant: 'success' },
   };
   const { label, variant } = map[level] ?? { label: level, variant: 'default' };
   return <Badge variant={variant} dot>{label}</Badge>;

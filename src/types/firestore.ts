@@ -59,6 +59,11 @@ export interface User {
   role: 'teacher' | 'parent' | 'admin';
   isVerified: boolean;
   verificationLevel: 'none' | 'basic' | 'full';
+  emailVerified?: boolean;       // ยืนยันอีเมลจาก Firebase Auth (ไม่ใช่ Admin approval)
+  adminReviewStatus?: 'pending' | 'approved' | 'rejected';
+  adminReviewedAt?: Timestamp;
+  adminReviewedBy?: string;
+  adminReviewNote?: string;
   // ── KYC + บัญชีรับเงิน (ครู) ──
   kycStatus?: 'none' | 'pending' | 'verified' | 'rejected';
   kycNote?: string;            // เหตุผลจากแอดมิน (กรณี rejected)
@@ -387,4 +392,5 @@ export const COLLECTIONS = {
   STRIPE_EVENTS: 'stripeWebhookEvents',
   WALLETS: 'wallets',
   PAYOUTS: 'payouts',
+  TEACHER_VERIFICATION_EVENTS: 'teacherVerificationEvents',
 } as const;

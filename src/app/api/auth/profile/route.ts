@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { getServerAuth, getServerDb } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
 import { PRIVACY_VERSION, TERMS_VERSION, type RegistrationConsent } from '@/lib/legal/consent';
+import { buildNewTeacherVerificationState } from '@/lib/auth/teacher-verification';
 
 type AuthRole = 'parent' | 'teacher';
 
@@ -116,14 +117,20 @@ export async function POST(request: NextRequest) {
     typeof body.photoURL === 'string' && body.photoURL.trim()
       ? body.photoURL.trim()
       : verified.decodedToken.picture || undefined;
+  const emailVerified = Boolean(verified.decodedToken.email_verified);
+  const teacherVerification = requestedRole === 'teacher'
+    ? buildNewTeacherVerificationState(emailVerified)
+    : null;
 
   const newProfile = {
     uid,
     email,
     displayName,
     role: requestedRole,
-    isVerified: Boolean(verified.decodedToken.email_verified),
-    verificationLevel: verified.decodedToken.email_verified ? 'basic' : 'none',
+    emailVerified,
+    isVerified: teacherVerification?.isVerified ?? emailVerified,
+    verificationLevel: teacherVerification?.verificationLevel ?? (emailVerified ? 'basic' : 'none'),
+    ...(teacherVerification ? { adminReviewStatus: teacherVerification.adminReviewStatus } : {}),
     termsVersion: consent.termsVersion,
     privacyVersion: consent.privacyVersion,
     consentAcceptedAt: FieldValue.serverTimestamp(),

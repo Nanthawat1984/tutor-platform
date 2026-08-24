@@ -1,5 +1,5 @@
 import { getServerDb } from '@/lib/firebase/server';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { requireSessionUser } from '@/lib/auth/session';
 import {
@@ -21,6 +21,7 @@ import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { RatingStars } from '@/components/ui/rating';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency, formatDate, getInitials } from '@/lib/utils';
+import { isTeacherAdminApproved } from '@/lib/auth/teacher-verification';
 
 const TEACHING_STYLE_LABELS: Record<string, string> = {
   fun: 'เน้นสนุก',
@@ -58,6 +59,8 @@ export default async function TeacherProfilePage({
 
   const user = userSnap.exists ? { id: userSnap.id, ...userSnap.data() } as any : null;
   const teacher = teacherSnap.exists ? { id: teacherSnap.id, ...teacherSnap.data() } as any : null;
+
+  if (!user || !isTeacherAdminApproved(user)) notFound();
 
   const displayName = user?.displayName || teacher?.displayName || 'ครูพิเศษ';
   const photoURL = user?.photoURL || teacher?.photoURL;
