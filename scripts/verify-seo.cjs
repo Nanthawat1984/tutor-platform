@@ -29,6 +29,7 @@ assert.match(layout, /twitter/);
 assert.match(robots, new RegExp('/api/'));
 assert.match(robots, new RegExp('/explore'));
 assert.match(sitemap, /tutors/);
+assert.match(publicData, /listPublicTutorIds[\s\S]*listPublicTutors\(\)/, 'sitemap IDs must come from the same public tutor projection as profile pages');
 assert.doesNotMatch(publicData, /idCard|payout|taxId|taxAddress|phone|email|lineUserId/i);
 assert.match(publicData, /isActive/);
 assert.match(publicData, /catch/, 'SEO data reads must fail safely when Firestore is unavailable');

@@ -231,25 +231,8 @@ export async function listPublicTutors(): Promise<PublicTutor[]> {
 
 export async function listPublicTutorIds(): Promise<{ id: string; updatedAt: Date | null }[]> {
   try {
-    const db = getServerDb();
-    if (!db) return [];
-
-    const teacherSnapshot = await db
-      .collection(COLLECTIONS.TEACHERS)
-      .where('isActive', '==', true)
-      .limit(500)
-      .get();
-    if (teacherSnapshot.empty) return [];
-
-    const userSnapshots = await db.getAll(...teacherSnapshot.docs.map((snapshot) => db.collection(COLLECTIONS.USERS).doc(snapshot.id)));
-    const publicIds = new Set(
-      userSnapshots
-        .filter((snapshot) => snapshot.exists && asRecord(snapshot.data()).role === 'teacher')
-        .map((snapshot) => snapshot.id),
-    );
-    return teacherSnapshot.docs
-      .filter((snapshot) => publicIds.has(snapshot.id))
-      .map((snapshot) => ({ id: snapshot.id, updatedAt: toDate(asRecord(snapshot.data()).updatedAt) }));
+    const tutors = await listPublicTutors();
+    return tutors.map((tutor) => ({ id: tutor.id, updatedAt: tutor.updatedAt }));
   } catch {
     return [];
   }
