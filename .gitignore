@@ -20,6 +20,7 @@ functions/lib/
 .agent/
 .omx/
 .playwright-mcp/
+.worktrees/
 
 # IDE
 .vscode
@@ -35,4 +36,3 @@ firestore-debug.log
 # Build
 .firebase/
 *.tsbuildinfo
-
