@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from '@/hooks/useFirebase';
 import { getPreferredGoogleSignInMethod, isMobile, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
 import { consumePendingProfileSetup, getPostLoginPath, getPostRegistrationPath, getSafeRedirectPath } from '@/lib/auth/redirects';
 import { classifyPasswordResetError } from '@/lib/auth/password-reset';
+import { normalizeLoginIdentifier } from '@/lib/auth/admin-login';
 
 function getAuthErrorMessage(error: unknown) {
   if (error instanceof FirebaseError) {
@@ -20,6 +21,7 @@ function getAuthErrorMessage(error: unknown) {
     if (error.code === 'auth/popup-closed-by-user') return 'คุณปิดหน้าต่าง Google ก่อนเข้าสู่ระบบ';
     if (error.code === 'auth/popup-blocked') return 'เบราว์เซอร์บล็อกหน้าต่าง Google กรุณาอนุญาต popup แล้วลองอีกครั้ง';
     if (error.code === 'auth/account-exists-with-different-credential') return 'อีเมลนี้เคยสมัครด้วยวิธีอื่นแล้ว กรุณาเข้าสู่ระบบด้วยวิธีเดิม';
+    if (error.code === 'auth/invalid-email') return 'กรุณากรอกอีเมลหรือ ID ผู้ดูแลระบบให้ถูกต้อง';
     if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
     if (error.code === 'auth/user-not-found') return 'ไม่พบบัญชีผู้ใช้นี้';
   }
@@ -82,7 +84,7 @@ function LoginFormFields() {
 
     try {
       const formData = new FormData(event.currentTarget);
-      const email = String(formData.get('email') || '');
+      const email = normalizeLoginIdentifier(String(formData.get('email') || ''));
       const password = String(formData.get('password') || '');
       const profile = await signIn(email, password);
       // signIn already calls setSessionCookie inside useFirebase
@@ -187,14 +189,14 @@ function LoginFormFields() {
       </div>
 
       {/* Email + Password */}
-      <Input
-        type="email"
-        name="email"
-        label="อีเมล"
-        required
-        placeholder="you@example.com"
-        autoComplete="email"
-      />
+        <Input
+          type="text"
+          name="email"
+          label="อีเมล หรือ ID ผู้ดูแลระบบ"
+          required
+          placeholder="you@example.com หรือ Superadmin"
+          autoComplete="username"
+        />
       <Input
         type="password"
         name="password"
