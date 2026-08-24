@@ -24,6 +24,9 @@ export const metadata: Metadata = {
     title: 'TutorFinder — แพลตฟอร์มการเรียนเสริมพิเศษ',
     description: 'ค้นหาครูพิเศษและคอร์สเรียนที่เหมาะกับคุณ',
   },
+  verification: {
+    google: 'St15JalOelNRWevXXlcRiBQooZxxCrT1qbtouWrwLjI',
+  },
   robots: { index: true, follow: true },
 };
 
