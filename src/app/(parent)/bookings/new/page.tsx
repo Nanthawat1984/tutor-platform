@@ -81,6 +81,7 @@ export default async function NewBookingPage({
   }
 
   const course = { id: courseSnap.id, ...courseSnap.data() } as any;
+  const courseTeacherId = String(course.teacherId || '');
 
   const schedulesSnap = await db.collection(COLLECTIONS.SCHEDULES)
     .where('courseId', '==', resolvedCourseId)
@@ -90,7 +91,7 @@ export default async function NewBookingPage({
     .filter((schedule) => schedule.isActive === true);
 
   const teacherBookingsSnap = await db.collection(COLLECTIONS.BOOKINGS)
-    .where('teacherId', '==', course.teacherId)
+    .where('teacherId', '==', courseTeacherId)
     .where('status', 'in', ['pending', 'confirmed'])
     .get();
   const teacherBookings = teacherBookingsSnap.docs
@@ -136,7 +137,7 @@ export default async function NewBookingPage({
     if (current.session.uid !== userId) return;
 
     const redirectWithError = (error: string) => {
-      redirect(`/bookings/new?course_id=${encodeURIComponent(String(courseId))}&error=${encodeURIComponent(error)}`);
+      redirect(`/bookings/new?course_id=${encodeURIComponent(resolvedCourseId)}&error=${encodeURIComponent(error)}`);
     };
 
     const rawSlot = String(formData.get('schedule_slot') || '');
@@ -193,7 +194,7 @@ export default async function NewBookingPage({
         const courseRef = dbRef.collection(COLLECTIONS.COURSES).doc(resolvedCourseId);
         const scheduleRef = dbRef.collection(COLLECTIONS.SCHEDULES).doc(selectedSlot!.scheduleId);
         const conflictsQuery = dbRef.collection(COLLECTIONS.BOOKINGS)
-          .where('teacherId', '==', course.teacherId)
+          .where('teacherId', '==', courseTeacherId)
           .where('bookingDate', '==', selectedSlot!.date)
           .where('status', 'in', ['pending', 'confirmed']);
 
@@ -212,7 +213,7 @@ export default async function NewBookingPage({
         if (
           !freshCourse ||
           freshCourse.isActive !== true ||
-          freshCourse.teacherId !== course.teacherId ||
+          freshCourse.teacherId !== courseTeacherId ||
           !schedule ||
           schedule.courseId !== resolvedCourseId ||
           schedule.teacherId !== freshCourse.teacherId
@@ -254,7 +255,7 @@ export default async function NewBookingPage({
         }
 
         transaction.create(bookingRef, {
-          courseId,
+          courseId: resolvedCourseId,
           courseTitle: freshCourse.title,
           teacherId: freshCourse.teacherId,
           teacherName: freshCourse.teacherName,
