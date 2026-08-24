@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from '@/hooks/useFirebase';
 import { getPreferredGoogleSignInMethod, isMobile, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
-import { getPostLoginPath, getSafeRedirectPath } from '@/lib/auth/redirects';
+import { consumePendingProfileSetup, getPostLoginPath, getPostRegistrationPath, getSafeRedirectPath } from '@/lib/auth/redirects';
+import { classifyPasswordResetError } from '@/lib/auth/password-reset';
 
 function getAuthErrorMessage(error: unknown) {
   if (error instanceof FirebaseError) {
@@ -42,9 +43,12 @@ function GoogleIcon() {
 
 function LoginFormFields() {
   const router = useRouter();
-  const { user, signIn, signInWithGoogle, signInWithGoogleRedirect, userProfile, loading } = useAuth();
+  const { user, signIn, signInWithGoogle, signInWithGoogleRedirect, sendPasswordReset, userProfile, loading } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [pendingMethod, setPendingMethod] = useState<'email' | 'google' | null>(null);
+  const [pendingMethod, setPendingMethod] = useState<'email' | 'google' | 'reset' | null>(null);
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetStatus, setResetStatus] = useState<'idle' | 'sent' | 'invalid_email' | 'rate_limited' | 'failed'>('idle');
 
   // Get redirect parameter from URL (set by middleware when accessing protected routes)
   const searchParams = useSearchParams();
@@ -54,7 +58,9 @@ function LoginFormFields() {
     if (pendingMethod) return;
     // Once we have a profile, go to the role-based destination.
     if (userProfile) {
-      const destination = redirectTo || getPostLoginPath(userProfile.role);
+      const destination = consumePendingProfileSetup()
+        ? getPostRegistrationPath(userProfile.role)
+        : redirectTo || getPostLoginPath(userProfile.role);
       router.replace(destination);
       return;
     }
@@ -123,10 +129,31 @@ function LoginFormFields() {
     }
   }
 
+  async function handlePasswordReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setResetStatus('idle');
+    setPendingMethod('reset');
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get('reset_email') || '').trim();
+    setResetEmail(email);
+
+    try {
+      await sendPasswordReset(email);
+      setResetStatus('sent');
+    } catch (resetError) {
+      setResetStatus(classifyPasswordResetError(resetError));
+    } finally {
+      setPendingMethod(null);
+    }
+  }
+
   const isPending = pendingMethod !== null;
 
   return (
-    <form onSubmit={handleEmailLogin} className="form-card p-7 space-y-5">
+    <div className="space-y-4">
+      <form onSubmit={handleEmailLogin} className="form-card p-7 space-y-5">
       {/* Error */}
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
@@ -179,7 +206,14 @@ function LoginFormFields() {
 
       {/* Forgot password */}
       <div className="text-right">
-        <button type="button" className="text-xs font-semibold text-pink-500 hover:underline">
+        <button
+          type="button"
+          className="text-xs font-semibold text-pink-500 hover:underline"
+          onClick={() => {
+            setShowResetForm(true);
+            setResetStatus('idle');
+          }}
+        >
           ลืมรหัสผ่าน?
         </button>
       </div>
@@ -203,7 +237,68 @@ function LoginFormFields() {
           สมัครใช้งาน
         </Link>
       </p>
-    </form>
+      </form>
+
+      {showResetForm && (
+        <form onSubmit={handlePasswordReset} className="form-card p-7 space-y-5">
+          <div>
+            <h2 className="font-display text-lg font-extrabold text-slate-900">ตั้งรหัสผ่านใหม่</h2>
+            <p className="mt-1 text-sm text-slate-500">กรอกอีเมลที่ใช้สมัคร แล้วเราจะส่งลิงก์ให้ทางอีเมล</p>
+          </div>
+
+          {resetStatus === 'sent' && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+              หากอีเมลนี้มีบัญชีในระบบ เราจะส่งลิงก์ตั้งรหัสผ่านใหม่ให้ กรุณาตรวจสอบกล่องจดหมายและโฟลเดอร์สแปม
+            </div>
+          )}
+          {resetStatus === 'invalid_email' && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+              กรุณาตรวจสอบรูปแบบอีเมลแล้วลองใหม่
+            </div>
+          )}
+          {resetStatus === 'rate_limited' && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+              มีการขอรีเซ็ตรหัสผ่านหลายครั้งเกินไป กรุณารอสักครู่แล้วลองใหม่
+            </div>
+          )}
+          {resetStatus === 'failed' && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+              ไม่สามารถส่งอีเมลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง
+            </div>
+          )}
+
+          <Input
+            type="email"
+            name="reset_email"
+            label="อีเมล"
+            value={resetEmail}
+            onChange={(event) => setResetEmail(event.target.value)}
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+          />
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full"
+            isLoading={pendingMethod === 'reset'}
+            disabled={isPending}
+          >
+            ส่งลิงก์ตั้งรหัสผ่านใหม่
+          </Button>
+          <button
+            type="button"
+            className="w-full text-center text-sm font-semibold text-slate-500 hover:text-pink-600"
+            onClick={() => {
+              setShowResetForm(false);
+              setResetStatus('idle');
+            }}
+          >
+            กลับเข้าสู่ระบบ
+          </button>
+        </form>
+      )}
+    </div>
   );
 }
 

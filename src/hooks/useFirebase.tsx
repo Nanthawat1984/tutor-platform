@@ -15,6 +15,7 @@ import {
   signOut as firebaseSignOut,
   updateProfile as firebaseUpdateProfile,
   sendEmailVerification,
+  sendPasswordResetEmail,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import {
@@ -163,6 +164,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, role: AuthRole, consent: RegistrationConsent) => Promise<void>;
   signInWithGoogle: (role?: AuthRole, consent?: RegistrationConsent) => Promise<User>;
   signInWithGoogleRedirect: (role?: AuthRole, consent?: RegistrationConsent) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -245,7 +247,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Update Firebase Auth profile
     await firebaseUpdateProfile(cred.user, { displayName: fullName });
-    await ensureUserProfile(cred.user, role, consent);
+    const profile = await ensureUserProfile(cred.user, role, consent);
+    await setSessionCookie(cred.user);
+    setUserProfile(profile);
 
     // Send email verification
     await sendEmailVerification(cred.user);
@@ -281,6 +285,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithRedirect(auth, createGoogleProvider());
   }, []);
 
+  const sendPasswordReset = useCallback(async (email: string) => {
+    await sendPasswordResetEmail(getFirebaseAuth(), email);
+  }, []);
+
   const logout = useCallback(async () => {
     const auth = getFirebaseAuth();
     await firebaseSignOut(auth);
@@ -289,7 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, signIn, signUp, signInWithGoogle, signInWithGoogleRedirect, logout }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, signIn, signUp, signInWithGoogle, signInWithGoogleRedirect, sendPasswordReset, logout }}>
       {children}
     </AuthContext.Provider>
   );

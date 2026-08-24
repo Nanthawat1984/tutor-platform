@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from '@/hooks/useFirebase';
 import { getPreferredGoogleSignInMethod, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
-import { getPostLoginPath } from '@/lib/auth/redirects';
+import { getPostLoginPath, getPostRegistrationPath, markPendingProfileSetup } from '@/lib/auth/redirects';
 import { ConsentGate } from '@/components/legal/consent-gate';
 import { PRIVACY_VERSION, TERMS_VERSION, type RegistrationConsent } from '@/lib/legal/consent';
 
@@ -97,7 +97,7 @@ function RegisterFields() {
       const email = String(formData.get('email') || '').trim();
       const password = String(formData.get('password') || '');
       await signUp(email, password, fullName, role, registrationConsent);
-      router.push(getPostLoginPath(role));
+      router.push(getPostRegistrationPath(role));
       router.refresh();
     } catch (registerError) {
       setError(getAuthErrorMessage(registerError));
@@ -116,18 +116,20 @@ function RegisterFields() {
 
     try {
       if (getPreferredGoogleSignInMethod() === 'redirect') {
+        markPendingProfileSetup();
         await signInWithGoogleRedirect(role, registrationConsent);
         return;
       }
 
       const profile = await signInWithGoogle(role, registrationConsent);
-      router.push(getPostLoginPath(profile.role));
+      router.push(getPostRegistrationPath(profile.role));
       router.refresh();
     } catch (registerError) {
       // ถ้าใช้ redirect อยู่แล้ว (มือถือ) ไม่ต้อง fallback ไป redirect ซ้ำ
       // (จะ fail ซ้ำและกลายเป็น unhandled rejection → หน้าค้าง)
       if (getPreferredGoogleSignInMethod() !== 'redirect' && shouldFallbackToGoogleRedirect(registerError)) {
         try {
+          markPendingProfileSetup();
           await signInWithGoogleRedirect(role, registrationConsent);
         } catch (redirectError) {
           setError(getAuthErrorMessage(redirectError));
