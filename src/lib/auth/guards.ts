@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getServerDb } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
 import { requireSessionUser, type SessionUser } from './session';
+import { getRoleHomePath } from './role-routes';
 
 type AppRole = SessionUser['role'];
 
@@ -13,7 +14,7 @@ export async function requireRole(allowed: AppRole[]) {
   const userSnap = await db.collection(COLLECTIONS.USERS).doc(session.uid).get();
   const role = userSnap.exists ? (userSnap.data()?.role as AppRole | undefined) : undefined;
   if (!role || !allowed.includes(role)) {
-    redirect(role === 'teacher' ? '/dashboard' : role === 'admin' ? '/admin/dashboard' : '/my-bookings');
+    redirect(getRoleHomePath(role));
   }
 
   return { session, db, role };

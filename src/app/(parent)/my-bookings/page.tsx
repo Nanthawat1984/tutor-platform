@@ -6,12 +6,12 @@ import { BarChart3, CalendarCheck, CalendarDays, ClipboardList, GraduationCap, P
 import { DashboardLayout, StatCard, EmptyState, SectionCard } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { BookingStatusBadge } from '@/components/ui/badge';
-import { requireSessionUser } from '@/lib/auth/session';
+import { requireRole } from '@/lib/auth/guards';
 
 export default async function ParentDashboard() {
   const db = getServerDb();
   if (!db) return redirect('/login');
-  const session = await requireSessionUser();
+  const { session } = await requireRole(['parent']);
   const parentId = session.uid;
 
   const bookingsSnap = await db.collection(COLLECTIONS.BOOKINGS)
