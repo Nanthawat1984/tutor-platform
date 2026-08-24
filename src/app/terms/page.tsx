@@ -6,6 +6,7 @@ import { TERMS_VERSION } from '@/lib/legal/consent';
 export const metadata = {
   title: 'ข้อตกลงผู้ใช้บริการ — TutorFinder',
   description: 'ข้อตกลงผู้ใช้บริการของ TutorFinder แพลตฟอร์มการเรียนเสริม',
+  alternates: { canonical: '/terms' },
 };
 
 export default function TermsPage() {

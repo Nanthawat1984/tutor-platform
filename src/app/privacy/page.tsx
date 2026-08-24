@@ -38,6 +38,7 @@ const SECTIONS = [
 export const metadata = {
   title: 'นโยบายความเป็นส่วนตัว — TutorFinder',
   description: 'นโยบายความเป็นส่วนตัวของ TutorFinder แพลตฟอร์มการเรียนเสริม',
+  alternates: { canonical: '/privacy' },
 };
 
 export default function PrivacyPage() {

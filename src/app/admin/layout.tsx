@@ -2,6 +2,11 @@ import { redirect } from 'next/navigation';
 import { getServerDb } from '@/lib/firebase/server';
 import { requireSessionUser } from '@/lib/auth/session';
 import { COLLECTIONS } from '@/types/firestore';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Admin section guard.
