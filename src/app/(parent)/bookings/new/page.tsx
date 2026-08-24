@@ -1,7 +1,7 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Input, Textarea } from '@/components/ui/input';
+import { Select, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DashboardLayout } from '@/components/layout/dashboard';
@@ -14,11 +14,46 @@ import { Users } from 'lucide-react';
 import { requireSessionUser } from '@/lib/auth/session';
 import { requireRole } from '@/lib/auth/guards';
 import { createPaymentForBooking } from '@/lib/payments/process';
+import {
+  buildAvailableBookingSlots,
+  validateBookingSlot,
+  type AvailabilityBooking,
+  type AvailabilitySchedule,
+} from '@/lib/booking/availability';
+
+class BookingSlotError extends Error {
+  constructor(public readonly code: 'slot_unavailable' | 'booking_conflict' | 'student') {
+    super(code);
+    this.name = 'BookingSlotError';
+  }
+}
+
+function getBangkokDateString(date: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function formatSlotLabel(date: string, startTime: string, endTime: string): string {
+  const formattedDate = new Intl.DateTimeFormat('th-TH', {
+    timeZone: 'Asia/Bangkok',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${date}T12:00:00+07:00`));
+  return `${formattedDate} เวลา ${startTime} - ${endTime} น.`;
+}
 
 export default async function NewBookingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ course_id?: string }>;
+  searchParams: Promise<{ course_id?: string; error?: string }>;
 }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
@@ -30,8 +65,9 @@ export default async function NewBookingPage({
   const courseId = params.course_id;
 
   if (!courseId) redirect('/explore');
+  const resolvedCourseId = String(courseId);
 
-  const courseSnap = await db.collection(COLLECTIONS.COURSES).doc(courseId).get();
+  const courseSnap = await db.collection(COLLECTIONS.COURSES).doc(resolvedCourseId).get();
 
   if (!courseSnap.exists) {
     return (
@@ -45,6 +81,36 @@ export default async function NewBookingPage({
   }
 
   const course = { id: courseSnap.id, ...courseSnap.data() } as any;
+
+  const schedulesSnap = await db.collection(COLLECTIONS.SCHEDULES)
+    .where('courseId', '==', resolvedCourseId)
+    .get();
+  const schedules = schedulesSnap.docs
+    .map((doc: any) => ({ id: doc.id, ...doc.data() }) as AvailabilitySchedule)
+    .filter((schedule) => schedule.isActive === true);
+
+  const teacherBookingsSnap = await db.collection(COLLECTIONS.BOOKINGS)
+    .where('teacherId', '==', course.teacherId)
+    .where('status', 'in', ['pending', 'confirmed'])
+    .get();
+  const teacherBookings = teacherBookingsSnap.docs
+    .map((doc: any) => doc.data() as AvailabilityBooking);
+
+  const availableSlots = buildAvailableBookingSlots({
+    schedules,
+    bookings: teacherBookings,
+    courseDurationMinutes: Number(course.durationMinutes) || 0,
+    fromDate: getBangkokDateString(),
+    daysAhead: 90,
+  });
+
+  const slotOptions = [
+    { value: '', label: '-- เลือกวันและเวลาที่ครูเปิดไว้ --' },
+    ...availableSlots.map((slot) => ({
+      value: JSON.stringify(slot),
+      label: formatSlotLabel(slot.date, slot.startTime, slot.endTime),
+    })),
+  ];
 
   const studentsSnap = await db.collection(COLLECTIONS.STUDENTS)
     .where('parentId', '==', parentId)
@@ -69,61 +135,167 @@ export default async function NewBookingPage({
     const current = await requireRole(['parent']);
     if (current.session.uid !== userId) return;
 
-    const studentId = formData.get('student_id') as string;
-    const isNewStudent = studentId === '__new__';
+    const redirectWithError = (error: string) => {
+      redirect(`/bookings/new?course_id=${encodeURIComponent(String(courseId))}&error=${encodeURIComponent(error)}`);
+    };
 
-    let studentName = formData.get('student_name') as string;
-    let studentLevel = formData.get('student_level') as string || null;
-
-    // เลือกจากรายชื่อที่มีอยู่ → ดึงข้อมูลจากรายการ
-    if (studentId && !isNewStudent) {
-      const studentSnap = await dbRef.collection(COLLECTIONS.STUDENTS).doc(studentId).get();
-      const student = studentSnap.exists ? studentSnap.data() as any : null;
-      if (!studentSnap.exists || student?.parentId !== current.session.uid) {
-        redirect(`/bookings/new?course_id=${encodeURIComponent(String(courseId))}&error=student`);
-        return;
+    const rawSlot = String(formData.get('schedule_slot') || '');
+    let selectedSlot: { scheduleId: string; date: string; startTime: string; endTime: string } | null = null;
+    try {
+      const parsed = JSON.parse(rawSlot) as Record<string, unknown>;
+      if (
+        typeof parsed.scheduleId === 'string' &&
+        typeof parsed.date === 'string' &&
+        typeof parsed.startTime === 'string' &&
+        typeof parsed.endTime === 'string'
+      ) {
+        selectedSlot = {
+          scheduleId: parsed.scheduleId,
+          date: parsed.date,
+          startTime: parsed.startTime,
+          endTime: parsed.endTime,
+        };
       }
-      studentName = student.name;
-      studentLevel = student.level || null;
-    } else if (isNewStudent) {
-      // นักเรียนใหม่ → บันทึกลงรายชื่อผู้ปกครองด้วย (เพื่อใช้ครั้งหน้า)
-      await dbRef.collection(COLLECTIONS.STUDENTS).add({
-        parentId,
-        name: studentName,
-        level: studentLevel,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+    } catch {
+      // The server-side validation below remains the source of truth.
+    }
+    if (!selectedSlot) {
+      redirectWithError('slot_unavailable');
+      return;
     }
 
-    const bookingRef = await dbRef.collection(COLLECTIONS.BOOKINGS).add({
-      courseId,
-      courseTitle: course.title,
-      teacherId: course.teacherId,
-      teacherName: course.teacherName,
-      parentId: userId,
-      studentId: studentId && !isNewStudent ? studentId : null,
-      studentName,
-      studentLevel,
-      bookingDate: formData.get('booking_date') as string,
-      startTime: formData.get('start_time') as string,
-      endTime: formData.get('end_time') as string,
-      totalPrice: course.pricePerSession,
-      notes: formData.get('notes') as string || null,
-      status: 'pending',
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    const studentId = formData.get('student_id') as string;
+    const isNewStudent = studentId === '__new__';
+    if (!studentId) {
+      redirectWithError('student');
+      return;
+    }
+
+    const enteredStudentName = formData.get('student_name') as string;
+    const enteredStudentLevel = formData.get('student_level') as string || null;
+    const studentRef = isNewStudent
+      ? dbRef.collection(COLLECTIONS.STUDENTS).doc()
+      : studentId
+        ? dbRef.collection(COLLECTIONS.STUDENTS).doc(studentId)
+        : null;
+    const bookingRef = dbRef.collection(COLLECTIONS.BOOKINGS).doc();
+    let bookingForPayment: {
+      id: string;
+      parentId: string;
+      teacherId: string;
+      studentName: string;
+      courseTitle: string;
+      totalPrice: number;
+    } | null = null;
+
+    try {
+      await dbRef.runTransaction(async (transaction) => {
+        const courseRef = dbRef.collection(COLLECTIONS.COURSES).doc(resolvedCourseId);
+        const scheduleRef = dbRef.collection(COLLECTIONS.SCHEDULES).doc(selectedSlot!.scheduleId);
+        const conflictsQuery = dbRef.collection(COLLECTIONS.BOOKINGS)
+          .where('teacherId', '==', course.teacherId)
+          .where('bookingDate', '==', selectedSlot!.date)
+          .where('status', 'in', ['pending', 'confirmed']);
+
+        const freshCourseSnap = await transaction.get(courseRef);
+        const scheduleSnap = await transaction.get(scheduleRef);
+        const conflictsSnap = await transaction.get(conflictsQuery);
+        const studentSnap = studentRef && !isNewStudent ? await transaction.get(studentRef) : null;
+
+        const freshCourse = freshCourseSnap.exists
+          ? { id: freshCourseSnap.id, ...freshCourseSnap.data() } as any
+          : null;
+        const schedule = scheduleSnap.exists
+          ? { id: scheduleSnap.id, ...scheduleSnap.data() } as AvailabilitySchedule
+          : null;
+
+        if (
+          !freshCourse ||
+          freshCourse.isActive !== true ||
+          freshCourse.teacherId !== course.teacherId ||
+          !schedule ||
+          schedule.courseId !== resolvedCourseId ||
+          schedule.teacherId !== freshCourse.teacherId
+        ) {
+          throw new BookingSlotError('slot_unavailable');
+        }
+
+        const validation = validateBookingSlot({
+          schedule,
+          bookingDate: selectedSlot!.date,
+          startTime: selectedSlot!.startTime,
+          endTime: selectedSlot!.endTime,
+          courseDurationMinutes: Number(freshCourse.durationMinutes) || 0,
+          bookings: conflictsSnap.docs.map((doc: any) => doc.data() as AvailabilityBooking),
+        });
+        if (!validation.ok) {
+          throw new BookingSlotError(validation.reason === 'booking_conflict' ? 'booking_conflict' : 'slot_unavailable');
+        }
+
+        let studentName = enteredStudentName;
+        let studentLevel = enteredStudentLevel;
+        if (studentSnap) {
+          const student = studentSnap.exists ? studentSnap.data() as any : null;
+          if (!student || student.parentId !== current.session.uid) {
+            throw new BookingSlotError('student');
+          }
+          studentName = student.name;
+          studentLevel = student.level || null;
+        }
+
+        if (isNewStudent && studentRef) {
+          transaction.create(studentRef, {
+            parentId,
+            name: studentName,
+            level: studentLevel,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+
+        transaction.create(bookingRef, {
+          courseId,
+          courseTitle: freshCourse.title,
+          teacherId: freshCourse.teacherId,
+          teacherName: freshCourse.teacherName,
+          parentId: userId,
+          studentId: studentRef?.id || null,
+          studentName,
+          studentLevel,
+          bookingDate: validation.slot.date,
+          startTime: validation.slot.startTime,
+          endTime: validation.slot.endTime,
+          totalPrice: freshCourse.pricePerSession,
+          notes: formData.get('notes') as string || null,
+          status: 'pending',
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        bookingForPayment = {
+          id: bookingRef.id,
+          parentId: userId,
+          teacherId: freshCourse.teacherId,
+          studentName,
+          courseTitle: freshCourse.title,
+          totalPrice: freshCourse.pricePerSession,
+        };
+      });
+    } catch (error) {
+      if (error instanceof BookingSlotError) {
+        redirectWithError(error.code);
+        return;
+      }
+      throw error;
+    }
+
+    if (!bookingForPayment) {
+      redirectWithError('slot_unavailable');
+      return;
+    }
 
     // สร้าง payment record (รอชำระเงิน) — escrow model
-    await createPaymentForBooking(dbRef, {
-      id: bookingRef.id,
-      parentId: userId,
-      teacherId: course.teacherId,
-      studentName,
-      courseTitle: course.title,
-      totalPrice: course.pricePerSession,
-    });
+    await createPaymentForBooking(dbRef, bookingForPayment);
 
     redirect(`/bookings/${bookingRef.id}/payment`);
   }
@@ -160,16 +332,41 @@ export default async function NewBookingPage({
 
         <Card className="space-y-4">
           <h3 className="font-semibold text-gray-900">วันที่และเวลา</h3>
-          <Input label="วันที่เรียน" name="booking_date" type="date" required min={new Date().toISOString().split('T')[0]} />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="เวลาเริ่ม" name="start_time" type="time" required />
-            <Input label="เวลาสิ้นสุด" name="end_time" type="time" required />
-          </div>
+          <Select
+            label="เลือกช่วงเวลาที่ครูเปิดไว้"
+            name="schedule_slot"
+            options={slotOptions}
+            required
+            disabled={availableSlots.length === 0}
+            helperText="วันและเวลานี้มาจากตารางสอนของครูโดยตรง"
+          />
+          {availableSlots.length === 0 && (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {schedules.length === 0
+                ? 'ครูยังไม่ได้เปิดตารางสอนสำหรับคอร์สนี้'
+                : 'ขณะนี้ไม่มีช่วงเวลาว่างใน 90 วันข้างหน้า กรุณากลับมาเลือกใหม่ภายหลัง'}
+            </p>
+          )}
+          {params.error === 'booking_conflict' && (
+            <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              ช่วงเวลานี้เพิ่งถูกจองไปแล้ว กรุณาเลือกช่วงเวลาอื่น
+            </p>
+          )}
+          {params.error === 'slot_unavailable' && (
+            <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              ช่วงเวลาที่เลือกไม่ตรงกับตารางครูหรือไม่ว่างแล้ว กรุณาเลือกจากรายการใหม่
+            </p>
+          )}
+          {params.error === 'student' && (
+            <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              ไม่พบข้อมูลนักเรียนหรือคุณไม่มีสิทธิ์ใช้ข้อมูลนี้ กรุณาเลือกนักเรียนใหม่
+            </p>
+          )}
           <Textarea label="หมายเหตุถึงครู (ถ้ามี)" name="notes" placeholder="เช่น ต้องการเน้นเรื่อง..." />
         </Card>
 
         <div className="responsive-actions">
-          <Button type="submit" className="w-full sm:w-auto">ยืนยันการจอง</Button>
+          <Button type="submit" disabled={availableSlots.length === 0} className="w-full sm:w-auto">ยืนยันการจอง</Button>
           <Link href="/explore" className="w-full sm:w-auto">
             <Button type="button" variant="outline" className="w-full sm:w-auto">ยกเลิก</Button>
           </Link>

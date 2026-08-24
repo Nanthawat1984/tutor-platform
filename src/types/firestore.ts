@@ -168,8 +168,11 @@ export interface Schedule {
   dayOfWeek: number;         // 0=Sunday
   startTime: string;         // "16:30"
   endTime: string;           // "18:00"
-  startDate: string;         // "2025-06-01"
-  endDate?: string;
+  startDate?: string;        // canonical: "2025-06-01"
+  endDate?: string | null;
+  // Legacy records created before the date-field naming was standardized.
+  start_date?: string;
+  end_date?: string | null;
   isRecurring: boolean;
   isActive: boolean;
   createdAt: Timestamp;
