@@ -128,7 +128,7 @@ export function DashboardLayout({
                   href={item.href}
                   onClick={closeSidebar}
                   className={cn(
-                    'sidebar-nav-item',
+                    'sidebar-nav-item min-w-0',
                     isActive && 'active'
                   )}
                 >
@@ -142,7 +142,7 @@ export function DashboardLayout({
                       {item.icon}
                     </span>
                   )}
-                  <span className="flex-1 truncate">{item.label}</span>
+                  <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">{item.label}</span>
                   {isActive && <ChevronRight className="h-4 w-4 shrink-0 text-pink-500" />}
                 </Link>
               </li>

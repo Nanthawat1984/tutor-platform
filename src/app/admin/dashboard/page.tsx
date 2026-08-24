@@ -71,7 +71,7 @@ export default async function AdminDashboard() {
           <Link
             key={action.href}
             href={action.href}
-            className={`group flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br ${action.gradient} px-4 py-3 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-card`}
+            className={`group flex min-w-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-br ${action.gradient} px-3 py-3 text-center text-sm font-bold leading-snug break-words text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-card`}
           >
             {action.label}
           </Link>
