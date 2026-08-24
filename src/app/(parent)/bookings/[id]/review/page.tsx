@@ -55,6 +55,16 @@ export default async function ReviewPage({
     const comment = formData.get('comment') as string;
     const parentId = current.uid;
 
+    const existingReview = await dbRef.collection(COLLECTIONS.REVIEWS)
+      .where('bookingId', '==', bookingId)
+      .where('parentId', '==', parentId)
+      .limit(1)
+      .get();
+    if (!existingReview.empty) {
+      redirect('/bookings?reviewed=1');
+      return;
+    }
+
     await dbRef.collection(COLLECTIONS.REVIEWS).add({
       bookingId,
       parentId,

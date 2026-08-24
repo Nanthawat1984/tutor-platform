@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { getPublicTutorById } from '@/lib/seo/public-teachers';
 import { formatCurrency, getInitials } from '@/lib/utils';
-import { SITE_URL } from '@/lib/seo/site';
+import { serializeJsonLd, SITE_URL } from '@/lib/seo/site';
 
 interface TutorPageProps {
   params: Promise<{ id: string }>;
@@ -147,7 +147,7 @@ export default async function PublicTutorPage({ params }: TutorPageProps) {
         </div>
       </section>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
     </main>
   );
 }

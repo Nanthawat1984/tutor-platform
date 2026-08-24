@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from '@/hooks/useFirebase';
 import { getPreferredGoogleSignInMethod, isMobile, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
-import { getPostLoginPath } from '@/lib/auth/redirects';
+import { getPostLoginPath, getSafeRedirectPath } from '@/lib/auth/redirects';
 
 function getAuthErrorMessage(error: unknown) {
   if (error instanceof FirebaseError) {
@@ -48,7 +48,7 @@ function LoginFormFields() {
 
   // Get redirect parameter from URL (set by middleware when accessing protected routes)
   const searchParams = useSearchParams();
-  const redirectTo = searchParams?.get('redirect');
+  const redirectTo = getSafeRedirectPath(searchParams?.get('redirect'));
 
   useEffect(() => {
     if (pendingMethod) return;

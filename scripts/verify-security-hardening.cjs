@@ -15,9 +15,25 @@ const parentBookings = read('src/app/(parent)/bookings/page.tsx');
 const adminParents = read('src/app/admin/parents/page.tsx');
 const adminStudents = read('src/app/admin/students/page.tsx');
 const adminTeachers = read('src/app/admin/teachers/page.tsx');
+const redirects = read('src/lib/auth/redirects.ts');
+const loginForm = read('src/components/auth/login-form.tsx');
+const newBooking = read('src/app/(parent)/bookings/new/page.tsx');
+const seoSite = read('src/lib/seo/site.ts');
+const publicTutor = read('src/app/tutors/[id]/page.tsx');
+const publicTutors = read('src/app/tutors/page.tsx');
 
 assert.match(firestore, /affectedKeys\(\)\.hasAny\(\[[^\]]*'role'/s,
   'users role must be immutable to self-updates');
+assert.match(firestore, /match \/users\/{uid}[\s\S]*?allow create: if false;/,
+  'users must be created by the server so clients cannot self-assign admin role');
+assert.match(firestore, /match \/bookings\/{bookingId}[\s\S]*?allow update: if isAdmin\(\);/,
+  'booking status changes must be server-only to protect escrow transitions');
+assert.match(firestore, /match \/bookings\/{bookingId}[\s\S]*?allow create: if false;/,
+  'booking creation must be server-only to prevent unvalidated or spam bookings');
+assert.match(firestore, /match \/payments\/{paymentId}[\s\S]*?allow read: if false;/,
+  'payment documents must be server-only because they contain internal fee and payout fields');
+assert.match(firestore, /match \/payouts\/{payoutId}[\s\S]*?allow create: if false;/,
+  'payout requests must be created by the server after wallet and KYC checks');
 assert.match(firestore, /match \/payments\/\{paymentId\}[\s\S]*?allow create: if false;/,
   'payments must be server-created only');
 assert.doesNotMatch(storage, /match \/payment-slips\/\{bookingId\}\/\{fileName\}[\s\S]*?allow read: if true;/,
@@ -26,6 +42,10 @@ assert.doesNotMatch(storage, /match \/kyc\/\{uid\}\/\{fileName\}[\s\S]*?allow re
   'teacher KYC must not be readable by every authenticated user');
 assert.doesNotMatch(storage, /match \/payout-slips\/\{payoutId\}\/\{fileName\}[\s\S]*?allow read: if request\.auth != null;/,
   'payout slips must not be readable by every authenticated user');
+assert.match(storage, /match \/profile-photos\/\{uid\}\/\{fileName\}[\s\S]*?request\.resource\.size < 5 \* 1024 \* 1024/s,
+  'profile photos must enforce a server-side size limit');
+assert.match(storage, /match \/profile-photos\/\{uid\}\/\{fileName\}[\s\S]*?request\.resource\.contentType/s,
+  'profile photos must enforce a server-side content type allowlist');
 assert.doesNotMatch(uploadSlip, /makePublic\s*\(/, 'payment slip upload must not make files public');
 assert.match(payoutSlip, /requireAdmin\(\)/, 'admin payout slip upload must require an admin session');
 assert.match(kycUploader, /\/api\/admin\/payout-slip/, 'payout slips must use the server upload path');
@@ -41,6 +61,18 @@ assert.match(parentBookings, /COLLECTIONS\.PAYMENTS[\s\S]*status[\s\S]*cancelled
   'booking cancellation must cancel pending payment records');
 assert.match(parentBookings, /dbRef\.batch\(\)/,
   'booking and pending payment cancellation must be committed together');
+assert.match(redirects, /getSafeRedirectPath/,
+  'post-login redirects must be validated as local paths');
+assert.match(loginForm, /getSafeRedirectPath\(/,
+  'login form must not navigate to an untrusted external redirect');
+assert.match(newBooking, /student\?\.parentId\s*!==\s*current\.session\.uid|student\?\.parentId\s*!==\s*parentId/,
+  'booking creation must verify the selected student belongs to the current parent');
+assert.match(seoSite, /serializeJsonLd/,
+  'JSON-LD serialization must escape script-breaking characters');
+assert.match(publicTutor, /serializeJsonLd\(jsonLd\)/,
+  'public tutor JSON-LD must use safe serialization');
+assert.match(publicTutors, /serializeJsonLd\(itemList\)/,
+  'public tutor list JSON-LD must use safe serialization');
 for (const [name, source] of Object.entries({ adminParents, adminStudents, adminTeachers })) {
   assert.match(source, /requireAdmin\(\)/, `${name} actions must re-check admin session`);
 }

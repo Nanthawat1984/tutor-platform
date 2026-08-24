@@ -43,7 +43,9 @@ service cloud.firestore {
     // =============================================
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
-      allow create: if isOwner(uid);
+      // Profiles are created and updated by the server after Firebase Auth
+      // verification. Client-side creation would let a user self-assign admin.
+      allow create: if false;
       allow update: if isAdmin() || (
         isOwner(uid) &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
@@ -62,7 +64,8 @@ service cloud.firestore {
     // =============================================
     match /teachers/{uid} {
       allow read: if true; // public
-      allow write: if isOwner(uid) || isAdmin();
+      // Teacher stats and verification-sensitive fields are server-managed.
+      allow write: if isAdmin();
     }
 
     // =============================================
@@ -112,8 +115,10 @@ service cloud.firestore {
         resource.data.teacherId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isParent() && request.resource.data.parentId == request.auth.uid && request.resource.data.teacherId == get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.teacherId && request.resource.data.totalPrice == get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.pricePerSession;
-      allow update: if isAdmin() || (isAuth() && (resource.data.parentId == request.auth.uid || resource.data.teacherId == request.auth.uid) && request.resource.data.parentId == resource.data.parentId && request.resource.data.teacherId == resource.data.teacherId && request.resource.data.courseId == resource.data.courseId && request.resource.data.totalPrice == resource.data.totalPrice && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'notes', 'updatedAt']));
+      allow create: if false; // server validates course, student, schedule and payment setup
+      // Booking transitions can release escrow; they must go through the
+      // server actions/webhooks so a client cannot mark a booking completed.
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -122,8 +127,8 @@ service cloud.firestore {
     // =============================================
     match /attendance/{attendanceId} {
       allow read: if isAuth() && (isAdmin() || resource.data.teacherId == request.auth.uid || get(/databases/$(database)/documents/bookings/$(resource.data.bookingId)).data.parentId == request.auth.uid);
-      allow create: if isTeacher() && request.resource.data.teacherId == request.auth.uid && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.teacherId == request.auth.uid;
-      allow update: if isTeacher() && resource.data.teacherId == request.auth.uid;
+      allow create: if false; // server/Admin SDK only
+      allow update: if false; // server/Admin SDK only
       allow delete: if isAdmin();
     }
 
@@ -136,8 +141,8 @@ service cloud.firestore {
         resource.data.teacherId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isTeacher() && request.resource.data.teacherId == request.auth.uid && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.teacherId == request.auth.uid && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.parentId == request.resource.data.parentId;
-      allow update: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid && request.resource.data.teacherId == resource.data.teacherId && request.resource.data.parentId == resource.data.parentId && request.resource.data.bookingId == resource.data.bookingId);
+      allow create: if false; // server/Admin SDK only
+      allow update: if false; // server/Admin SDK only
       allow delete: if isAdmin();
     }
 
@@ -149,7 +154,7 @@ service cloud.firestore {
         resource.data.parentId == request.auth.uid || isAdmin()
       );
       allow create: if isParent() && request.resource.data.parentId == request.auth.uid;
-      allow update: if isParent() && resource.data.parentId == request.auth.uid;
+      allow update: if isParent() && resource.data.parentId == request.auth.uid && request.resource.data.parentId == resource.data.parentId;
       allow delete: if isParent() && resource.data.parentId == request.auth.uid;
     }
 
@@ -158,7 +163,7 @@ service cloud.firestore {
     // =============================================
     match /reviews/{reviewId} {
       allow read: if resource.data.isVisible == true;
-      allow create: if isParent() && request.resource.data.parentId == request.auth.uid && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.parentId == request.auth.uid && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.teacherId == request.resource.data.teacherId && request.resource.data.rating is int && request.resource.data.rating >= 1 && request.resource.data.rating <= 5;
+      allow create: if false; // server/Admin SDK only; server validates completed booking
       allow update: if isAdmin(); // moderation
       allow delete: if isAdmin();
     }
@@ -181,11 +186,9 @@ service cloud.firestore {
     // PAYMENTS
     // =============================================
     match /payments/{paymentId} {
-      allow read: if isAuth() && (
-        resource.data.parentId == request.auth.uid ||
-        resource.data.teacherId == request.auth.uid ||
-        isAdmin()
-      );
+      // Payment documents contain internal fees, payout amounts, provider
+      // references and private slip paths. All current UI reads use Admin SDK.
+      allow read: if false;
       allow create: if false; // server/Admin SDK only
       allow update: if isAdmin(); // webhook/Admin SDK ใช้สิทธิ์นี้
     }
@@ -194,7 +197,7 @@ service cloud.firestore {
     // WALLETS (กระเป๋าเงินครู — escrow)
     // =============================================
     match /wallets/{teacherId} {
-      allow read: if isOwner(teacherId) || isAdmin();
+      allow read: if false;
       allow write: if isAdmin(); // อัปเดตผ่าน server/Admin SDK เท่านั้น
     }
 
@@ -202,10 +205,8 @@ service cloud.firestore {
     // PAYOUTS (การเบิกเงินครู)
     // =============================================
     match /payouts/{payoutId} {
-      allow read: if isAuth() && (
-        resource.data.teacherId == request.auth.uid || isAdmin()
-      );
-      allow create: if isTeacher();
+      allow read: if false;
+      allow create: if false; // server validates KYC, balance and open requests
       allow update: if isAdmin();
     }
   }

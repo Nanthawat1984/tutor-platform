@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { getInitials } from '@/lib/utils';
 import { listPublicTutors } from '@/lib/seo/public-teachers';
-import { SITE_URL } from '@/lib/seo/site';
+import { serializeJsonLd, SITE_URL } from '@/lib/seo/site';
 
 export const metadata: Metadata = {
   title: 'ค้นหาครูพิเศษและติวเตอร์',
@@ -124,7 +124,7 @@ export default async function PublicTutorsPage() {
         )}
       </section>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(itemList) }} />
     </main>
   );
 }

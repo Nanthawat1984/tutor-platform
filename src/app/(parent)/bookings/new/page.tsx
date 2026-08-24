@@ -78,11 +78,13 @@ export default async function NewBookingPage({
     // เลือกจากรายชื่อที่มีอยู่ → ดึงข้อมูลจากรายการ
     if (studentId && !isNewStudent) {
       const studentSnap = await dbRef.collection(COLLECTIONS.STUDENTS).doc(studentId).get();
-      if (studentSnap.exists) {
-        const student = studentSnap.data() as any;
-        studentName = student.name;
-        studentLevel = student.level || null;
+      const student = studentSnap.exists ? studentSnap.data() as any : null;
+      if (!studentSnap.exists || student?.parentId !== current.session.uid) {
+        redirect(`/bookings/new?course_id=${encodeURIComponent(String(courseId))}&error=student`);
+        return;
       }
+      studentName = student.name;
+      studentLevel = student.level || null;
     } else if (isNewStudent) {
       // นักเรียนใหม่ → บันทึกลงรายชื่อผู้ปกครองด้วย (เพื่อใช้ครั้งหน้า)
       await dbRef.collection(COLLECTIONS.STUDENTS).add({
