@@ -8,6 +8,7 @@ const link = read('src/app/api/line/link/route.ts');
 const outbox = read('functions/src/line/outbox.ts');
 const config = read('functions/src/line/config.ts');
 const webhook = read('functions/src/index.ts');
+const appHosting = read('apphosting.yaml');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -17,6 +18,10 @@ assert(link.includes('verifyLineIdToken'), 'LIFF link route must verify LINE tok
 assert(outbox.includes('createHash'), 'Outbox must derive deterministic IDs');
 assert(outbox.includes('lineNotificationOutbox'), 'Outbox collection must be explicit');
 assert(config.includes("'false'"), 'LINE notifications must default to disabled');
+assert(
+  /variable:\s*LINE_NOTIFICATIONS_ENABLED\s*\n\s+value:\s*["']false["']/.test(appHosting),
+  'App Hosting must keep LINE notifications disabled until external smoke test passes',
+);
 assert(rules.includes('lineNotificationOutbox') && rules.includes('allow read, write: if false'), 'Outbox must be server-only');
 assert(rules.includes('lineUserId') && rules.includes('lineNotificationEnabled'), 'LINE identity fields must be protected by rules');
 assert(webhook.includes('verifyLineWebhookSignature'), 'Webhook signature verification must be wired');

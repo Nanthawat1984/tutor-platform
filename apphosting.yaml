@@ -98,7 +98,7 @@ env:
       - RUNTIME
 
   - variable: LINE_NOTIFICATIONS_ENABLED
-    value: "true"
+    value: "false"
     availability:
       - RUNTIME
 
