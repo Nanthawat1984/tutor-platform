@@ -10,6 +10,7 @@ import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { ConfirmDeleteButton } from '@/components/admin/confirm-delete-button';
 import { FieldValue } from 'firebase-admin/firestore';
 import { requireAdmin } from '@/lib/auth/guards';
+import { matchesParentSearch } from '@/lib/admin/parent-detail';
 import { GraduationCap, Mail, Phone, Search, User, Users, X } from 'lucide-react';
 
 interface ParentsSearchParams {
@@ -44,8 +45,7 @@ async function deleteParentAction(formData: FormData) {
 }
 
 export default async function AdminParentsPage({ searchParams }: ParentsSearchParams) {
-  const db = getServerDb();
-  if (!db) return redirect('/login');
+  const { db } = await requireAdmin();
 
   const { q = '', kids = 'all', bookings = 'all', sort = 'newest' } = await searchParams;
   const query = q.trim().toLowerCase();
@@ -77,13 +77,7 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
   const hasFilters = query !== '' || kids !== 'all' || bookings !== 'all';
 
   const filteredParents = parents.filter((parent: any) => {
-    if (query) {
-      const haystack = [parent.displayName, parent.email, parent.phone]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      if (!haystack.includes(query)) return false;
-    }
+    if (!matchesParentSearch(parent, query)) return false;
     const studentCount = studentsByParent.get(parent.uid) || 0;
     const bookingCount = bookingsByParent.get(parent.uid) || 0;
     if (kids === 'has' && studentCount === 0) return false;
@@ -180,7 +174,7 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
           <Input
             name="q"
             defaultValue={q}
-            placeholder="ค้นหาชื่อ อีเมล หรือเบอร์โทร"
+            placeholder="ค้นหาชื่อ อีเมล เบอร์โทร หรือ UID"
             leftIcon={<Search className="h-4 w-4" />}
           />
           <Select
@@ -228,7 +222,7 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
             description={hasFilters ? 'ลองเปลี่ยนคำค้นหรือตัวกรอง' : 'ผู้ปกครองที่สมัครใช้งานจะแสดงที่นี่'}
           />
         ) : (
-          <Table headers={['ผู้ปกครอง', 'อีเมล', 'เบอร์โทร', 'ลูก', 'การจอง', 'การจัดการ']}>
+          <Table headers={['ผู้ปกครอง / UID', 'อีเมล', 'เบอร์โทร', 'ลูก', 'การจอง', 'การจัดการ']}>
             {sortedParents.map((parent: any) => {
               const studentCount = studentsByParent.get(parent.uid) || 0;
               const bookingCount = bookingsByParent.get(parent.uid) || 0;
@@ -239,7 +233,12 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-rose-600 text-xs font-bold text-white">
                         {parent.displayName?.charAt(0) ?? 'ผ'}
                       </div>
-                      <span className="font-semibold text-slate-900">{parent.displayName || 'ไม่ระบุชื่อ'}</span>
+                      <div className="min-w-0">
+                        <Link href={`/admin/parents/${parent.uid}`} className="font-semibold text-slate-900 hover:text-pink-600 hover:underline">
+                          {parent.displayName || 'ไม่ระบุชื่อ'}
+                        </Link>
+                        <p className="mt-1 break-all font-mono text-[11px] text-slate-400">{parent.uid}</p>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-slate-500">{parent.email}</TableCell>
@@ -257,12 +256,17 @@ export default async function AdminParentsPage({ searchParams }: ParentsSearchPa
                     </span>
                   </TableCell>
                   <TableCell>
-                    <ConfirmDeleteButton
-                      action={deleteParentAction}
-                      hiddenName="parentId"
-                      hiddenValue={parent.uid}
-                      confirmMessage={`ลบบัญชี ${parent.displayName || 'ผู้ปกครอง'}?\n\nจะลบรายชื่อลูก ${studentCount} คน และยกเลิกการจอง ${bookingCount} รายการ — ไม่สามารถย้อนกลับได้`}
-                    />
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Link href={`/admin/parents/${parent.uid}`} className="text-sm font-semibold text-pink-600 hover:underline">
+                        ดูรายละเอียด →
+                      </Link>
+                      <ConfirmDeleteButton
+                        action={deleteParentAction}
+                        hiddenName="parentId"
+                        hiddenValue={parent.uid}
+                        confirmMessage={`ลบบัญชี ${parent.displayName || 'ผู้ปกครอง'}?\n\nจะลบรายชื่อลูก ${studentCount} คน และยกเลิกการจอง ${bookingCount} รายการ — ไม่สามารถย้อนกลับได้`}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               );

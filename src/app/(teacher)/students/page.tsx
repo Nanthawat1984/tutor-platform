@@ -50,6 +50,7 @@ export default async function StudentsPage() {
       level: studentDoc?.level || booking.studentLevel || null,
       school: studentDoc?.school || null,
       notes: studentDoc?.notes || null,
+      photoPath: typeof studentDoc?.photoPath === 'string' ? studentDoc.photoPath : null,
       courseTitle: booking.courseTitle,
       lastSession: booking.bookingDate,
     };
@@ -75,7 +76,16 @@ export default async function StudentsPage() {
             <Card key={student.id} hoverable className="flex flex-col">
               <div className="flex items-start gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-100 to-rose-100 font-bold text-pink-700">
-                  {student.name.charAt(0).toUpperCase()}
+                  {student.photoPath ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/students/${encodeURIComponent(student.id)}/photo`}
+                      alt={`รูปของนักเรียน ${student.name}`}
+                      className="h-full w-full rounded-full object-cover"
+                    />
+                  ) : (
+                    student.name.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate font-semibold text-gray-900">{student.name}</h3>

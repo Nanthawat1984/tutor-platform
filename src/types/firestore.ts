@@ -273,6 +273,7 @@ export interface Student {
   level?: string;          // 'ป.4', 'ม.2' ...
   school?: string;
   notes?: string;
+  photoPath?: string | null; // private Storage path; never a public download URL
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
