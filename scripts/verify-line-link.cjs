@@ -19,7 +19,7 @@ assert(unlinkRoute.includes('FieldValue.delete()'), 'LINE unlink route must remo
 assert(liffVerifier.includes('oauth2/v2.1/verify'), 'LIFF verifier must call the LINE verification endpoint');
 assert(liffVerifier.includes('LINE_LOGIN_CHANNEL_ID'), 'LIFF verifier must use the LINE Login channel ID');
 assert(liffVerifier.includes('payload.aud !== channelId'), 'LIFF verifier must enforce the configured channel');
-assert(linkCard.includes('window.location.pathname') && linkCard.includes('/my-profile?line_link=1'), 'LIFF must initialize from the configured /my-profile endpoint path');
+assert(linkCard.includes('window.location.pathname') && linkCard.includes('handoffPath') && linkCard.includes('line_link=1'), 'LIFF must initialize from the configured role-specific profile endpoint path');
 assert(linkCard.includes('onAuthStateChanged') && linkCard.includes('waitForFirebaseUser'), 'LIFF link must wait for Firebase auth restoration on mobile');
-assert(fs.readFileSync(path.join(root, 'src/app/(parent)/my-profile/page.tsx'), 'utf8').includes("session.role === 'teacher' && params.line_link === '1'"), 'Teacher LIFF handoff must render on the configured endpoint path');
+assert(fs.readFileSync(path.join(root, 'src/app/(teacher)/profile/edit/page.tsx'), 'utf8').includes('handoffPath="/profile/edit"'), 'Teacher LIFF handoff must render on the teacher profile endpoint path');
 console.log('LINE link route checks passed');

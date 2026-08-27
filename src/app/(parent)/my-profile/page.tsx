@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { Input, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/dashboard';
-import { PARENT_NAV_ITEMS, TEACHER_NAV_ITEMS } from '@/components/layout/nav';
+import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { ProfilePhotoUploader } from '@/components/teacher/profile-photo-uploader';
 import { ParentIdCardUploader } from '@/components/parent/parent-id-card-uploader';
 import { COLLECTIONS } from '@/types/firestore';
@@ -14,46 +14,20 @@ import { requireSessionUser } from '@/lib/auth/session';
 import { requireRole } from '@/lib/auth/guards';
 import { LineLinkCard } from '@/components/line/line-link-card';
 
-export default async function MyProfilePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ line_link?: string; return_to?: string }>;
-}) {
+export default async function MyProfilePage() {
   const db = getServerDb();
   if (!db) return redirect('/login');
   const session = await requireSessionUser();
-  const params = await searchParams;
   const parentId = session.uid;
 
   const userSnap = await db.collection(COLLECTIONS.USERS).doc(parentId).get();
   const user = userSnap.exists ? { id: userSnap.id, ...userSnap.data() } as any : null;
 
-  if (session.role === 'teacher' && params.line_link === '1') {
-    return (
-      <DashboardLayout
-        title="เชื่อมต่อ LINE OA"
-        navItems={TEACHER_NAV_ITEMS}
-        role="teacher"
-        userName={user?.displayName || session.displayName || 'คุณครู'}
-      >
-        <p className="mb-6 text-sm text-slate-500">
-          เชื่อมต่อบัญชี LINE เพื่อรับแจ้งเตือนการจองเรียน ตารางสอน สถานที่ จำนวนผู้เรียน และค่าตอบแทน
-        </p>
-        <div className="max-w-2xl">
-          <LineLinkCard
-            initialLinked={Boolean(user?.lineUserId)}
-            initialEnabled={user?.lineNotificationEnabled !== false}
-          />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   async function updateProfileAction(formData: FormData) {
     'use server';
     const dbRef = getServerDb();
     if (!dbRef) return;
-    const current = (await requireRole(['parent', 'teacher'])).session;
+    const current = (await requireRole(['parent'])).session;
     if (current.uid !== parentId) return;
 
     const displayName = (formData.get('display_name') as string || '').trim();

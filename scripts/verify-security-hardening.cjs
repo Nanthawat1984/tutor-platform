@@ -10,6 +10,10 @@ const storage = read('storage.rules');
 const reviewPage = read('src/app/(parent)/bookings/[id]/review/page.tsx');
 const studentPhotoApi = read('src/app/api/students/[id]/photo/route.ts');
 const studentPhotoUploader = read('src/components/parent/student-photo-uploader.tsx');
+const parentLayout = read('src/app/(parent)/layout.tsx');
+const parentProfile = read('src/app/(parent)/my-profile/page.tsx');
+const teacherProfile = read('src/app/(teacher)/profile/edit/page.tsx');
+const lineLinkCard = read('src/components/line/line-link-card.tsx');
 const uploadSlip = read('src/app/api/payments/upload-slip/route.ts');
 const payoutSlip = read('src/app/api/admin/payout-slip/route.ts');
 const kycUploader = read('src/components/teacher/kyc-file-uploader.tsx');
@@ -64,6 +68,14 @@ assert.match(studentPhotoUploader, /\/api\/students\//,
   'student photo uploader must use the protected API');
 assert.doesNotMatch(studentPhotoUploader, /uploadBytes|deleteObject/,
   'student photo uploader must not bypass the protected API with direct Storage writes');
+assert.match(parentLayout, /requireRole\(\['parent'\]\)/,
+  'parent route group must reject teacher and admin sessions');
+assert.doesNotMatch(parentProfile, /session\.role === 'teacher'/,
+  'teacher LINE handoff must not depend on the parent route group');
+assert.match(teacherProfile, /handoffPath="\/profile\/edit"/,
+  'teacher LINE handoff must stay inside the teacher route group');
+assert.match(lineLinkCard, /handoffPath/,
+  'LINE link card must support role-specific handoff paths');
 assert.doesNotMatch(uploadSlip, /makePublic\s*\(/, 'payment slip upload must not make files public');
 assert.match(payoutSlip, /requireAdmin\(\)/, 'admin payout slip upload must require an admin session');
 assert.match(kycUploader, /\/api\/admin\/payout-slip/, 'payout slips must use the server upload path');

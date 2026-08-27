@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 interface LineLinkCardProps {
   initialLinked: boolean;
   initialEnabled?: boolean;
+  handoffPath?: string;
 }
 
 function waitForFirebaseUser(): Promise<User | null> {
@@ -38,7 +39,11 @@ function waitForFirebaseUser(): Promise<User | null> {
   });
 }
 
-export function LineLinkCard({ initialLinked, initialEnabled = true }: LineLinkCardProps) {
+export function LineLinkCard({
+  initialLinked,
+  initialEnabled = true,
+  handoffPath = '/my-profile',
+}: LineLinkCardProps) {
   const [linked, setLinked] = useState(initialLinked);
   const [enabled, setEnabled] = useState(initialEnabled);
   const [busy, setBusy] = useState(false);
@@ -71,9 +76,9 @@ export function LineLinkCard({ initialLinked, initialEnabled = true }: LineLinkC
     try {
       if (!config.liffId) throw new Error('ยังไม่ได้ตั้งค่า LIFF ID');
 
-      if (!window.location.pathname.startsWith('/my-profile')) {
+      if (!window.location.pathname.startsWith(handoffPath)) {
         const returnTo = `${window.location.pathname}${window.location.search}`;
-        window.location.assign(`/my-profile?line_link=1&return_to=${encodeURIComponent(returnTo)}`);
+        window.location.assign(`${handoffPath}?line_link=1&return_to=${encodeURIComponent(returnTo)}`);
         return;
       }
 
@@ -116,7 +121,7 @@ export function LineLinkCard({ initialLinked, initialEnabled = true }: LineLinkC
     } finally {
       setBusy(false);
     }
-  }, [config.liffId, finishAndReturn]);
+  }, [config.liffId, finishAndReturn, handoffPath]);
 
   useEffect(() => {
     if (autoLink && !initialLinked) void linkLine();

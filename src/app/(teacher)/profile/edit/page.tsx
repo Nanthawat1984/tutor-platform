@@ -91,6 +91,7 @@ export default async function EditProfilePage() {
         <LineLinkCard
           initialLinked={Boolean(user?.lineUserId)}
           initialEnabled={user?.lineNotificationEnabled !== false}
+          handoffPath="/profile/edit"
         />
       </div>
 
