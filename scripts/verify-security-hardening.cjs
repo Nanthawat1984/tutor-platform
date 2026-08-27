@@ -46,6 +46,10 @@ assert.match(storage, /match \/profile-photos\/\{uid\}\/\{fileName\}[\s\S]*?requ
   'profile photos must enforce a server-side size limit');
 assert.match(storage, /match \/profile-photos\/\{uid\}\/\{fileName\}[\s\S]*?request\.resource\.contentType/s,
   'profile photos must enforce a server-side content type allowlist');
+assert.doesNotMatch(storage, /firestore\.get\(\/databases\/\(default\)\/documents\//,
+  'Storage relationship checks must use the named tutor Firestore database');
+assert.match(storage, /firestore\.get\(\/databases\/tutor\/documents\//,
+  'Storage rules must resolve authorization data from the tutor database');
 assert.doesNotMatch(uploadSlip, /makePublic\s*\(/, 'payment slip upload must not make files public');
 assert.match(payoutSlip, /requireAdmin\(\)/, 'admin payout slip upload must require an admin session');
 assert.match(kycUploader, /\/api\/admin\/payout-slip/, 'payout slips must use the server upload path');
@@ -55,6 +59,12 @@ assert.match(reviewPage, /params:\s*Promise<\{\s*id:\s*string\s*\}>/s,
   'review page must read the dynamic [id] route parameter');
 assert.match(reviewPage, /booking\.parentId\s*!==\s*session\.uid|booking\.status\s*!==\s*'completed'/s,
   'review page must enforce booking ownership and completion');
+assert.match(reviewPage, /<Link\s+href="\/bookings"/s,
+  'review page must use a server-safe link for cancellation');
+assert.doesNotMatch(reviewPage, /onClick=\{\(\) => history\.back\(\)\}/,
+  'server review page must not pass an inline browser event handler to a client component');
+assert.equal(fs.existsSync(path.join(root, 'src/app/icon.svg')), true,
+  'app must provide a favicon asset');
 assert.match(parentBookings, /requireSessionUser\(\)/,
   'booking cancellation action must re-check the session');
 assert.match(parentBookings, /COLLECTIONS\.PAYMENTS[\s\S]*status[\s\S]*cancelled/,
@@ -65,7 +75,7 @@ assert.match(redirects, /getSafeRedirectPath/,
   'post-login redirects must be validated as local paths');
 assert.match(loginForm, /getSafeRedirectPath\(/,
   'login form must not navigate to an untrusted external redirect');
-assert.match(newBooking, /student\?\.parentId\s*!==\s*current\.session\.uid|student\?\.parentId\s*!==\s*parentId/,
+assert.match(newBooking, /student(?:\?\.|\.)parentId\s*!==\s*(?:current\.session\.uid|parentId)/,
   'booking creation must verify the selected student belongs to the current parent');
 assert.match(seoSite, /serializeJsonLd/,
   'JSON-LD serialization must escape script-breaking characters');

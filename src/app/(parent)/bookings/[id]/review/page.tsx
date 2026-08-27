@@ -1,5 +1,6 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -120,9 +121,12 @@ export default async function ReviewPage({
 
           <div className="responsive-actions">
             <Button type="submit" className="w-full sm:w-auto">ส่งรีวิว</Button>
-            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => history.back()}>
+            <Link
+              href="/bookings"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-pink-200 bg-white/85 px-5 text-sm font-semibold text-pink-600 shadow-card transition-all hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 hover:shadow-elevated focus:outline-none focus:ring-2 focus:ring-pink-300 focus:ring-offset-2 sm:w-auto"
+            >
               ยกเลิก
-            </Button>
+            </Link>
           </div>
         </form>
       </Card>
