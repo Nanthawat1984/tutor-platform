@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { deleteObject, ref, uploadBytes } from 'firebase/storage';
 import { Camera, Check, ImageOff, Loader2, Trash2, X } from 'lucide-react';
-import { getFirebaseAuth, getFirebaseStorage } from '@/lib/firebase/client';
+import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
+  isValidStudentPhotoPath,
   STUDENT_PHOTO_MAX_BYTES,
   STUDENT_PHOTO_MIME_TYPES,
 } from '@/lib/students/student-photo';
@@ -37,6 +37,15 @@ export function StudentPhotoUploader({ parentId, studentId, initialPath }: Stude
     if (localPreview) URL.revokeObjectURL(localPreview);
   }, [localPreview]);
 
+  async function deleteUnsavedPhoto(photoPath: string) {
+    const response = await fetch(`/api/students/${encodeURIComponent(studentId)}/photo`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photoPath }),
+    });
+    if (!response.ok) throw new Error('ลบรูปไม่สำเร็จ');
+  }
+
   async function handleFile(file: File) {
     setError('');
     if (!(STUDENT_PHOTO_MIME_TYPES as readonly string[]).includes(file.type)) {
@@ -55,25 +64,29 @@ export function StudentPhotoUploader({ parentId, studentId, initialPath }: Stude
         throw new Error('กรุณาเข้าสู่ระบบด้วยบัญชีผู้ปกครองเจ้าของโปรไฟล์');
       }
 
-      const extension = file.type === 'image/jpeg'
-        ? 'jpg'
-        : file.type === 'image/png'
-          ? 'png'
-          : 'webp';
-      const storageRef = ref(
-        getFirebaseStorage(),
-        `student-photos/${studentId}/student-photo-${Date.now()}.${extension}`,
-      );
-      await uploadBytes(storageRef, file, { contentType: file.type });
+      const uploadForm = new FormData();
+      uploadForm.append('file', file);
+      const response = await fetch(`/api/students/${encodeURIComponent(studentId)}/photo`, {
+        method: 'POST',
+        body: uploadForm,
+      });
+      const payload = await response.json().catch(() => null) as { photoPath?: unknown; error?: unknown } | null;
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'อัปโหลดรูปไม่สำเร็จ');
+      }
+      const uploadedPath = typeof payload?.photoPath === 'string' ? payload.photoPath : '';
+      if (!isValidStudentPhotoPath(uploadedPath, studentId)) {
+        throw new Error('เซิร์ฟเวอร์ส่ง path รูปไม่ถูกต้อง');
+      }
 
       const previousPath = path;
-      setPath(storageRef.fullPath);
+      setPath(uploadedPath);
       setLocalPreview(URL.createObjectURL(file));
 
       // Remove only files uploaded during this unsaved edit. Keep the
       // previously saved photo until the server action commits the change.
       if (previousPath && previousPath !== initialPath) {
-        await deleteObject(ref(getFirebaseStorage(), previousPath)).catch(() => undefined);
+        await deleteUnsavedPhoto(previousPath).catch(() => undefined);
       }
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'อัปโหลดรูปไม่สำเร็จ');
@@ -90,7 +103,7 @@ export function StudentPhotoUploader({ parentId, studentId, initialPath }: Stude
     const previewToRemove = localPreview;
     try {
       if (pathToRemove !== initialPath) {
-        await deleteObject(ref(getFirebaseStorage(), pathToRemove));
+        await deleteUnsavedPhoto(pathToRemove);
       }
       setPath('');
       setLocalPreview(null);

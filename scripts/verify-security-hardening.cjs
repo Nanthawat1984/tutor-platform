@@ -8,6 +8,8 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const firestore = read('firestore.rules');
 const storage = read('storage.rules');
 const reviewPage = read('src/app/(parent)/bookings/[id]/review/page.tsx');
+const studentPhotoApi = read('src/app/api/students/[id]/photo/route.ts');
+const studentPhotoUploader = read('src/components/parent/student-photo-uploader.tsx');
 const uploadSlip = read('src/app/api/payments/upload-slip/route.ts');
 const payoutSlip = read('src/app/api/admin/payout-slip/route.ts');
 const kycUploader = read('src/components/teacher/kyc-file-uploader.tsx');
@@ -50,6 +52,18 @@ assert.doesNotMatch(storage, /firestore\.get\(\/databases\/\(default\)\/document
   'Storage relationship checks must use the named tutor Firestore database');
 assert.match(storage, /firestore\.get\(\/databases\/tutor\/documents\//,
   'Storage rules must resolve authorization data from the tutor database');
+assert.match(storage, /match \/student-photos\/\{studentId\}\/\{fileName\}[\s\S]*?allow read, write: if false;/s,
+  'student photos must use the protected server route instead of direct Storage access');
+assert.match(studentPhotoApi, /export async function POST/,
+  'student photo API must support authenticated server-side uploads');
+assert.match(studentPhotoApi, /await request\.formData\(\)/,
+  'student photo upload must parse the multipart file on the server');
+assert.match(studentPhotoApi, /student\.parentId\s*!==\s*session\.uid/,
+  'student photo upload must enforce parent ownership on the server');
+assert.match(studentPhotoUploader, /\/api\/students\//,
+  'student photo uploader must use the protected API');
+assert.doesNotMatch(studentPhotoUploader, /uploadBytes|deleteObject/,
+  'student photo uploader must not bypass the protected API with direct Storage writes');
 assert.doesNotMatch(uploadSlip, /makePublic\s*\(/, 'payment slip upload must not make files public');
 assert.match(payoutSlip, /requireAdmin\(\)/, 'admin payout slip upload must require an admin session');
 assert.match(kycUploader, /\/api\/admin\/payout-slip/, 'payout slips must use the server upload path');
