@@ -171,8 +171,9 @@ export default async function TeacherDashboard() {
           ) : (
             <div className="space-y-3">
               {upcomingBookings.map((b: any) => (
-                <div
+                <a
                   key={b.id}
+                  href={`/attendance?date=${encodeURIComponent(b.bookingDate || '')}`}
                   className="flex items-center justify-between gap-3 rounded-xl border border-pink-100/60 bg-pink-50/40 p-3.5 transition-colors hover:bg-pink-50"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -191,7 +192,7 @@ export default async function TeacherDashboard() {
                     </div>
                   </div>
                   <BookingStatusBadge status={b.status} />
-                </div>
+                </a>
               ))}
             </div>
           )}

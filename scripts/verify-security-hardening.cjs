@@ -191,6 +191,23 @@ assert.match(taxCert, /CsvExportButton/,
 assert.match(adminPayouts, /CsvExportButton/,
   'admin payouts must offer a CSV export');
 
+// ── New-features regression (chat, coupons, PDPA, SW, search, alerts) ──
+const chatApi = read('src/app/api/chat/route.ts');
+const couponApi = read('src/app/api/coupons/validate/route.ts');
+const meExport = read('src/app/api/me/export/route.ts');
+assert.match(chatApi, /assertParty/,
+  'chat API must verify the caller is a party of the booking');
+assert.match(chatApi, /checkRateLimit\(`chat:/,
+  'chat send must be rate-limited per user');
+assert.doesNotMatch(chatApi, /allow read/,
+  'chat authorization must live in the API, never in client rules');
+assert.match(couponApi, /usedCount/,
+  'coupon validation must check usage limits server-side');
+assert.match(meExport, /where\('parentId', '==', session\.uid\)/,
+  'PDPA export must scope every collection to the session owner');
+assert.match(read('firestore.rules'), /match \/messages\/\{messageId\}[\s\S]*?allow read, write: if false;/,
+  'chat messages must be server-only in Firestore rules');
+
 // ── P3 growth regression (PWA, scoped AI, analytics) ──
 const appLayout = read('src/app/layout.tsx');
 const aiRoute = read('src/app/api/ai/study-help/route.ts');

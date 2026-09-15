@@ -11,6 +11,7 @@ import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
 import { requireSessionUser } from '@/lib/auth/session';
 import { PAYMENT_METHODS } from '@/lib/payments/config';
+import ChatBox from '@/components/chat/chat-box';
 
 export default async function BookingDetailsPage({
   params,
@@ -101,6 +102,11 @@ export default async function BookingDetailsPage({
             </div>
           )}
         </Card>
+
+        <div>
+          <h3 className="mb-2 font-bold text-slate-900">คุยกับครู</h3>
+          <ChatBox bookingId={bookingId} />
+        </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
           {payment?.status === 'paid' && (

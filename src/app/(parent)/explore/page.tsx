@@ -9,6 +9,7 @@ import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { requireSessionUser } from '@/lib/auth/session';
 import ExploreResults from '@/components/parent/explore-results';
+import { rankCourseSearch } from '@/lib/search';
 
 const levelOptions = [
   { value: '', label: 'ทุกระดับ' },
@@ -18,18 +19,24 @@ const levelOptions = [
   { value: 'A-Level', label: 'A-Level' },
 ];
 
-export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ subject?: string; level?: string; search?: string; province?: string; district?: string }> }) {
+export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ subject?: string; level?: string; search?: string; province?: string; district?: string; page?: string }> }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
   const session = await requireSessionUser();
   const params = await searchParams;
 
+  const PAGE_SIZE = 24;
+  const page = Math.max(1, Number(params.page) || 1);
+
   let q: any = db.collection(COLLECTIONS.COURSES).where('isActive', '==', true);
   if (params.subject) q = q.where('subjectId', '==', params.subject);
   if (params.level) q = q.where('level', '==', params.level);
 
-  const coursesSnap = await q.orderBy('createdAt', 'desc').limit(50).get();
-  const courses = coursesSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  // Cursor pagination — ดึงทีละหน้าแทน limit 50 ตายตัว กรองจังหวัด/เขต/คำค้น
+  // in-memory เหมือนเดิม (ไม่มี composite index ใหม่) แต่ไม่ทิ้ง record เกินหน้า
+  const coursesSnap = await q.orderBy('createdAt', 'desc').limit(PAGE_SIZE * page + 1).get();
+  const hasMore = coursesSnap.size > PAGE_SIZE * page;
+  const courses = coursesSnap.docs.slice(0, PAGE_SIZE * page).map((doc: any) => ({ id: doc.id, ...doc.data() }));
 
   // Batch-fetch teacher profiles + user docs for rating / experience / photo
   const teacherIds: string[] = Array.from(
@@ -74,11 +81,13 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     });
   }
   if (params.search) {
-    const kw = params.search.toLowerCase();
-    filteredCourses = filteredCourses.filter((c: any) =>
-      String(c.title || '').toLowerCase().includes(kw) ||
-      String(c.teacherName || '').toLowerCase().includes(kw)
-    );
+    // Thai-tolerant ranked search (tone-mark insensitive, title first).
+    const ranked = rankCourseSearch(filteredCourses, params.search);
+    filteredCourses = ranked.length > 0 ? ranked : filteredCourses.filter((c: any) => {
+      const kw = params.search!.toLowerCase();
+      return String(c.title || '').toLowerCase().includes(kw) ||
+        String(c.teacherName || '').toLowerCase().includes(kw);
+    });
   }
 
   // สร้างตัวเลือกจังหวัด/เขต จากสถานที่สอนของคอร์สที่ค้นพบเท่านั้น —
@@ -158,6 +167,24 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       </Card>
 
       <ExploreResults courses={serializedCourses} />
+
+      {hasMore && (
+        <div className="mt-6 text-center">
+          <a
+            href={`/explore?${new URLSearchParams({
+              ...(params.subject ? { subject: params.subject } : {}),
+              ...(params.level ? { level: params.level } : {}),
+              ...(params.search ? { search: params.search } : {}),
+              ...(params.province ? { province: params.province } : {}),
+              ...(params.district ? { district: params.district } : {}),
+              page: String(page + 1),
+            }).toString()}`}
+            className="inline-flex min-h-[44px] items-center rounded-2xl border-2 border-pink-200 bg-white/80 px-6 py-2.5 text-sm font-bold text-pink-600 shadow-card transition-all hover:bg-pink-50"
+          >
+            ดูเพิ่มเติม (หน้า {page + 1})
+          </a>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

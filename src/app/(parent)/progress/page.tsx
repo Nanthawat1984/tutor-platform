@@ -7,6 +7,7 @@ import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { BarChart3, GraduationCap } from 'lucide-react';
 import { requireSessionUser } from '@/lib/auth/session';
+import PrintButton from '@/components/teacher/print-button';
 
 export default async function ProgressPage() {
   const db = getServerDb();
@@ -36,6 +37,10 @@ export default async function ProgressPage() {
       role="parent"
       userName={session.displayName || 'ผู้ปกครอง'}
     >
+      <div className="mb-5 flex items-center justify-between gap-3 print:hidden">
+        <p className="text-sm text-slate-500">รายงานจากครูหลังแต่ละเซสชันเรียน</p>
+        {reports.length > 0 && <PrintButton label="พิมพ์ / บันทึก PDF" />}
+      </div>
       {reports.length === 0 ? (
         <EmptyState
           icon={<BarChart3 className="h-7 w-7" />}

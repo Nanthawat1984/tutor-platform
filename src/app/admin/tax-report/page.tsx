@@ -195,9 +195,10 @@ export default async function AdminTaxReportPage({
             </table>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap gap-2">
             <CsvExportButton
               filename={`phor-ngor-dor-53-${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}.csv`}
+              label="ดาวน์โหลด CSV (รายละเอียด)"
               headers={['ลำดับ', 'วันที่จ่าย', 'ชื่อครู', 'เลขผู้เสียภาษี', 'คอร์ส', 'เงินได้ที่จ่าย (บาท)', 'ภาษีที่หัก (บาท)']}
               rows={rows.map((r, i) => [
                 i + 1,
@@ -209,7 +210,22 @@ export default async function AdminTaxReportPage({
                 r.tax,
               ])}
             />
+            <CsvExportButton
+              filename={`phor-ngor-dor-53-filing-${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}.csv`}
+              label="ดาวน์โหลด CSV (ยื่นภาษี)"
+              headers={['ลำดับ', 'เลขประจำตัวผู้เสียภาษีผู้ถูกหัก', 'ชื่อผู้ถูกหัก', 'วัน/เดือน/ปี ที่จ่าย', 'ประเภทเงินได้', 'จำนวนเงินที่จ่าย', 'จำนวนภาษีที่หักและนำส่ง']}
+              rows={rows.map((r, i) => [
+                i + 1,
+                r.teacherTaxId,
+                r.teacherName,
+                formatDate(r.paidDate, 'd/MM/yyyy'),
+                'ค่าจ้างทำของ/ค่าบริการ (มาตรา 3 เตรส)',
+                r.gross,
+                r.tax,
+              ])}
+            />
           </div>
+          <p className="mt-2 text-[11px] text-slate-400">ไฟล์ “ยื่นภาษี” จัดคอลัมน์ตามแบบ ภ.ง.ด.53 สำหรับแนบยื่น — ตรวจเลขภาษีครูที่ว่างก่อนยื่นทุกครั้ง</p>
         </>
       )}
     </DashboardLayout>

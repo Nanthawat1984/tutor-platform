@@ -7,12 +7,9 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { requireSessionUser } from '@/lib/auth/session';
 import PrintButton from '@/components/teacher/print-button';
 import CsvExportButton from '@/components/admin/csv-export-button';
+import { getCompanyProfile } from '@/lib/company';
 
-// ข้อมูลผู้หักภาษี (บริษัทแพลตฟอร์ม) — ตั้งค่าจริงใน .env
-const COMPANY_NAME = process.env.COMPANY_NAME || 'บริษัท TutorFinder จำกัด';
-const COMPANY_TAX_ID = process.env.COMPANY_TAX_ID || '';
-const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS || '';
-const COMPANY_BRANCH = process.env.COMPANY_BRANCH || 'สำนักงานใหญ่';
+// ข้อมูลผู้หักภาษี (บริษัทแพลตฟอร์ม) — ตั้งใน /admin/company หรือ .env
 
 interface CertRow {
   id: string;
@@ -33,8 +30,11 @@ export default async function TaxCertificatePage({
   const teacherId = session.uid;
   const params = await searchParams;
 
-  // ── โปรไฟล์ครู (เลขผู้เสียภาษี / ที่อยู่) ──
-  const userSnap = await db.collection(COLLECTIONS.USERS).doc(teacherId).get();
+  // ── โปรไฟล์ครู (เลขผู้เสียภาษี / ที่อยู่) + โปรไฟล์บริษัท ──
+  const [userSnap, company] = await Promise.all([
+    db.collection(COLLECTIONS.USERS).doc(teacherId).get(),
+    getCompanyProfile(),
+  ]);
   const user = userSnap.exists ? userSnap.data() as any : null;
   const teacherName = session.displayName || user?.displayName || 'คุณครู';
   const teacherTaxId: string = user?.taxId || '';
@@ -136,9 +136,9 @@ export default async function TaxCertificatePage({
 
           {/* ผู้หักภาษี */}
           <div className="mt-5 grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
-            <p><span className="text-slate-500">ผู้หักภาษี:</span> <span className="font-semibold">{COMPANY_NAME}</span></p>
-            <p><span className="text-slate-500">เลขประจำตัวผู้เสียภาษี:</span> <span className="font-mono">{COMPANY_TAX_ID || '___________'}</span></p>
-            <p className="sm:col-span-2"><span className="text-slate-500">ที่อยู่:</span> {COMPANY_ADDRESS || '___________'}</p>
+            <p><span className="text-slate-500">ผู้หักภาษี:</span> <span className="font-semibold">{company.name}</span></p>
+            <p><span className="text-slate-500">เลขประจำตัวผู้เสียภาษี:</span> <span className="font-mono">{company.taxId || '___________'}</span></p>
+            <p className="sm:col-span-2"><span className="text-slate-500">ที่อยู่:</span> {company.address || '___________'}</p>
           </div>
 
           {/* ผู้ถูกหักภาษี */}
@@ -193,8 +193,8 @@ export default async function TaxCertificatePage({
           <div className="mt-10 flex justify-end">
             <div className="text-center text-sm">
               <p className="mb-12 text-slate-600">ขอแสดงความนับถือ</p>
-              <p className="border-t border-slate-400 pt-1 font-semibold">{COMPANY_NAME}</p>
-              <p className="text-xs text-slate-500">({COMPANY_BRANCH})</p>
+              <p className="border-t border-slate-400 pt-1 font-semibold">{company.name}</p>
+              <p className="text-xs text-slate-500">({company.branch})</p>
             </div>
           </div>
 

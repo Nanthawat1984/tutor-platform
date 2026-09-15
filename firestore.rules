@@ -175,6 +175,26 @@ service cloud.firestore {
     }
 
     // =============================================
+    // MESSAGES (แชทตาม booking — server/API เท่านั้น)
+    // =============================================
+    match /messages/{messageId} {
+      // Client ตรงห้ามอ่าน/เขียน — ผ่าน /api/chat ที่ตรวจ booking party แล้ว
+      allow read, write: if false;
+    }
+
+    // =============================================
+    // COUPONS / REFERRALS (server/API เท่านั้น)
+    // =============================================
+    match /coupons/{couponId} {
+      // Server-only — API ตรวจความถูกต้องและคืนเฉพาะส่วนลดที่ใช้ได้
+      allow read, write: if false;
+    }
+
+    match /referrals/{referralId} {
+      allow read, write: if false;
+    }
+
+    // =============================================
     // NOTIFICATIONS
     // =============================================
     match /notifications/{notificationId} {

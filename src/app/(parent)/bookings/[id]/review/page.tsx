@@ -53,8 +53,22 @@ export default async function ReviewPage({
     }
     const rating = parseInt(formData.get('rating') as string);
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) return;
-    const comment = formData.get('comment') as string;
+    const comment = String(formData.get('comment') || '').trim().slice(0, 1000);
     const parentId = current.uid;
+
+    // Anti-fake: one review per booking + completed-only (checked above) +
+    // reject duplicate text from the same parent (copy-paste spam).
+    if (comment) {
+      const dupSnap = await dbRef.collection(COLLECTIONS.REVIEWS)
+        .where('parentId', '==', parentId)
+        .where('comment', '==', comment)
+        .limit(1)
+        .get();
+      if (!dupSnap.empty) {
+        redirect('/bookings?reviewed=1');
+        return;
+      }
+    }
 
     const existingReview = await dbRef.collection(COLLECTIONS.REVIEWS)
       .where('bookingId', '==', bookingId)

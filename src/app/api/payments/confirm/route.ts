@@ -3,7 +3,7 @@ import { getServerDb, getServerStorage } from '@/lib/firebase/server';
 import { getSessionUser } from '@/lib/auth/session';
 import { COLLECTIONS } from '@/types/firestore';
 import { markPaymentPaid, markPaymentFailed } from '@/lib/payments/process';
-import { MOCK_MODE, generateRef } from '@/lib/payments/config';
+import { MOCK_MODE, BANK_ACCOUNT, generateRef } from '@/lib/payments/config';
 import { analyzePaymentSlip } from '@/lib/payments/slip-agent';
 
 /**
@@ -79,6 +79,16 @@ export async function POST(request: NextRequest) {
       agentReasons: agentResult.reasons,
       agentModel: agentResult.model,
       agentAnalyzedAt: new Date(),
+      // P3 PromptPay verify — deterministic recipient check (no AI judgment):
+      // slip-agent extracts last-4 of recipient account; match against the
+      // company account. Mismatch is a hard flag for admin, never auto-approve.
+      recipientLast4: (agentResult.extracted as any)?.recipientAccountLast4 || null,
+      recipientMatchesCompany: (() => {
+        const last4 = (agentResult.extracted as any)?.recipientAccountLast4;
+        if (!last4) return null;
+        const companyDigits = BANK_ACCOUNT.accountNumber.replace(/\D/g, '').slice(-4);
+        return companyDigits ? last4 === companyDigits : null;
+      })(),
       updatedAt: new Date(),
     } as any);
     return NextResponse.json({ ok: true, awaitingReview: true, bookingId: payment.bookingId }, { status: 202 });

@@ -21,6 +21,7 @@ import { getLineServerConfig } from './line/config';
 import { replyLineMessages } from './line/client';
 import { verifyLineWebhookSignature } from './line/security';
 import { assignRoleRichMenu } from './line/rich-menu';
+export { opsAlertMonitor } from './ops-alerts';
 
 // Lazy init — อย่า initializeApp ตอน module load
 // (deploy analysis server จะ timeout 10s ถ้า init ช้า)

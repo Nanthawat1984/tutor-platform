@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { SITE_URL } from '@/lib/seo/site';
+import ServiceWorkerRegister from '@/components/pwa/sw-register';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -57,6 +58,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased">
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>
