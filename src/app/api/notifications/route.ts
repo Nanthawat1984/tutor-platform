@@ -13,33 +13,40 @@ export async function GET(request: Request) {
   if (!db) return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
 
   const limit = Math.min(50, Math.max(1, Number(new URL(request.url).searchParams.get('limit')) || 20));
-  const snap = await db.collection(COLLECTIONS.NOTIFICATIONS)
-    .where('userId', '==', session.uid)
-    .orderBy('createdAt', 'desc')
-    .limit(limit)
-    .get();
-  const unreadSnap = await db.collection(COLLECTIONS.NOTIFICATIONS)
-    .where('userId', '==', session.uid)
-    .where('isRead', '==', false)
-    .count()
-    .get();
+  try {
+    const snap = await db.collection(COLLECTIONS.NOTIFICATIONS)
+      .where('userId', '==', session.uid)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+    const unreadSnap = await db.collection(COLLECTIONS.NOTIFICATIONS)
+      .where('userId', '==', session.uid)
+      .where('isRead', '==', false)
+      .count()
+      .get();
 
-  return NextResponse.json({
-    ok: true,
-    unreadCount: unreadSnap.data().count,
-    items: snap.docs.map((d: any) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        type: data.type,
-        title: data.title,
-        body: data.body,
-        data: data.data || {},
-        isRead: Boolean(data.isRead),
-        createdAt: data.createdAt?.toMillis?.() || null,
-      };
-    }),
-  });
+    return NextResponse.json({
+      ok: true,
+      unreadCount: unreadSnap.data().count,
+      items: snap.docs.map((d: any) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          type: data.type,
+          title: data.title,
+          body: data.body,
+          data: data.data || {},
+          isRead: Boolean(data.isRead),
+          createdAt: data.createdAt?.toMillis?.() || null,
+        };
+      }),
+    });
+  } catch (error: any) {
+    const { logEvent } = await import('@/lib/log');
+    logEvent('error', 'notifications_list_failed', {});
+    const code = error?.code === 9 ? 'index_building' : 'list_failed';
+    return NextResponse.json({ error: code }, { status: 503 });
+  }
 }
 
 export async function POST(request: Request) {

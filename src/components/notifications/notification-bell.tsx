@@ -18,15 +18,22 @@ export default function NotificationBell({ roleHref = '/notifications' }: { role
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   async function refresh() {
     try {
       const res = await fetch('/api/notifications?limit=8', { cache: 'no-store' });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setFailed(true);
+        return;
+      }
+      setFailed(false);
       const data = await res.json();
       setUnread(Number(data.unreadCount) || 0);
       setItems(Array.isArray(data.items) ? data.items : []);
-    } catch { /* offline — keep stale count */ }
+    } catch {
+      setFailed(true);
+    }
   }
 
   useEffect(() => {
@@ -71,7 +78,11 @@ export default function NotificationBell({ roleHref = '/notifications' }: { role
                 </button>
               )}
             </div>
-            {items.length === 0 ? (
+            {failed ? (
+              <p className="px-2 py-6 text-center text-xs font-semibold text-amber-700">
+                โหลดการแจ้งเตือนไม่สำเร็จ — กดปุ่มกระดิ่งเพื่อลองใหม่
+              </p>
+            ) : items.length === 0 ? (
               <p className="px-2 py-6 text-center text-xs text-slate-400">ยังไม่มีการแจ้งเตือน</p>
             ) : (
               <ul className="max-h-80 overflow-y-auto">

@@ -15,15 +15,25 @@ export default function ChatBox({ bookingId }: { bookingId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   async function load() {
     try {
       const res = await fetch(`/api/chat?bookingId=${encodeURIComponent(bookingId)}`, { cache: 'no-store' });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error === 'index_building'
+          ? 'ระบบกำลังเตรียมข้อมูลแชท กรุณารอสักครู่แล้ว refresh'
+          : 'โหลดข้อความไม่สำเร็จ กรุณาลองใหม่');
+        return;
+      }
+      setError(null);
       const data = await res.json();
       setMessages(Array.isArray(data.items) ? data.items : []);
-    } catch { /* offline */ }
+    } catch {
+      setError('ออฟไลน์อยู่ — จะโหลดใหม่เมื่อมีเน็ต');
+    }
   }
 
   useEffect(() => {
@@ -40,6 +50,7 @@ export default function ChatBox({ bookingId }: { bookingId: string }) {
     const text = draft.trim();
     if (!text || sending) return;
     setSending(true);
+    setError(null);
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -49,7 +60,13 @@ export default function ChatBox({ bookingId }: { bookingId: string }) {
       if (res.ok) {
         setDraft('');
         await load();
+      } else if (res.status === 429) {
+        setError('ส่งถี่เกินไป กรุณารอสักครู่');
+      } else {
+        setError('ส่งข้อความไม่สำเร็จ กรุณาลองใหม่');
       }
+    } catch {
+      setError('ออฟไลน์อยู่ — ข้อความยังไม่ถูกส่ง');
     } finally {
       setSending(false);
     }
@@ -57,6 +74,11 @@ export default function ChatBox({ bookingId }: { bookingId: string }) {
 
   return (
     <div className="flex flex-col rounded-2xl border border-slate-200 bg-white">
+      {error && (
+        <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-800">
+          {error}
+        </p>
+      )}
       <div className="max-h-80 min-h-40 overflow-y-auto space-y-2 p-4">
         {messages.length === 0 && (
           <p className="py-6 text-center text-xs text-slate-400">ยังไม่มีข้อความ — เริ่มคุยกันได้เลย</p>

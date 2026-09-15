@@ -248,4 +248,26 @@ assert.match(analyticsPage, /requireAdmin\(\)/,
 assert.doesNotMatch(analyticsPage, /\.limit\(1000\)/,
   'growth analytics must cap Firestore reads');
 
+// ── Chat + notifications bugfix regression (composite indexes + error UI) ──
+const indexesJson = JSON.parse(fs.readFileSync(path.join(root, 'firestore.indexes.json'), 'utf8'));
+const indexKeys = new Set(
+  indexesJson.indexes.map((idx) => `${idx.collectionGroup}|${idx.fields.map((f) => `${f.fieldPath}:${f.order}`).join(',')}`)
+);
+for (const expected of [
+  'messages|bookingId:ASCENDING,createdAt:ASCENDING',
+  'notifications|userId:ASCENDING,createdAt:DESCENDING',
+  'notifications|userId:ASCENDING,isRead:ASCENDING',
+  'bookings|teacherId:ASCENDING,status:ASCENDING,bookingDate:DESCENDING',
+]) {
+  assert.ok(indexKeys.has(expected), `missing composite index: ${expected}`);
+}
+const chatBox = read('src/components/chat/chat-box.tsx');
+const bell = read('src/components/notifications/notification-bell.tsx');
+assert.match(chatApi, /index_building/,
+  'chat API must return a retryable status while indexes build');
+assert.match(chatBox, /โหลดข้อความไม่สำเร็จ/,
+  'chat UI must show an error instead of silent empty state');
+assert.match(bell, /โหลดการแจ้งเตือนไม่สำเร็จ/,
+  'notification bell must show an error instead of silent empty state');
+
 console.log('Security hardening regression checks passed');

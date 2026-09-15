@@ -28,25 +28,33 @@ export async function GET(request: Request) {
   const booking = await assertParty(db, bookingId, session.uid);
   if (!booking) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
-  const snap = await db.collection(CHAT_COLLECTION)
-    .where('bookingId', '==', bookingId)
-    .orderBy('createdAt', 'asc')
-    .limit(100)
-    .get();
-  return NextResponse.json({
-    ok: true,
-    items: snap.docs.map((d: any) => {
-      const m = d.data();
-      return {
-        id: d.id,
-        senderId: m.senderId,
-        senderRole: m.senderRole,
-        text: m.text,
-        mine: m.senderId === session.uid,
-        createdAt: m.createdAt?.toMillis?.() || null,
-      };
-    }),
-  });
+  try {
+    const snap = await db.collection(CHAT_COLLECTION)
+      .where('bookingId', '==', bookingId)
+      .orderBy('createdAt', 'asc')
+      .limit(100)
+      .get();
+    return NextResponse.json({
+      ok: true,
+      items: snap.docs.map((d: any) => {
+        const m = d.data();
+        return {
+          id: d.id,
+          senderId: m.senderId,
+          senderRole: m.senderRole,
+          text: m.text,
+          mine: m.senderId === session.uid,
+          createdAt: m.createdAt?.toMillis?.() || null,
+        };
+      }),
+    });
+  } catch (error: any) {
+    // Composite index ยังไม่พร้อม (FAILED_PRECONDITION) — บอก client ให้ retry
+    // แทนที่จะ 500 เงียบ
+    logEvent('error', 'chat_list_failed', { bookingId });
+    const code = error?.code === 9 ? 'index_building' : 'list_failed';
+    return NextResponse.json({ error: code }, { status: 503 });
+  }
 }
 
 export async function POST(request: Request) {
