@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { DashboardLayout } from '@/components/layout/dashboard';
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { requireSessionUser } from '@/lib/auth/session';
+import CsvExportButton from '@/components/admin/csv-export-button';
 import KycFileUploader from '@/components/teacher/kyc-file-uploader';
 import {
   createStripeConnectTransfer,
@@ -198,18 +199,37 @@ export default async function AdminPayoutsPage({
         <Link href="/admin/dashboard" className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-pink-700">
           ← กลับไปแดชบอร์ดแอดมิน
         </Link>
-        <form method="get" className="flex items-center gap-2">
-          <select name="status" defaultValue={statusFilter} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-            <option value="">ทุกสถานะ</option>
-            <option value="requested">รอดำเนินการ</option>
-            <option value="processing">กำลังโอน</option>
-            <option value="paid">โอนแล้ว</option>
-            <option value="rejected">ปฏิเสธ</option>
-          </select>
-          <button type="submit" className="rounded-lg bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-700">
-            กรอง
-          </button>
-        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          {payouts.length > 0 && (
+            <CsvExportButton
+              filename={`payouts-${statusFilter || 'all'}.csv`}
+              label="ดาวน์โหลด CSV"
+              headers={['รหัสรายการ', 'ครู', 'ธนาคาร', 'เลขบัญชี', 'ชื่อบัญชี', 'ยอด (บาท)', 'สถานะ', 'ขอเมื่อ']}
+              rows={payouts.map((p: any) => [
+                p.id,
+                teacherInfo.get(p.teacherId) || p.teacherId,
+                p.bankName || '',
+                p.accountNumber || '',
+                p.accountName || '',
+                Number(p.amount) || 0,
+                STATUS_LABEL[p.status]?.label || p.status,
+                p.createdAt ? formatDate(p.createdAt.toDate?.() || p.createdAt, 'd/MM/yyyy HH:mm') : '',
+              ])}
+            />
+          )}
+          <form method="get" className="flex items-center gap-2">
+            <select name="status" defaultValue={statusFilter} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+              <option value="">ทุกสถานะ</option>
+              <option value="requested">รอดำเนินการ</option>
+              <option value="processing">กำลังโอน</option>
+              <option value="paid">โอนแล้ว</option>
+              <option value="rejected">ปฏิเสธ</option>
+            </select>
+            <button type="submit" className="rounded-lg bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-700">
+              กรอง
+            </button>
+          </form>
+        </div>
       </div>
 
       {params.error && (

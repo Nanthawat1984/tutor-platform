@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck:all
+      - run: node --test src/lib/rate-limit.test.ts src/lib/ai/study-help.test.ts src/lib/auth/guards.test.ts src/lib/admin/reconciliation.test.ts src/lib/booking/availability.test.ts src/lib/auth/teacher-verification.test.ts src/lib/students/student-photo.test.ts src/lib/auth/admin-login.test.ts src/lib/auth/password-reset.test.ts src/lib/auth/redirects.test.ts src/lib/admin/parent-detail.test.ts
+      - run: node scripts/verify-security-hardening.cjs
+      - run: node scripts/verify-bank-transfer-review.cjs
+      - run: node scripts/verify-receipt-connect.cjs
+      - run: node scripts/verify-stripe-payment.cjs
+      - run: node scripts/verify-connect-testmode.cjs
+      - run: node scripts/verify-parent-payment-privacy.cjs
+      - run: node scripts/verify-line-link.cjs
+      - run: pnpm build
+
+  functions:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test

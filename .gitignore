@@ -20,7 +20,17 @@ functions/lib/
 .agent/
 .omx/
 .playwright-mcp/
+.playwright-cli/
+.mimosa/
+.v2c/
+.video_agent/
 .worktrees/
+
+# Local debug artifacts (screenshots, test slips, generated outputs)
+login-fixed.png
+test-slip.png
+output/
+tmp/
 
 # IDE
 .vscode

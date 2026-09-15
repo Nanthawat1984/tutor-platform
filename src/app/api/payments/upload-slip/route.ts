@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerDb, getServerStorage } from '@/lib/firebase/server';
 import { getSessionUser } from '@/lib/auth/session';
 import { COLLECTIONS } from '@/types/firestore';
+import { checkRateLimit, sweepRateLimitBuckets } from '@/lib/rate-limit';
+import { logEvent } from '@/lib/log';
 
 export const runtime = 'nodejs';
 
@@ -15,6 +17,17 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  // 10 uploads / 10 min per parent — กันยิงรัว/สแปมไฟล์ (fail-open ถ้า limiter พัง)
+  sweepRateLimitBuckets();
+  const limit = checkRateLimit(`slip:${session.uid}`, 10, 10 * 60_000);
+  if (!limit.ok) {
+    logEvent('warn', 'slip_upload_rate_limited', { uid: session.uid });
+    return NextResponse.json({ error: 'rate_limited' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil(limit.resetAfterMs / 1000)) },
+    });
+  }
 
   const db = getServerDb();
   const storage = getServerStorage();
@@ -71,6 +84,7 @@ export async function POST(request: NextRequest) {
     const [url] = await fileRef.getSignedUrl({ action: 'read', expires: Date.now() + 24 * 60 * 60 * 1000 });
     return NextResponse.json({ url, path });
   } catch (error) {
+    logEvent('error', 'slip_upload_failed', { uid: session.uid, bookingId });
     console.error('Slip upload error:', (error as any)?.message || error);
     return NextResponse.json({ error: 'upload_failed' }, { status: 500 });
   }

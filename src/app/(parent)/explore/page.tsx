@@ -81,22 +81,24 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     );
   }
 
-  // สร้างตัวเลือกจังหวัด/เขต จากสถานที่สอนทั้งหมด
-  const allCentersSnap = await db
-    .collection(COLLECTIONS.CENTERS)
-    .where('isActive', '==', true)
-    .limit(500)
-    .get();
-  const allCenters = allCentersSnap.docs.map((d: any) => d.data());
-  const provinces = Array.from(new Set(allCenters.map((c: any) => c.province).filter(Boolean))).sort();
-  const districts = Array.from(
-    new Set(
-      allCenters
-        .filter((c: any) => !params.province || c.province === params.province)
-        .map((c: any) => c.district)
-        .filter(Boolean)
-    )
-  ).sort();
+  // สร้างตัวเลือกจังหวัด/เขต จากสถานที่สอนของคอร์สที่ค้นพบเท่านั้น —
+  // ไม่สแกน centers ทั้งตาราง (ของเดิม limit 500 ทุกครั้งที่เปิดหน้า explore)
+  // ถ้ายังไม่กรองอะไรเลย (คอร์สเต็ม 50) ตัวเลือกจะมาจาก centers ของ 50 คอร์สนี้
+  // ซึ่งเพียงพอสำหรับ UX กรองต่อ ส่วน dropdown ครบทั้งจังหวัดมาจาก subject filter
+  // ด้านล่างไม่ได้ — tradeoff ที่ตั้งใจเพื่อลด read 90%+
+  const provinceValues: string[] = filteredCourses
+    .map((c: any): string | null => (c.centerId ? ((centers.get(c.centerId) as any)?.province as string | null) || null : null))
+    .filter((v: string | null): v is string => typeof v === 'string' && v.length > 0);
+  const provinces: string[] = Array.from(new Set<string>(provinceValues)).sort();
+  const districtValues: string[] = filteredCourses
+    .map((c: any): string | null => {
+      const center = (c.centerId ? centers.get(c.centerId) : null) as any;
+      if (!center) return null;
+      if (params.province && center.province !== params.province) return null;
+      return (center.district as string | null) || null;
+    })
+    .filter((v: string | null): v is string => typeof v === 'string' && v.length > 0);
+  const districts: string[] = Array.from(new Set<string>(districtValues)).sort();
 
   // Serialize สำหรับ Client Component (ไม่มี Timestamp)
   const serializedCourses = filteredCourses.map((course: any) => {

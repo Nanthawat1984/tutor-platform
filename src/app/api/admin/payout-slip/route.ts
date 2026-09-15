@@ -1,14 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerStorage } from '@/lib/firebase/server';
 import { requireAdmin } from '@/lib/auth/guards';
+import { checkRateLimit, sweepRateLimitBuckets } from '@/lib/rate-limit';
+import { logEvent } from '@/lib/log';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
+  let adminUid = 'admin';
   try {
-    await requireAdmin();
+    adminUid = (await requireAdmin()).session.uid;
   } catch {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+
+  // 20 uploads / 10 min per admin
+  sweepRateLimitBuckets();
+  const limit = checkRateLimit(`payout-slip:${adminUid}`, 20, 10 * 60_000);
+  if (!limit.ok) {
+    logEvent('warn', 'payout_slip_rate_limited', { uid: adminUid });
+    return NextResponse.json({ error: 'rate_limited' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil(limit.resetAfterMs / 1000)) },
+    });
   }
 
   const storage = getServerStorage();
@@ -46,6 +60,7 @@ export async function POST(request: NextRequest) {
     const [url] = await fileRef.getSignedUrl({ action: 'read', expires: Date.now() + 7 * 24 * 60 * 60 * 1000 });
     return NextResponse.json({ url, path });
   } catch (error) {
+    logEvent('error', 'payout_slip_upload_failed', { payoutId });
     console.error('Payout slip upload error:', error instanceof Error ? error.message : 'unknown error');
     return NextResponse.json({ error: 'upload_failed' }, { status: 500 });
   }

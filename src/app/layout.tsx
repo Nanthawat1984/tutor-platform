@@ -24,6 +24,17 @@ export const metadata: Metadata = {
     title: 'TutorFinder — แพลตฟอร์มการเรียนเสริมพิเศษ',
     description: 'ค้นหาครูพิเศษและคอร์สเรียนที่เหมาะกับคุณ',
   },
+  manifest: '/manifest.webmanifest',
+  themeColor: '#EC4899',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'TutorFinder',
+  },
+  icons: {
+    icon: '/icon-192.png',
+    apple: '/apple-touch-icon.png',
+  },
   verification: {
     google: 'St15JalOelNRWevXXlcRiBQooZxxCrT1qbtouWrwLjI',
   },

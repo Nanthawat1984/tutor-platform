@@ -261,6 +261,10 @@ export async function releaseEscrowForBooking(
 ): Promise<void> {
   const payment = await getPaymentForBooking(db, bookingId);
   if (!payment || payment.status !== 'paid' || !payment.teacherId) return;
+  // Idempotency — release writes taxWithheldAt/payoutAmount markers below.
+  // A second call (double-click, retry, trigger race) must be a no-op so the
+  // wallet is credited exactly once. Mirrors functions releaseEscrow.
+  if (payment.taxWithheldAt !== undefined || payment.payoutAmount !== undefined) return;
   const netAmount = Number(payment.netAmount) || 0;
   if (netAmount <= 0) return;
 

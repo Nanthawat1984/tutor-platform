@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "typecheck:functions": "tsc --noEmit -p functions",
+    "typecheck:all": "pnpm typecheck && pnpm typecheck:functions",
     "emulators": "firebase emulators:start --only auth,firestore"
   },
   "dependencies": {

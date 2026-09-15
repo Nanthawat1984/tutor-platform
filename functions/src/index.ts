@@ -130,26 +130,48 @@ export const onBookingCreated = lineRuntime().region('asia-southeast1').firestor
   });
 
 // Helper: ปล่อย escrow เมื่อเรียนเสร็จ (ย้าย pending → available ของครู)
+// ต้องตรงกับ src/lib/payments/process.ts:releaseEscrowForBooking —
+// หักภาษี ณ ที่จ่าย 3% ของ netAmount แล้วบันทึก taxWithheld/payoutAmount/
+// taxWithheldAt ลง payment เสมอ เพื่อให้ reconciliation เห็น released ตรงกัน
+// และกันรันซ้ำด้วย marker เดียวกัน (idempotency)
+const TAX_WITHHOLDING_RATE = 0.03;
+
 async function releaseEscrow(bookingId: string): Promise<void> {
   try {
     const paymentsSnap = await db.collection('payments')
       .where('bookingId', '==', bookingId)
       .where('status', '==', 'paid')
-      .limit(1)
+      .limit(10)
       .get();
     if (paymentsSnap.empty) return;
-    const payment = paymentsSnap.docs[0].data();
+    // เลือก payment ล่าสุด (กันกรณีมีหลายรายการต่อ booking เดียว)
+    const paymentDoc = paymentsSnap.docs
+      .map((d) => ({ ref: d.ref, data: d.data() as any }))
+      .sort((a, b) => (b.data.createdAt?.toMillis?.() || 0) - (a.data.createdAt?.toMillis?.() || 0))[0];
+    const payment = paymentDoc.data;
+    // กันปล่อยซ้ำ — marker เดียวกับฝั่งแอป
+    if (payment.taxWithheldAt !== undefined || payment.payoutAmount !== undefined) return;
     const teacherId = payment.teacherId;
     const netAmount = Number(payment.netAmount) || 0;
     if (!teacherId || netAmount <= 0) return;
+
+    const taxWithheld = Math.round(netAmount * TAX_WITHHOLDING_RATE * 100) / 100;
+    const payoutAmount = netAmount - taxWithheld;
+
+    await paymentDoc.ref.update({
+      taxWithheld,
+      payoutAmount,
+      taxWithheldAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
     const walletRef = db.collection('wallets').doc(teacherId);
     const walletSnap = await walletRef.get();
     if (walletSnap.exists) {
       await walletRef.update({
         pendingBalance: FieldValue.increment(-netAmount),
-        availableBalance: FieldValue.increment(netAmount),
-        totalEarned: FieldValue.increment(netAmount),
+        availableBalance: FieldValue.increment(payoutAmount),
+        totalEarned: FieldValue.increment(payoutAmount),
         updatedAt: FieldValue.serverTimestamp(),
       });
       await enqueuePaymentReleased(db, bookingId, payment);
@@ -369,80 +391,19 @@ export const retryLineNotifications = lineRuntime().region('asia-southeast1').pu
 // HTTP FUNCTIONS (API endpoints)
 // =============================================
 
-// Payment webhook — รับ callback จาก Omise/2C2P
+// Payment webhook — DEPRECATED (legacy Omise/2C2P endpoint).
+// Stripe is now handled by the Next.js route /api/payments/stripe-webhook with
+// signature verification + event dedup. This endpoint is kept as a 410 stub so
+// old gateway configs fail loudly instead of writing payment status without
+// escrow guards. Remove entirely once no external config references it.
 export const paymentWebhook = lineRuntime().https.onRequest(async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).send('Method not allowed');
     return;
   }
 
-  try {
-    const { event, data } = req.body;
-
-    switch (event) {
-      case 'charge.complete':
-      case 'payment.success': {
-        const bookingId = data.metadata?.booking_id;
-        const transactionId = data.id || data.transaction_id;
-
-        // Find payment by bookingId
-        const paymentsSnap = await db.collection('payments')
-          .where('bookingId', '==', bookingId)
-          .where('status', '==', 'pending')
-          .limit(1)
-          .get();
-
-        if (!paymentsSnap.empty) {
-          await paymentsSnap.docs[0].ref.update({
-            status: 'paid',
-            transactionId,
-            paidAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-        }
-        break;
-      }
-
-      case 'charge.failed':
-      case 'payment.failed': {
-        const bookingId = data.metadata?.booking_id;
-        const paymentsSnap = await db.collection('payments')
-          .where('bookingId', '==', bookingId)
-          .where('status', '==', 'pending')
-          .limit(1)
-          .get();
-
-        if (!paymentsSnap.empty) {
-          await paymentsSnap.docs[0].ref.update({
-            status: 'failed',
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-        }
-        break;
-      }
-
-      case 'refund.complete': {
-        const bookingId = data.metadata?.booking_id;
-        const paymentsSnap = await db.collection('payments')
-          .where('bookingId', '==', bookingId)
-          .limit(1)
-          .get();
-
-        if (!paymentsSnap.empty) {
-          await paymentsSnap.docs[0].ref.update({
-            status: 'refunded',
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-        }
-        break;
-      }
-    }
-
-    res.json({ received: true });
-  } catch (error) {
-    console.error('Payment webhook error:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
-  }
+  console.warn('paymentWebhook called: deprecated endpoint, use /api/payments/stripe-webhook');
+  res.status(410).json({ error: 'deprecated_endpoint', use: '/api/payments/stripe-webhook' });
 });
 
 // LINE Webhook — ตรวจ signature ก่อน parse และไม่ query ข้อมูลส่วนตัวโดยไม่มี link
@@ -514,12 +475,19 @@ export const lineWebhook = lineRuntime().region('asia-southeast1').https.onReque
 // SCHEDULED FUNCTIONS
 // =============================================
 
-// ทุกเช้า 9:00 น. — ส่ง reminder สำหรับเซสชันวันนี้
+// ทุกเช้า 9:00 น. เวลาไทย — ส่ง reminder สำหรับเซสชันวันนี้
+// ต้องคำนวณ "วันนี้" ใน Asia/Bangkok ไม่ใช่ UTC (toISOString ให้วันแบบ UTC
+// ซึ่งช่วงหลังเที่ยงคืน–7 โมงเช้าไทยจะได้วันผิด)
 export const dailyBookingReminder = lineRuntime().pubsub
   .schedule('0 9 * * *')
   .timeZone('Asia/Bangkok')
   .onRun(async (context) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
 
     const bookingsSnap = await db.collection('bookings')
       .where('bookingDate', '==', today)

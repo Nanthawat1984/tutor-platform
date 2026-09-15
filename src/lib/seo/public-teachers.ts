@@ -234,9 +234,30 @@ export async function listPublicTutors(): Promise<PublicTutor[]> {
 }
 
 export async function listPublicTutorIds(): Promise<{ id: string; updatedAt: Date | null }[]> {
+  // Lightweight sitemap path — ห้ามเรียก listPublicTutors (ดึง courses+centers
+  // ครบทุกครู) เพราะ sitemap ถูก crawl บ่อยและจะเผา read หลักพันต่อครั้ง
   try {
-    const tutors = await listPublicTutors();
-    return tutors.map((tutor) => ({ id: tutor.id, updatedAt: tutor.updatedAt }));
+    const db = getServerDb();
+    if (!db) return [];
+    const teacherSnapshot = await db
+      .collection(COLLECTIONS.TEACHERS)
+      .where('isActive', '==', true)
+      .limit(200)
+      .get();
+    if (teacherSnapshot.empty) return [];
+    const teacherIds = teacherSnapshot.docs.map((snapshot) => snapshot.id);
+    const userSnapshots = await db.getAll(...teacherIds.map((id) => db.collection(COLLECTIONS.USERS).doc(id)));
+    const approved = new Set(
+      userSnapshots
+        .filter((snapshot) => {
+          const user = asRecord(snapshot.data());
+          return snapshot.exists && user.role === 'teacher' && isTeacherAdminApproved(user);
+        })
+        .map((snapshot) => snapshot.id),
+    );
+    return teacherSnapshot.docs
+      .filter((snapshot) => approved.has(snapshot.id))
+      .map((snapshot) => ({ id: snapshot.id, updatedAt: toDate(asRecord(snapshot.data()).updatedAt) }));
   } catch {
     return [];
   }

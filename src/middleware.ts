@@ -21,6 +21,7 @@ const PROTECTED_ROUTES = [
   '/my-bookings',
   '/my-profile',
   '/my-students',
+  '/notifications',
   '/teachers/',
   '/admin/',
 ];

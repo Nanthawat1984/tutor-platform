@@ -13,13 +13,27 @@ import {
   Users,
 } from 'lucide-react';
 import MobileMenu from '@/components/landing/mobile-menu';
+import { getServerDb } from '@/lib/firebase/server';
+import { COLLECTIONS } from '@/types/firestore';
 
-const STATS = [
-  { value: '2,400+', label: 'ครูพิเศษ', emoji: '🧑‍🏫' },
-  { value: '18,000+', label: 'นักเรียน', emoji: '🎒' },
-  { value: '95%', label: 'ความพึงพอใจ', emoji: '💖' },
-  { value: '120+', label: 'วิชาเรียน', emoji: '📚' },
-];
+async function getPublicStats() {
+  try {
+    const db = getServerDb();
+    if (!db) return null;
+    const [teachersSnap, subjectsSnap, reviewsSnap] = await Promise.all([
+      db.collection(COLLECTIONS.TEACHERS).where('isActive', '==', true).count().get(),
+      db.collection(COLLECTIONS.SUBJECTS).where('isActive', '==', true).count().get(),
+      db.collection(COLLECTIONS.REVIEWS).where('isVisible', '==', true).count().get(),
+    ]);
+    const teachers = teachersSnap.data().count;
+    const subjects = subjectsSnap.data().count;
+    // นับเฉพาะข้อมูลจริง — ถ้ายังไม่มีข้อมูลเลยคืน null ให้ UI ซ่อนแถบสถิติ
+    if (teachers === 0 && subjects === 0) return null;
+    return { teachers, subjects, reviews: reviewsSnap.data().count };
+  } catch {
+    return null;
+  }
+}
 
 const FEATURES = [
   {
@@ -102,7 +116,17 @@ function StarSparkle({ className = '' }: { className?: string }) {
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const stats = await getPublicStats();
+  // ตัวเลขจริงจาก Firestore เท่านั้น — ถ้ายังไม่มีข้อมูลให้ซ่อนแถบสถิติ
+  // แทนการโชว์ตัวเลข hardcode ที่พิสูจน์ไม่ได้
+  const statItems = stats
+    ? [
+        { value: `${stats.teachers.toLocaleString('th-TH')}+`, label: 'ครูพิเศษ', emoji: '🧑‍🏫' },
+        { value: `${stats.subjects.toLocaleString('th-TH')}+`, label: 'วิชาเรียน', emoji: '📚' },
+        { value: `${stats.reviews.toLocaleString('th-TH')}+`, label: 'รีวิวจากผู้ปกครอง', emoji: '💖' },
+      ]
+    : [];
   return (
     <div className="app-shell">
       {/* ── NAVBAR ── */}
@@ -226,11 +250,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── STATS BAR ── */}
+      {/* ── STATS BAR (เฉพาะเมื่อมีข้อมูลจริง) ── */}
+      {statItems.length > 0 && (
       <section className="border-y-2 border-pink-100 bg-white/70 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-            {STATS.map((stat, i) => (
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-3">
+            {statItems.map((stat, i) => (
               <div key={stat.label} className={`text-center animate-pop-in delay-${(i + 1) * 100}`}>
                 <div className="text-3xl">{stat.emoji}</div>
                 <p className="mt-1 text-2xl font-extrabold edu-gradient-text sm:text-3xl">{stat.value}</p>
@@ -240,6 +265,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── FEATURES ── */}
       <section id="features" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">

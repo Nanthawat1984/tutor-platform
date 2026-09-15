@@ -4,6 +4,7 @@ import { getServerDb } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
 import { markPaymentExpired, markPaymentFailed, markPaymentPaid, refundPayment } from '@/lib/payments/process';
 import { constructStripeWebhookEvent } from '@/lib/payments/stripe';
+import { logEvent } from '@/lib/log';
 
 export async function POST(request: NextRequest) {
   const db = getServerDb();
@@ -14,6 +15,7 @@ export async function POST(request: NextRequest) {
   try {
     event = constructStripeWebhookEvent(rawBody, request.headers.get('stripe-signature'));
   } catch {
+    logEvent('warn', 'stripe_webhook_invalid_signature');
     return NextResponse.json({ error: 'invalid_signature' }, { status: 400 });
   }
 
@@ -28,9 +30,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, duplicate: true });
   }
 
+  let paymentId: string | null = null;
   try {
     const data = event.data.object as Record<string, any>;
-    const paymentId = await findPaymentId(db, data);
+    paymentId = await findPaymentId(db, data);
 
     switch (event.type) {
       case 'checkout.session.completed':
@@ -71,6 +74,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (error) {
     await eventRef.delete().catch(() => undefined);
+    logEvent('error', 'stripe_webhook_processing_failed', {
+      eventType: event.type,
+      paymentId: paymentId ?? null,
+    });
     console.error('Stripe webhook processing failed:', error instanceof Error ? error.message : 'unknown error');
     return NextResponse.json({ error: 'processing_failed' }, { status: 500 });
   }

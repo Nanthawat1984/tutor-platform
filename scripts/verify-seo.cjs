@@ -29,7 +29,10 @@ assert.match(layout, /twitter/);
 assert.match(robots, new RegExp('/api/'));
 assert.match(robots, new RegExp('/explore'));
 assert.match(sitemap, /tutors/);
-assert.match(publicData, /listPublicTutorIds[\s\S]*listPublicTutors\(\)/, 'sitemap IDs must come from the same public tutor projection as profile pages');
+assert.match(publicData, /listPublicTutorIds/, 'sitemap must use the lightweight tutor ID projection');
+// Lightweight sitemap path must enforce the same approval gate as profile pages,
+// without paying for the full course/center projection on every crawl.
+assert.match(publicData, /isTeacherAdminApproved\(user\)/, 'sitemap IDs must enforce the same teacher approval gate as profile pages');
 assert.doesNotMatch(publicData, /idCard|payout|taxId|taxAddress|phone|email|lineUserId/i);
 assert.match(publicData, /isActive/);
 assert.match(publicData, /catch/, 'SEO data reads must fail safely when Firestore is unavailable');

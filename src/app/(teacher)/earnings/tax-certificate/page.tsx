@@ -6,6 +6,7 @@ import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { requireSessionUser } from '@/lib/auth/session';
 import PrintButton from '@/components/teacher/print-button';
+import CsvExportButton from '@/components/admin/csv-export-button';
 
 // ข้อมูลผู้หักภาษี (บริษัทแพลตฟอร์ม) — ตั้งค่าจริงใน .env
 const COMPANY_NAME = process.env.COMPANY_NAME || 'บริษัท TutorFinder จำกัด';
@@ -93,6 +94,20 @@ export default async function TaxCertificatePage({
             </Link>
           ))}
           <PrintButton label="พิมพ์ 50 ทวิ / บันทึก PDF" />
+          {rows.length > 0 && (
+            <CsvExportButton
+              filename={`50tawi-${selectedYear}.csv`}
+              label="ดาวน์โหลด CSV"
+              headers={['ลำดับ', 'วันที่จ่าย', 'เงินได้ที่จ่าย (บาท)', 'ภาษีที่หัก 3% (บาท)', 'ยอดจ่ายสุทธิ (บาท)']}
+              rows={rows.map((r, i) => [
+                i + 1,
+                formatDate(r.paidDate, 'd/MM/yyyy'),
+                r.gross,
+                r.tax,
+                r.netPaid,
+              ])}
+            />
+          )}
         </div>
       </div>
 

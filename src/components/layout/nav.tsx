@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bell,
   BookOpen,
   CalendarCheck,
   CalendarDays,
@@ -30,6 +31,7 @@ export const TEACHER_NAV_ITEMS: NavItem[] = [
   { href: '/locations', label: 'สถานที่สอน', icon: <MapPin className="h-4 w-4" /> },
   { href: '/earnings', label: 'รายได้', icon: <Wallet className="h-4 w-4" /> },
   { href: '/students', label: 'นักเรียน', icon: <Users className="h-4 w-4" /> },
+  { href: '/notifications', label: 'การแจ้งเตือน', icon: <Bell className="h-4 w-4" /> },
 ];
 
 export const PARENT_NAV_ITEMS: NavItem[] = [
@@ -39,10 +41,12 @@ export const PARENT_NAV_ITEMS: NavItem[] = [
   { href: '/payments', label: 'การชำระเงิน', icon: <Wallet className="h-4 w-4" /> },
   { href: '/progress', label: 'ผลการเรียน', icon: <BarChart3 className="h-4 w-4" /> },
   { href: '/my-students', label: 'นักเรียนของฉัน', icon: <GraduationCap className="h-4 w-4" /> },
+  { href: '/notifications', label: 'การแจ้งเตือน', icon: <Bell className="h-4 w-4" /> },
 ];
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: '/admin/dashboard', label: 'แดชบอร์ด', icon: <LayoutDashboard className="h-4 w-4" /> },
+  { href: '/admin/analytics', label: 'ภาพรวมการเติบโต', icon: <BarChart3 className="h-4 w-4" /> },
   { href: '/admin/payments', label: 'ตรวจสอบการชำระเงิน', icon: <Wallet className="h-4 w-4" /> },
   { href: '/admin/reconciliation', label: 'กระทบยอดรายเด็ก', icon: <ClipboardList className="h-4 w-4" /> },
   { href: '/admin/teachers', label: 'จัดการครู', icon: <Users className="h-4 w-4" /> },

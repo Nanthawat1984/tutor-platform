@@ -103,7 +103,9 @@ export default async function BookingsPage() {
                             updatedAt: FieldValue.serverTimestamp(),
                           });
                           paymentsSnap.docs.forEach((paymentDoc) => {
-                            if (paymentDoc.data()?.status === 'pending') {
+                            // ยกเลิกทั้ง pending และ awaiting_review — ผู้ปกครองยกเลิก
+                            // การจองได้ก่อน Admin อนุมัติสลิป ไม่เช่นนั้นสลิปค้างตรวจได้
+                            if (paymentDoc.data()?.status === 'pending' || paymentDoc.data()?.status === 'awaiting_review') {
                               batch.update(paymentDoc.ref, {
                                 status: 'cancelled',
                                 note: 'booking_cancelled',

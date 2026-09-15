@@ -245,7 +245,7 @@ export async function cancelBooking(id: string) {
   await updateBookingStatus(id, 'cancelled');
   const paymentsSnap = await db().collection(COLLECTIONS.PAYMENTS)
     .where('bookingId', '==', id)
-    .where('status', '==', 'pending')
+    .where('status', 'in', ['pending', 'awaiting_review'])
     .get();
 
   const batch = db().batch();

@@ -14,7 +14,12 @@ import { requireSessionUser } from '@/lib/auth/session';
 import { requireRole } from '@/lib/auth/guards';
 import { releaseEscrowForBooking } from '@/lib/payments/process';
 
-const today = new Date().toISOString().split('T')[0];
+const today = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Bangkok',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+}).format(new Date());
 
 export default async function AttendancePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const db = getServerDb();
@@ -113,7 +118,9 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                       const bookingRef = dbRef.collection(COLLECTIONS.BOOKINGS).doc(booking.id);
                       const currentBooking = await bookingRef.get();
                       if (!currentBooking.exists || currentBooking.data()?.teacherId !== current.uid) return;
-                      await dbRef.collection(COLLECTIONS.ATTENDANCE).add({
+                      // Deterministic doc ID — double-submit/retry overwrites instead
+                      // of creating a duplicate attendance record.
+                      await dbRef.collection(COLLECTIONS.ATTENDANCE).doc(`${booking.id}_${selectedDate}`).set({
                         bookingId: booking.id,
                         courseId: booking.courseId,
                         teacherId,
@@ -123,7 +130,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                         checkInTime: status === 'present' ? FieldValue.serverTimestamp() : null,
                         createdAt: FieldValue.serverTimestamp(),
                         updatedAt: FieldValue.serverTimestamp(),
-                      });
+                      }, { merge: true });
 
                       // ถ้านักเรียนมาเรียน → จบเซสชัน + ปล่อย escrow (ย้าย pending → available)
                       if (status === 'present' && booking.status === 'confirmed') {

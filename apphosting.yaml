@@ -175,6 +175,17 @@ env:
     value: gpt-4o-mini
     availability:
       - RUNTIME
+
+  # AI study-help (P3) — fail-closed like the slip agent flag.
+  - variable: AI_STUDY_HELP_ENABLED
+    value: "false"
+    availability:
+      - RUNTIME
+
+  - variable: AI_STUDY_HELP_MODEL
+    value: gpt-4o-mini
+    availability:
+      - RUNTIME
   - variable: COMPANY_NAME
     secret: COMPANY_NAME
     availability:

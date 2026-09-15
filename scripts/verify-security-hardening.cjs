@@ -25,6 +25,17 @@ const redirects = read('src/lib/auth/redirects.ts');
 const loginForm = read('src/components/auth/login-form.tsx');
 const newBooking = read('src/app/(parent)/bookings/new/page.tsx');
 const seoSite = read('src/lib/seo/site.ts');
+const paymentProcess = read('src/lib/payments/process.ts');
+const functionsIndex = read('functions/src/index.ts');
+const attendancePage = read('src/app/(teacher)/attendance/page.tsx');
+const bookingQueries = read('src/lib/firestore/queries.ts');
+const rateLimit = read('src/lib/rate-limit.ts');
+const uploadSlipRoute = read('src/app/api/payments/upload-slip/route.ts');
+const adminPayoutSlip = read('src/app/api/admin/payout-slip/route.ts');
+const healthRoute = read('src/app/api/health/route.ts');
+const opsSnapshot = read('src/app/api/admin/ops-snapshot/route.ts');
+const appLog = read('src/lib/log.ts');
+const stripeWebhook = read('src/app/api/payments/stripe-webhook/route.ts');
 const publicTutor = read('src/app/tutors/[id]/page.tsx');
 const publicTutors = read('src/app/tutors/page.tsx');
 
@@ -112,5 +123,98 @@ assert.match(publicTutors, /serializeJsonLd\(itemList\)/,
 for (const [name, source] of Object.entries({ adminParents, adminStudents, adminTeachers })) {
   assert.match(source, /requireAdmin\(\)/, `${name} actions must re-check admin session`);
 }
+
+// ── P0 money-safety regression (escrow parity, idempotency, webhook, timezone) ──
+assert.match(paymentProcess, /TAX_WITHHOLDING_RATE/,
+  'app escrow release must withhold 3% tax');
+assert.match(paymentProcess, /taxWithheldAt|payoutAmount/,
+  'app escrow release must write idempotency markers so a retry is a no-op');
+assert.match(functionsIndex, /TAX_WITHHOLDING_RATE/,
+  'functions escrow release must withhold the same 3% tax as the app');
+assert.match(functionsIndex, /taxWithheldAt/,
+  'functions escrow release must write the same idempotency marker as the app');
+assert.match(functionsIndex, /deprecated_endpoint/,
+  'legacy paymentWebhook must be a deprecated stub, never writing payment status');
+assert.doesNotMatch(functionsIndex, /case 'charge\.complete'/,
+  'legacy Omise charge handler must be removed from functions');
+assert.match(functionsIndex, /dailyBookingReminder[\s\S]{0,600}Intl\.DateTimeFormat\('en-CA',\s*\{\s*timeZone:\s*'Asia\/Bangkok'/,
+  'daily reminder must compute today in Asia/Bangkok, not UTC');
+assert.match(attendancePage, /doc\(`\$\{booking\.id\}_\$\{selectedDate\}`\)/,
+  'teacher attendance must use a deterministic doc ID so double-submit cannot duplicate');
+assert.match(attendancePage, /Asia\/Bangkok/,
+  'attendance default date must use Asia/Bangkok, not UTC');
+assert.match(parentBookings, /awaiting_review/,
+  'booking cancellation must also cancel awaiting_review slip payments');
+
+// ── P1 reliability regression (rate-limit, health, ops, logging) ──
+assert.match(rateLimit, /checkRateLimit/,
+  'upload endpoints must share a rate limiter');
+assert.match(uploadSlipRoute, /checkRateLimit\(`slip:/,
+  'parent slip upload must be rate-limited per user');
+assert.match(uploadSlipRoute, /status:\s*429/,
+  'rate-limited slip upload must return 429 with Retry-After');
+assert.match(adminPayoutSlip, /checkRateLimit\(`payout-slip:/,
+  'admin payout-slip upload must be rate-limited per admin');
+assert.match(healthRoute, /\/api\/health|integrations/,
+  'health probe must report integration flags without secrets');
+assert.doesNotMatch(healthRoute, /process\.env\.STRIPE_SECRET_KEY[^?]/,
+  'health probe must only read secrets as booleans, never return their values');
+assert.match(opsSnapshot, /role !== 'admin'/,
+  'ops snapshot must require an admin session');
+assert.doesNotMatch(opsSnapshot, /\.\.\.d\.data\(\)/,
+  'ops snapshot must return counts only, never document bodies');
+assert.match(appLog, /severity/,
+  'server logging must emit structured severity lines');
+assert.match(appLog, /pass IDs and counts only/,
+  'shared logger must document that only IDs and counts are logged');
+assert.match(stripeWebhook, /logEvent\('error', 'stripe_webhook_processing_failed'/,
+  'stripe webhook failures must emit a structured error event');
+
+// ── P2 product-safety regression (explore cost, real stats, notifications, exports) ──
+const explorePage = read('src/app/(parent)/explore/page.tsx');
+const landingPage = read('src/app/page.tsx');
+const notifApi = read('src/app/api/notifications/route.ts');
+const taxCert = read('src/app/(teacher)/earnings/tax-certificate/page.tsx');
+const adminPayouts = read('src/app/admin/payouts/page.tsx');
+assert.doesNotMatch(explorePage, /\.limit\(500\)/,
+  'explore must not scan hundreds of centers on every page load');
+assert.doesNotMatch(landingPage, /2,400\+|18,000\+|120\+/,
+  'landing must not show hardcoded marketing stats');
+assert.match(landingPage, /getPublicStats/,
+  'landing stats must come from real Firestore counts');
+assert.match(notifApi, /where\('userId', '==', session\.uid\)/,
+  'notification API must scope reads to the session owner');
+assert.match(notifApi, /snap\.data\(\)\?\.userId !== session\.uid/,
+  'notification read must verify ownership before marking');
+assert.match(taxCert, /CsvExportButton/,
+  '50 ทวิ must offer a CSV export for filing');
+assert.match(adminPayouts, /CsvExportButton/,
+  'admin payouts must offer a CSV export');
+
+// ── P3 growth regression (PWA, scoped AI, analytics) ──
+const appLayout = read('src/app/layout.tsx');
+const aiRoute = read('src/app/api/ai/study-help/route.ts');
+const aiLib = read('src/lib/ai/study-help.ts');
+const analyticsPage = read('src/app/admin/analytics/page.tsx');
+assert.match(appLayout, /manifest:\s*'\/manifest\.webmanifest'/,
+  'app must link the PWA manifest');
+assert.equal(fs.existsSync(path.join(root, 'public/icon-192.png')), true,
+  'PWA manifest icons must exist as real files');
+assert.equal(fs.existsSync(path.join(root, 'public/icon-512.png')), true,
+  'PWA manifest icons must exist as real files');
+assert.equal(fs.existsSync(path.join(root, 'public/apple-touch-icon.png')), true,
+  'iOS touch icon must exist as a real file');
+assert.match(aiRoute, /report\.teacherId !== session\.uid/,
+  'AI study-help must verify teacher ownership of the report');
+assert.match(aiRoute, /if \(report\.aiExplanation\)/,
+  'AI study-help must be idempotent and return the stored version');
+assert.match(aiRoute, /checkRateLimit\(`ai:/,
+  'AI study-help must be rate-limited per teacher');
+assert.match(aiLib, /ห้ามให้คำตอบการบ้านแบบลอกได้/,
+  'AI study-help must refuse copy-paste homework answers by prompt');
+assert.match(analyticsPage, /requireAdmin\(\)/,
+  'growth analytics must require an admin session');
+assert.doesNotMatch(analyticsPage, /\.limit\(1000\)/,
+  'growth analytics must cap Firestore reads');
 
 console.log('Security hardening regression checks passed');
