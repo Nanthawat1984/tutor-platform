@@ -48,7 +48,8 @@ export default async function ProgressPage() {
           description="รายงานจากครูจะแสดงที่นี่หลังแต่ละเซสชันเรียน"
         />
       ) : (
-        Object.entries(byStudent).map(([studentName, studentReports]: [string, any]) => (
+        <div className="print-document">
+        {Object.entries(byStudent).map(([studentName, studentReports]: [string, any]) => (
           <div key={studentName} className="mb-8 last:mb-0">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-900">
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-700">
@@ -93,7 +94,8 @@ export default async function ProgressPage() {
               ))}
             </div>
           </div>
-        ))
+        ))}
+        </div>
       )}
     </DashboardLayout>
   );

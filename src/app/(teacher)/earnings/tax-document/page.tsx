@@ -114,7 +114,7 @@ export default async function TaxDocumentPage({
 
       {/* ── เอกสาร ── */}
       <div className="mx-auto max-w-4xl px-4 pb-10 print:max-w-none print:p-0">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print:rounded-none print:border-0 print:p-0 print:shadow-none sm:p-10">
+        <div className="print-document rounded-xl border border-slate-200 bg-white p-6 shadow-sm print:rounded-none print:border-0 print:p-0 print:shadow-none sm:p-10">
           {/* Header */}
           <div className="flex flex-col gap-1 border-b-2 border-slate-800 pb-4 text-center">
             <h1 className="text-xl font-bold tracking-wide text-slate-900">TUTORFINDER</h1>

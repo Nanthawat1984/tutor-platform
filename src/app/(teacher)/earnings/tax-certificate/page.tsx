@@ -123,7 +123,7 @@ export default async function TaxCertificatePage({
 
       {/* ── เอกสาร 50 ทวิ ── */}
       <div className="mx-auto max-w-4xl px-4 pb-10 print:max-w-none print:p-0">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print:rounded-none print:border-0 print:p-0 print:shadow-none sm:p-10">
+        <div className="print-document rounded-xl border border-slate-200 bg-white p-6 shadow-sm print:rounded-none print:border-0 print:p-0 print:shadow-none sm:p-10">
           <div className="border-b-2 border-slate-800 pb-3">
             <p className="text-right text-xs text-slate-500">แบบ 50 ทวิ</p>
             <h1 className="mt-1 text-center text-lg font-bold text-slate-900">

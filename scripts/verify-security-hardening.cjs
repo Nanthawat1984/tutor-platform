@@ -208,6 +208,20 @@ assert.match(meExport, /where\('parentId', '==', session\.uid\)/,
 assert.match(read('firestore.rules'), /match \/messages\/\{messageId\}[\s\S]*?allow read, write: if false;/,
   'chat messages must be server-only in Firestore rules');
 
+// ── Print regression (50 ทวิ / tax-document / progress must print) ──
+const globalStyles = read('src/app/globals.css');
+const taxCertPage = read('src/app/(teacher)/earnings/tax-certificate/page.tsx');
+const taxDocPage = read('src/app/(teacher)/earnings/tax-document/page.tsx');
+const progressPage = read('src/app/(parent)/progress/page.tsx');
+assert.match(globalStyles, /\.print-document/,
+  'print stylesheet must cover generic print documents, not only receipts');
+assert.match(taxCertPage, /print-document/,
+  '50 ทวิ must carry the print-document class or printing is blank');
+assert.match(taxDocPage, /print-document/,
+  'tax document must carry the print-document class or printing is blank');
+assert.match(progressPage, /print-document/,
+  'progress report must carry the print-document class or printing is blank');
+
 // ── P3 growth regression (PWA, scoped AI, analytics) ──
 const appLayout = read('src/app/layout.tsx');
 const aiRoute = read('src/app/api/ai/study-help/route.ts');
