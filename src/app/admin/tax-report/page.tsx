@@ -159,12 +159,12 @@ export default async function AdminTaxReportPage({
               <thead>
                 <tr className="bg-slate-100 text-left text-slate-700">
                   <th className="border-b border-slate-200 px-3 py-2.5">#</th>
-                  <th className="border-b border-slate-200 px-3 py-2.5">วันที่จ่าย</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5">วัน/เดือน/ปี ที่หัก (จ่าย)</th>
                   <th className="border-b border-slate-200 px-3 py-2.5">ครูผู้ถูกหัก</th>
                   <th className="border-b border-slate-200 px-3 py-2.5">เลขผู้เสียภาษี</th>
                   <th className="border-b border-slate-200 px-3 py-2.5">คอร์ส</th>
-                  <th className="border-b border-slate-200 px-3 py-2.5 text-right">เงินได้</th>
-                  <th className="border-b border-slate-200 px-3 py-2.5 text-right">ภาษีหัก</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-right">จำนวนเงินที่จ่าย</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-right">ภาษีที่หักและนำส่งไว้</th>
                 </tr>
               </thead>
               <tbody>

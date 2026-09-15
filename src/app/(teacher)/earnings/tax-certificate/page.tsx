@@ -14,6 +14,7 @@ import { getCompanyProfile } from '@/lib/company';
 interface CertRow {
   id: string;
   paidDate: Date;
+  withheldDate: Date; // วันที่หักภาษี (taxWithheldAt) — คนละวันกับวันจ่ายได้
   gross: number;      // เงินได้สุทธิที่จ่ายให้ครู (netAmount)
   tax: number;        // ภาษีที่หัก 3%
   netPaid: number;    // ยอดจ่ายจริง
@@ -50,24 +51,28 @@ export default async function TaxCertificatePage({
   const allRows: CertRow[] = paymentsSnap.docs.map((doc: any) => {
     const d = doc.data();
     const paidDate: Date = d.paidAt?.toDate?.() ?? new Date(d.paidAt ?? Date.now());
+    // วันที่หักภาษีคือวัน release escrow (taxWithheldAt) ไม่ใช่วันจ่าย —
+    // ตามกฎหมายต้องยึดวันหัก ไม่ใช่วันโอน
+    const withheldDate: Date = d.taxWithheldAt?.toDate?.() ?? paidDate;
     return {
       id: doc.id,
       paidDate,
+      withheldDate,
       gross: Number(d.netAmount) || 0,
       tax: Number(d.taxWithheld) || 0,
       netPaid: Number(d.payoutAmount ?? d.netAmount) || 0,
     };
   });
 
-  const years = Array.from(new Set(allRows.map((r) => r.paidDate.getFullYear()))).sort((a, b) => b - a);
+  const years = Array.from(new Set(allRows.map((r) => r.withheldDate.getFullYear()))).sort((a, b) => b - a);
   const currentYear = new Date().getFullYear();
   if (!years.includes(currentYear)) years.push(currentYear);
   years.sort((a, b) => b - a);
 
   const selectedYear = Number(params.year) || years[0] || currentYear;
   const rows = allRows
-    .filter((r) => r.paidDate.getFullYear() === selectedYear && r.tax > 0)
-    .sort((a, b) => a.paidDate.getTime() - b.paidDate.getTime());
+    .filter((r) => r.withheldDate.getFullYear() === selectedYear && r.tax > 0)
+    .sort((a, b) => a.withheldDate.getTime() - b.withheldDate.getTime());
 
   const totalGross = rows.reduce((s, r) => s + r.gross, 0);
   const totalTax = rows.reduce((s, r) => s + r.tax, 0);
@@ -125,31 +130,41 @@ export default async function TaxCertificatePage({
       <div className="mx-auto max-w-4xl px-4 pb-10 print:max-w-none print:p-0">
         <div className="print-document rounded-xl border border-slate-200 bg-white p-6 shadow-sm print:rounded-none print:border-0 print:p-0 print:shadow-none sm:p-10">
           <div className="border-b-2 border-slate-800 pb-3">
-            <p className="text-right text-xs text-slate-500">แบบ 50 ทวิ</p>
+            <div className="flex items-start justify-between gap-4">
+              <p className="text-xs text-slate-500">เลขที่/No. TF50-{selectedYear + 543}-{teacherId.slice(0, 6).toUpperCase()}</p>
+              <p className="text-right text-xs text-slate-500">แบบ 50 ทวิ</p>
+            </div>
             <h1 className="mt-1 text-center text-lg font-bold text-slate-900">
               หนังสือรับรองการหักภาษี ณ ที่จ่าย
             </h1>
             <p className="text-center text-xs text-slate-500">
-              (เอกสารสำหรับผู้ถูกหักภาษี ณ ที่จ่าย ใช้ประกอบการยื่นแบบภาษีเงินได้บุคคลธรรมดา)
+              ตามมาตรา 50 ทวิ แห่งประมวลรัษฎากร — ใช้ประกอบการยื่นแบบภาษีเงินได้บุคคลธรรมดา
             </p>
           </div>
 
           {/* ผู้หักภาษี */}
           <div className="mt-5 grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
-            <p><span className="text-slate-500">ผู้หักภาษี:</span> <span className="font-semibold">{company.name}</span></p>
-            <p><span className="text-slate-500">เลขประจำตัวผู้เสียภาษี:</span> <span className="font-mono">{company.taxId || '___________'}</span></p>
+            <p><span className="text-slate-500">ผู้มีหน้าที่หักภาษี ณ ที่จ่าย:</span> <span className="font-semibold">{company.name}</span></p>
+            <p><span className="text-slate-500">เลขประจำตัวผู้เสียภาษีอากร:</span> <span className="font-mono">{company.taxId || '___________'}</span></p>
             <p className="sm:col-span-2"><span className="text-slate-500">ที่อยู่:</span> {company.address || '___________'}</p>
           </div>
 
           {/* ผู้ถูกหักภาษี */}
           <div className="mt-4 grid gap-x-8 gap-y-1 border-t border-dashed border-slate-300 pt-4 text-sm sm:grid-cols-2">
-            <p><span className="text-slate-500">ผู้ถูกหักภาษี:</span> <span className="font-semibold">{teacherName}</span></p>
+            <p><span className="text-slate-500">ผู้ถูกหักภาษี ณ ที่จ่าย:</span> <span className="font-semibold">{teacherName}</span></p>
             <p>
-              <span className="text-slate-500">เลขประจำตัวผู้เสียภาษี:</span>{' '}
+              <span className="text-slate-500">เลขประจำตัวผู้เสียภาษีอากร:</span>{' '}
               <span className={`font-mono ${teacherTaxId ? '' : 'text-red-500'}`}>{teacherTaxId || '⚠ ยังไม่ได้กรอก'}</span>
             </p>
             <p className="sm:col-span-2"><span className="text-slate-500">ที่อยู่:</span> {teacherAddress || '—'}</p>
           </div>
+
+          {/* ประเภทเงินได้ — ค่าจ้างครูเข้าข่าย 40(2) หัก 3% */}
+          <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed text-slate-600 print:bg-slate-50">
+            ประเภทเงินได้พึงประเมิน: <strong>มาตรา 40(2)</strong> เงินได้เนื่องจากหน้าที่หรือตำแหน่งงานที่ทำ
+            หรือจากการรับทำงานให้ — หักภาษี ณ ที่จ่ายในอัตราร้อยละ <strong>3</strong> ตามข้อ 6 ของคำสั่งกรมสรรพากร
+            ที่ ท.ป. 4/2528 (ค่าสอน/ค่าจ้างทำของที่จ่ายให้บุคคลธรรมดา)
+          </p>
 
           {/* ตาราง */}
           {rows.length === 0 ? (
@@ -161,17 +176,17 @@ export default async function TaxCertificatePage({
               <thead>
                 <tr className="bg-slate-100 text-left text-slate-700 print:bg-slate-100">
                   <th className="border border-slate-300 px-2 py-2 text-center">#</th>
-                  <th className="border border-slate-300 px-2 py-2">วันที่จ่าย</th>
-                  <th className="border border-slate-300 px-2 py-2 text-right">เงินได้ที่จ่าย</th>
-                  <th className="border border-slate-300 px-2 py-2 text-right">ภาษีที่หัก (3%)</th>
-                  <th className="border border-slate-300 px-2 py-2 text-right">ยอดจ่ายสุทธิ</th>
+                  <th className="border border-slate-300 px-2 py-2">วัน/เดือน/ปี ที่จ่าย (หักภาษี)</th>
+                  <th className="border border-slate-300 px-2 py-2 text-right">จำนวนเงินที่จ่าย</th>
+                  <th className="border border-slate-300 px-2 py-2 text-right">ภาษีที่หักและนำส่งไว้</th>
+                  <th className="border border-slate-300 px-2 py-2 text-right">จำนวนเงินที่จ่ายสุทธิ</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={r.id} className="odd:bg-white even:bg-slate-50/60">
                     <td className="border border-slate-300 px-2 py-1.5 text-center">{i + 1}</td>
-                    <td className="border border-slate-300 px-2 py-1.5 whitespace-nowrap">{formatDate(r.paidDate, 'd/MM/yyyy')}</td>
+                    <td className="border border-slate-300 px-2 py-1.5 whitespace-nowrap">{formatDate(r.withheldDate, 'd/MM/yyyy')}</td>
                     <td className="border border-slate-300 px-2 py-1.5 text-right whitespace-nowrap">{formatCurrency(r.gross)}</td>
                     <td className="border border-slate-300 px-2 py-1.5 text-right font-semibold whitespace-nowrap">{formatCurrency(r.tax)}</td>
                     <td className="border border-slate-300 px-2 py-1.5 text-right whitespace-nowrap">{formatCurrency(r.netPaid)}</td>
@@ -189,18 +204,33 @@ export default async function TaxCertificatePage({
             </table>
           )}
 
-          {/* ลายเซ็น */}
+          {/* เงื่อนไขตามแบบราชการ */}
+          <div className="mt-6 rounded-lg border border-slate-200 p-3 text-[11px] leading-relaxed text-slate-500">
+            <p className="font-bold text-slate-700">คำเตือน</p>
+            <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+              <li>ผู้มีเงินได้ต้องยื่นรายการเงินได้และภาษีที่ถูกหักไว้นี้รวมกับเงินได้อื่น (ถ้ามี) เพื่อเสียภาษีเงินได้บุคคลธรรมดาประจำปี</li>
+              <li>หนังสือรับรองฯ ฉบับนี้จัดทำขึ้น 2 ฉบับ มีข้อความตรงกัน ฉบับที่ 1 สำหรับผู้ถูกหักภาษี ฉบับที่ 2 สำหรับผู้หักภาษีเก็บไว้เป็นหลักฐาน</li>
+              <li>กรณีเงินได้ที่จ่ายยังไม่ถึงเกณฑ์ต้องหักภาษี จะไม่ปรากฏในเอกสารฉบับนี้ (ดูหนังสือรับรองรายได้ประกอบ)</li>
+            </ol>
+          </div>
+
+          {/* ลายเซ็น — วันที่ลงนามต้องเป็นวันหักครั้งสุดท้าย ไม่ใช่วันพิมพ์ */}
           <div className="mt-10 flex justify-end">
             <div className="text-center text-sm">
-              <p className="mb-12 text-slate-600">ขอแสดงความนับถือ</p>
+              <p className="mb-1 text-xs text-slate-500">
+                ลงชื่อ .......................................................... ผู้จ่ายเงิน
+              </p>
+              <p className="mb-8 text-xs text-slate-500">
+                วันที่ {rows.length > 0 ? formatDate(rows[rows.length - 1].withheldDate, 'd MMMM yyyy') : formatDate(new Date(), 'd MMMM yyyy')}
+              </p>
               <p className="border-t border-slate-400 pt-1 font-semibold">{company.name}</p>
               <p className="text-xs text-slate-500">({company.branch})</p>
             </div>
           </div>
 
           <p className="mt-6 text-[11px] text-slate-400">
-            เอกสารฉบับนี้สร้างโดยระบบ TutorFinder อัตโนมัติ เมื่อ {formatDate(new Date(), 'd MMMM yyyy')} •
-            ปีภาษี {selectedYear + 543} • อ้างอิงรายการชำระ {rows.length} รายการ
+            เลขที่เอกสาร TF50-{selectedYear + 543}-{teacherId.slice(0, 6).toUpperCase()} •
+            อ้างอิงรายการหักภาษี {rows.length} รายการ • สร้างโดยระบบ TutorFinder อัตโนมัติ
           </p>
         </div>
       </div>

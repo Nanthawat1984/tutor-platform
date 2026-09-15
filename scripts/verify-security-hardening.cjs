@@ -270,4 +270,24 @@ assert.match(chatBox, /โหลดข้อความไม่สำเร็
 assert.match(bell, /โหลดการแจ้งเตือนไม่สำเร็จ/,
   'notification bell must show an error instead of silent empty state');
 
+// ── 50 ทวิ legal compliance regression (มาตรา 50 ทวิ) ──
+const taxCertLegal = read('src/app/(teacher)/earnings/tax-certificate/page.tsx');
+const taxDocLegal = read('src/app/(teacher)/earnings/tax-document/page.tsx');
+assert.match(taxCertLegal, /taxWithheldAt/,
+  '50 ทวิ must use the withholding date (taxWithheldAt), not the payment date');
+assert.match(taxCertLegal, /40\(2\)/,
+  '50 ทวิ must state the income category 40(2)');
+assert.match(taxCertLegal, /ท\.ป\. 4\/2528/,
+  '50 ทวิ must cite the 3% withholding authority');
+assert.match(taxCertLegal, /TF50-/,
+  '50 ทวิ must carry a document number');
+assert.match(taxCertLegal, /มาตรา 50 ทวิ/,
+  '50 ทวิ must cite Section 50-bis of the Revenue Code');
+assert.match(taxCertLegal, /2 ฉบับ/,
+  '50 ทวิ must state the two-copy rule');
+assert.match(taxDocLegal, /มิใช่ใบกำกับภาษี/,
+  'income certificate must disclaim VAT-invoice status');
+assert.match(taxDocLegal, /กระทบยอดกับ 50 ทวิ/,
+  'income certificate must reconcile against 50 ทวิ');
+
 console.log('Security hardening regression checks passed');
