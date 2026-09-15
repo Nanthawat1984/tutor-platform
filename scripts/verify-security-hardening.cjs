@@ -290,4 +290,26 @@ assert.match(taxDocLegal, /มิใช่ใบกำกับภาษี/,
 assert.match(taxDocLegal, /กระทบยอดกับ 50 ทวิ/,
   'income certificate must reconcile against 50 ทวิ');
 
+// ── Full Revenue-Code compliance (ที่อยู่แยก, ฉบับร่าง, แผ่นที่, threshold) ──
+assert.match(taxCertLegal, /ภ\.ง\.ด\.53/,
+  '50 ทวิ must state the filing form Phor.Ngor.Dor.53');
+assert.match(taxCertLegal, /หักจากผู้รับเงิน/,
+  '50 ทวิ must state who bears the withheld tax');
+assert.match(taxCertLegal, /ฉบับร่าง/,
+  '50 ทวิ must stamp DRAFT when tax IDs are incomplete');
+assert.match(taxCertLegal, /แผ่นที่/,
+  '50 ทวิ must number pages when rows span multiple sheets');
+assert.match(taxCertLegal, /คราวละ 1,000 บาท/,
+  '50 ทวิ must state the 1,000-baht withholding threshold');
+const escrowLib = read('src/lib/payments/process.ts');
+assert.match(escrowLib, /TAX_WITHHOLDING_THRESHOLD/,
+  'escrow release must enforce the 1,000-baht threshold');
+assert.match(escrowLib, /taxExemptReason/,
+  'below-threshold releases must record the exemption reason');
+assert.match(read('functions/src/index.ts'), /TAX_WITHHOLDING_THRESHOLD/,
+  'functions escrow must enforce the same threshold');
+const profileEdit = read('src/app/(teacher)/profile/edit/page.tsx');
+assert.match(profileEdit, /tax_postcode/,
+  'teacher profile must collect split tax address fields');
+
 console.log('Security hardening regression checks passed');

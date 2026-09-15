@@ -56,17 +56,35 @@ export default async function EditProfilePage() {
     const displayName = (formData.get('display_name') as string || '').trim();
     const photoUrl = (formData.get('photo_url') as string || '').trim();
     const taxId = (formData.get('tax_id') as string || '').replace(/\D/g, '');
-    const taxAddress = (formData.get('tax_address') as string || '').trim();
+    // ที่อยู่แยกส่วนตามแบบราชการ (เลขที่/หมู่/ถนน + ตำบล/อำเภอ/จังหวัด/รหัส)
+    // เก็บ taxAddress เดิมไว้เพื่อ backward-compat กับเอกสารที่ออกไปแล้ว
+    const taxAddrNo = (formData.get('tax_addr_no') as string || '').trim().slice(0, 100);
+    const taxSubdistrict = (formData.get('tax_subdistrict') as string || '').trim().slice(0, 60);
+    const taxDistrict = (formData.get('tax_district') as string || '').trim().slice(0, 60);
+    const taxProvince = (formData.get('tax_province') as string || '').trim().slice(0, 60);
+    const taxPostcode = (formData.get('tax_postcode') as string || '').replace(/\D/g, '').slice(0, 5);
+    const taxAddressLegacy = (formData.get('tax_address') as string || '').trim();
 
     if (taxId && taxId.length !== 13) {
       redirect('/profile/edit?error=taxid');
     }
+    if (taxPostcode && taxPostcode.length !== 5) {
+      redirect('/profile/edit?error=taxpostcode');
+    }
+
+    const taxAddressParts = [taxAddrNo, taxSubdistrict ? `แขวง/ตำบล${taxSubdistrict}` : '', taxDistrict ? `เขต/อำเภอ${taxDistrict}` : '', taxProvince, taxPostcode].filter(Boolean);
+    const taxAddress = taxAddressParts.length > 0 ? taxAddressParts.join(' ') : taxAddressLegacy;
 
     const userUpdates: Record<string, unknown> = {
       // photo_url สะท้อนสถานะปัจจุบันเสมอ (อัปโหลดใหม่ = URL, ลบรูป = ว่าง → ลบ photoURL)
       photoURL: photoUrl || null,
       taxId: taxId || null,          // เลขประจำตัวผู้เสียภาษี (13 หลัก) — ใช้ทำ 50 ทวิ
-      taxAddress: taxAddress || null, // ที่อยู่ตามบัตร — ใช้พิมพ์บน 50 ทวิ
+      taxAddress: taxAddress || null, // ที่อยู่รวม (ประกอบจากส่วนย่อย) — ใช้พิมพ์บน 50 ทวิ
+      taxAddrNo: taxAddrNo || null,
+      taxSubdistrict: taxSubdistrict || null,
+      taxDistrict: taxDistrict || null,
+      taxProvince: taxProvince || null,
+      taxPostcode: taxPostcode || null,
       updatedAt: FieldValue.serverTimestamp(),
     };
     if (displayName) userUpdates.displayName = displayName;
@@ -199,12 +217,46 @@ export default async function EditProfilePage() {
             maxLength={17}
           />
           <Textarea
-            label="ที่อยู่ตามบัตรประชาชน"
+            label="ที่อยู่ตามบัตรประชาชน (แบบเดิม — ถ้ากรอกแยกส่วนด้านล่างจะใช้ส่วนนั้นแทน)"
             name="tax_address"
-            defaultValue={user?.taxAddress || ''}
+            defaultValue={user?.taxAddress && !(user?.taxAddrNo || user?.taxProvince) ? user.taxAddress : ''}
             placeholder="บ้านเลขที่ หมู่ ซอย ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด รหัสไปรษณีย์"
-            rows={3}
+            rows={2}
           />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="บ้านเลขที่ หมู่ ซอย ถนน"
+              name="tax_addr_no"
+              defaultValue={user?.taxAddrNo || ''}
+              placeholder="เช่น 123/45 ซ.สุขุมวิท 20 ถ.สุขุมวิท"
+            />
+            <Input
+              label="รหัสไปรษณีย์ (5 หลัก)"
+              name="tax_postcode"
+              defaultValue={user?.taxPostcode || ''}
+              placeholder="เช่น 10110"
+              inputMode="numeric"
+              maxLength={5}
+            />
+            <Input
+              label="แขวง/ตำบล"
+              name="tax_subdistrict"
+              defaultValue={user?.taxSubdistrict || ''}
+              placeholder="เช่น คลองเตย"
+            />
+            <Input
+              label="เขต/อำเภอ"
+              name="tax_district"
+              defaultValue={user?.taxDistrict || ''}
+              placeholder="เช่น คลองเตย"
+            />
+            <Input
+              label="จังหวัด"
+              name="tax_province"
+              defaultValue={user?.taxProvince || ''}
+              placeholder="เช่น กรุงเทพมหานคร"
+            />
+          </div>
         </div>
 
         <div className="responsive-actions">

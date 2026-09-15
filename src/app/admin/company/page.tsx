@@ -22,13 +22,23 @@ export default async function AdminCompanyPage() {
     const { db: dbRef, session: admin } = await requireAdmin();
     const name = String(formData.get('name') || '').trim().slice(0, 120);
     const taxId = String(formData.get('taxId') || '').replace(/\D/g, '').slice(0, 13);
-    const address = String(formData.get('address') || '').trim().slice(0, 300);
+    const addrNo = String(formData.get('addrNo') || '').trim().slice(0, 100);
+    const subdistrict = String(formData.get('subdistrict') || '').trim().slice(0, 60);
+    const district = String(formData.get('district') || '').trim().slice(0, 60);
+    const province = String(formData.get('province') || '').trim().slice(0, 60);
+    const postcode = String(formData.get('postcode') || '').replace(/\D/g, '').slice(0, 5);
+    const addressLegacy = String(formData.get('address') || '').trim().slice(0, 300);
     const branch = String(formData.get('branch') || '').trim().slice(0, 60) || 'สำนักงานใหญ่';
     if (!name) return;
     if (taxId && taxId.length !== 13) return;
+    if (postcode && postcode.length !== 5) return;
+    const addressParts = [addrNo, subdistrict ? `แขวง/ตำบล${subdistrict}` : '', district ? `เขต/อำเภอ${district}` : '', province, postcode].filter(Boolean);
+    const address = addressParts.length > 0 ? addressParts.join(' ') : addressLegacy;
     const { FieldValue } = await import('firebase-admin/firestore');
     await dbRef!.collection('settings').doc('company').set({
       name, taxId: taxId || null, address: address || null, branch,
+      addrNo: addrNo || null, subdistrict: subdistrict || null, district: district || null,
+      province: province || null, postcode: postcode || null,
       updatedBy: admin.uid,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
@@ -58,8 +68,30 @@ export default async function AdminCompanyPage() {
           <input name="taxId" defaultValue={s.taxId || ''} inputMode="numeric" maxLength={13} className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-sm" />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-bold text-slate-600">ที่อยู่</label>
-          <textarea name="address" defaultValue={s.address || ''} rows={3} className="min-h-[80px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          <label className="mb-1 block text-xs font-bold text-slate-600">ที่อยู่ (แบบเดิม — ถ้ากรอกแยกส่วนจะใช้ส่วนนั้นแทน)</label>
+          <textarea name="address" defaultValue={s.address && !(s.addrNo || s.province) ? s.address : ''} rows={2} className="min-h-[60px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs font-bold text-slate-600">บ้านเลขที่ หมู่ ซอย ถนน</label>
+            <input name="addrNo" defaultValue={s.addrNo || ''} className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-slate-600">แขวง/ตำบล</label>
+            <input name="subdistrict" defaultValue={s.subdistrict || ''} className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-slate-600">เขต/อำเภอ</label>
+            <input name="district" defaultValue={s.district || ''} className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-slate-600">จังหวัด</label>
+            <input name="province" defaultValue={s.province || ''} className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-slate-600">รหัสไปรษณีย์ (5 หลัก)</label>
+            <input name="postcode" defaultValue={s.postcode || ''} inputMode="numeric" maxLength={5} className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
         </div>
         <div>
           <label className="mb-1 block text-xs font-bold text-slate-600">สาขา</label>

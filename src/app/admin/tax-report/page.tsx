@@ -225,7 +225,15 @@ export default async function AdminTaxReportPage({
               ])}
             />
           </div>
-          <p className="mt-2 text-[11px] text-slate-400">ไฟล์ “ยื่นภาษี” จัดคอลัมน์ตามแบบ ภ.ง.ด.53 สำหรับแนบยื่น — ตรวจเลขภาษีครูที่ว่างก่อนยื่นทุกครั้ง</p>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900">
+            <p className="font-bold">⚠ ข้อควรทราบก่อนยื่น ภ.ง.ด.53</p>
+            <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+              <li>ไฟล์ CSV ด้านล่างเป็น<strong>ตัวช่วยเตรียมข้อมูลเท่านั้น — ไม่ใช่ไฟล์ยื่นทางการ</strong> ของกรมสรรพากร กรุณานำข้อมูลไปคีย์/อัปโหลดผ่านระบบ e-Filing ของสรรพากรอีกครั้ง</li>
+              <li>ตรวจเลขประจำตัวผู้เสียภาษีของครูที่ว่างก่อนยื่นทุกครั้ง — แถวที่เลขว่างสรรพากรไม่รับ</li>
+              <li>ยื่นภายในวันที่ 7 ของเดือนถัดไป (ยื่นอิเล็กทรอนิกส์ขยายถึงวันที่ 15)</li>
+            </ol>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400">ไฟล์ “ยื่นภาษี” จัดคอลัมน์ตามแบบ ภ.ง.ด.53 สำหรับเตรียมยื่น — ตรวจเลขภาษีครูที่ว่างก่อนยื่นทุกครั้ง</p>
         </>
       )}
     </DashboardLayout>

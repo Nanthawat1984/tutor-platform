@@ -254,6 +254,10 @@ export async function markPaymentExpired(
 // + หักภาษี ณ ที่จ่าย 3% (ม.3 ทวิ / ภ.ง.ด.53) ของเงินได้สุทธิที่จ่ายให้ครู
 // ─────────────────────────────────────────────
 export const TAX_WITHHOLDING_RATE = 0.03;
+// เกณฑ์หักภาษี ณ ที่จ่าย — ค่าจ้างทำของ/ค่าบริการที่จ่ายให้บุคคลธรรมดา
+// หักเมื่อจ่ายคราวละ 1,000 บาทขึ้นไป (ท.ป. 4/2528 ข้อ 6) ต่ำกว่านั้นไม่ต้องหัก
+// แต่ยังบันทึกว่าได้รับยกเว้น (taxWithheld=0 + taxExemptReason) เพื่อกระทบยอด
+export const TAX_WITHHOLDING_THRESHOLD = 1000;
 
 export async function releaseEscrowForBooking(
   db: AdminFirestore,
@@ -268,14 +272,17 @@ export async function releaseEscrowForBooking(
   const netAmount = Number(payment.netAmount) || 0;
   if (netAmount <= 0) return;
 
+  // ต่ำกว่า 1,000 บาทไม่ต้องหัก — บันทึกยกเว้นไว้กระทบยอด (ไม่เข้า 50 ทวิ)
+  const belowThreshold = netAmount < TAX_WITHHOLDING_THRESHOLD;
   // หัก ณ ที่จ่าย 3% ของเงินได้สุทธิ (ครูบุคคลธรรมดา) — ปัดเป็นสตางค์
-  const taxWithheld = Math.round(netAmount * TAX_WITHHOLDING_RATE * 100) / 100;
+  const taxWithheld = belowThreshold ? 0 : Math.round(netAmount * TAX_WITHHOLDING_RATE * 100) / 100;
   const payoutAmount = netAmount - taxWithheld;
 
   // บันทึกผลการหักลง payment doc (ใช้ทำ 50 ทวิ / ภ.ง.ด.53)
   await db.collection(COLLECTIONS.PAYMENTS).doc(payment.id).update({
     taxWithheld,
     payoutAmount,
+    taxExemptReason: belowThreshold ? 'below_threshold_1000' : null,
     taxWithheldAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });

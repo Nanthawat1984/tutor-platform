@@ -136,6 +136,7 @@ export const onBookingCreated = lineRuntime().region('asia-southeast1').firestor
 // taxWithheldAt ลง payment เสมอ เพื่อให้ reconciliation เห็น released ตรงกัน
 // และกันรันซ้ำด้วย marker เดียวกัน (idempotency)
 const TAX_WITHHOLDING_RATE = 0.03;
+const TAX_WITHHOLDING_THRESHOLD = 1000;
 
 async function releaseEscrow(bookingId: string): Promise<void> {
   try {
@@ -156,12 +157,14 @@ async function releaseEscrow(bookingId: string): Promise<void> {
     const netAmount = Number(payment.netAmount) || 0;
     if (!teacherId || netAmount <= 0) return;
 
-    const taxWithheld = Math.round(netAmount * TAX_WITHHOLDING_RATE * 100) / 100;
+    const belowThreshold = netAmount < TAX_WITHHOLDING_THRESHOLD;
+    const taxWithheld = belowThreshold ? 0 : Math.round(netAmount * TAX_WITHHOLDING_RATE * 100) / 100;
     const payoutAmount = netAmount - taxWithheld;
 
     await paymentDoc.ref.update({
       taxWithheld,
       payoutAmount,
+      taxExemptReason: belowThreshold ? 'below_threshold_1000' : null,
       taxWithheldAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });

@@ -39,7 +39,16 @@ export default async function TaxCertificatePage({
   const user = userSnap.exists ? userSnap.data() as any : null;
   const teacherName = session.displayName || user?.displayName || 'คุณครู';
   const teacherTaxId: string = user?.taxId || '';
-  const teacherAddress: string = user?.taxAddress || '';
+  // ที่อยู่แยกส่วน (ใหม่) — fallback ไปบรรทัดเดียว (เก่า) ถ้ายังไม่กรอกแยก
+  const teacherAddrParts = [
+    user?.taxAddrNo || '',
+    user?.taxSubdistrict ? `แขวง/ตำบล${user.taxSubdistrict}` : '',
+    user?.taxDistrict ? `เขต/อำเภอ${user.taxDistrict}` : '',
+    user?.taxProvince || '',
+    user?.taxPostcode || '',
+  ].filter(Boolean);
+  const teacherAddress: string = teacherAddrParts.length > 0 ? teacherAddrParts.join(' ') : (user?.taxAddress || '');
+  const isDraft = !teacherTaxId || !company.taxId;
 
   // ── payment ที่หักภาษีแล้วของปีที่เลือก ──
   const paymentsSnap = await db.collection(COLLECTIONS.PAYMENTS)
@@ -77,6 +86,11 @@ export default async function TaxCertificatePage({
   const totalGross = rows.reduce((s, r) => s + r.gross, 0);
   const totalTax = rows.reduce((s, r) => s + r.tax, 0);
   const totalNet = rows.reduce((s, r) => s + r.netPaid, 0);
+  // แบ่งหน้าละ 25 แถว (A4) — เลขที่เอกสารมีเลขแผ่นกำกับ แผ่นที่ X ในจำนวน Y แผ่น
+  const ROWS_PER_PAGE = 25;
+  const pageCount = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
+  const docNo = (page: number) =>
+    `TF50-${selectedYear + 543}-${teacherId.slice(0, 6).toUpperCase()}${pageCount > 1 ? `-${page}/${pageCount}` : ''}`;
 
   return (
     <div className="min-h-screen bg-slate-100 print:bg-white">
@@ -126,13 +140,23 @@ export default async function TaxCertificatePage({
         </div>
       )}
 
-      {/* ── เอกสาร 50 ทวิ ── */}
-      <div className="mx-auto max-w-4xl px-4 pb-10 print:max-w-none print:p-0">
-        <div className="print-document rounded-xl border border-slate-200 bg-white p-6 shadow-sm print:rounded-none print:border-0 print:p-0 print:shadow-none sm:p-10">
+      {/* ── เอกสาร 50 ทวิ (วนตามจำนวนแผ่น) ── */}
+      <div className="mx-auto max-w-4xl space-y-8 px-4 pb-10 print:max-w-none print:space-y-0 print:p-0">
+        {Array.from({ length: pageCount }, (_, pageIdx) => {
+          const page = pageIdx + 1;
+          const pageRows = rows.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+          return (
+        <div key={page} className="print-document break-after-page rounded-xl border border-slate-200 bg-white p-6 shadow-sm last:break-after-avoid print:rounded-none print:border-0 print:p-0 print:shadow-none sm:p-10">
+          {/* ประทับฉบับร่าง — เลขภาษีฝ่ายใดว่างเอกสารใช้ยื่นไม่ได้ */}
+          {isDraft && (
+            <p className="mb-3 rounded-lg border-2 border-dashed border-red-400 bg-red-50 p-3 text-center text-sm font-extrabold tracking-widest text-red-600 print:bg-white">
+              ฉบับร่าง — ยังใช้ยื่นภาษีไม่ได้ (กรุณากรอกเลขประจำตัวผู้เสียภาษีให้ครบ)
+            </p>
+          )}
           <div className="border-b-2 border-slate-800 pb-3">
             <div className="flex items-start justify-between gap-4">
-              <p className="text-xs text-slate-500">เลขที่/No. TF50-{selectedYear + 543}-{teacherId.slice(0, 6).toUpperCase()}</p>
-              <p className="text-right text-xs text-slate-500">แบบ 50 ทวิ</p>
+              <p className="text-xs text-slate-500">เลขที่/No. {docNo(page)}</p>
+              <p className="text-right text-xs text-slate-500">แบบ 50 ทวิ{pageCount > 1 ? ` — แผ่นที่ ${page} ในจำนวน ${pageCount} แผ่น` : ''}</p>
             </div>
             <h1 className="mt-1 text-center text-lg font-bold text-slate-900">
               หนังสือรับรองการหักภาษี ณ ที่จ่าย
@@ -159,11 +183,25 @@ export default async function TaxCertificatePage({
             <p className="sm:col-span-2"><span className="text-slate-500">ที่อยู่:</span> {teacherAddress || '—'}</p>
           </div>
 
+          {/* แบบที่นำส่ง + วิธีรับภาระภาษี — ระบบหักจากผู้รับเสมอ */}
+          <div className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 p-3">
+              <p className="font-bold text-slate-700">นำส่งภาษีด้วยแบบ</p>
+              <p className="mt-1"><span className="mr-1 inline-block h-3 w-3 border border-slate-500 bg-slate-900 align-middle print:bg-black" />☑ <strong>ภ.ง.ด.53</strong> (หักจากค่าบริการ/ค่าจ้างที่จ่ายให้บุคคลธรรมดา)</p>
+              <p className="mt-1 text-slate-400">☐ ภ.ง.ด.3 ☐ ภ.ง.ด.1 ☐ อื่นๆ</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-3">
+              <p className="font-bold text-slate-700">ผู้รับภาระภาษีที่หัก</p>
+              <p className="mt-1">☑ <strong>หักจากผู้รับเงิน</strong> (ผู้ถูกหักรับสุทธิหลังหักภาษี)</p>
+              <p className="mt-1 text-slate-400">☐ ผู้จ่ายออกภาษีให้ตลอดไป ☐ ผู้จ่ายออกภาษีให้ครั้งเดียว</p>
+            </div>
+          </div>
+
           {/* ประเภทเงินได้ — ค่าจ้างครูเข้าข่าย 40(2) หัก 3% */}
           <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed text-slate-600 print:bg-slate-50">
             ประเภทเงินได้พึงประเมิน: <strong>มาตรา 40(2)</strong> เงินได้เนื่องจากหน้าที่หรือตำแหน่งงานที่ทำ
             หรือจากการรับทำงานให้ — หักภาษี ณ ที่จ่ายในอัตราร้อยละ <strong>3</strong> ตามข้อ 6 ของคำสั่งกรมสรรพากร
-            ที่ ท.ป. 4/2528 (ค่าสอน/ค่าจ้างทำของที่จ่ายให้บุคคลธรรมดา)
+            ที่ ท.ป. 4/2528 (ค่าสอน/ค่าจ้างทำของที่จ่ายให้บุคคลธรรมดา คราวละ 1,000 บาทขึ้นไป)
           </p>
 
           {/* ตาราง */}
@@ -183,16 +221,20 @@ export default async function TaxCertificatePage({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
+                {pageRows.map((r, i) => {
+                  const seq = (page - 1) * ROWS_PER_PAGE + i + 1;
+                  return (
                   <tr key={r.id} className="odd:bg-white even:bg-slate-50/60">
-                    <td className="border border-slate-300 px-2 py-1.5 text-center">{i + 1}</td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center">{seq}</td>
                     <td className="border border-slate-300 px-2 py-1.5 whitespace-nowrap">{formatDate(r.withheldDate, 'd/MM/yyyy')}</td>
                     <td className="border border-slate-300 px-2 py-1.5 text-right whitespace-nowrap">{formatCurrency(r.gross)}</td>
                     <td className="border border-slate-300 px-2 py-1.5 text-right font-semibold whitespace-nowrap">{formatCurrency(r.tax)}</td>
                     <td className="border border-slate-300 px-2 py-1.5 text-right whitespace-nowrap">{formatCurrency(r.netPaid)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
+              {page === pageCount && (
               <tfoot>
                 <tr className="bg-pink-50 font-bold text-slate-900 print:bg-slate-100">
                   <td colSpan={2} className="border border-slate-300 px-2 py-2 text-right">รวมทั้งสิ้น</td>
@@ -201,16 +243,19 @@ export default async function TaxCertificatePage({
                   <td className="border border-slate-300 px-2 py-2 text-right whitespace-nowrap">{formatCurrency(totalNet)}</td>
                 </tr>
               </tfoot>
+              )}
             </table>
           )}
 
+          {page === pageCount && (
+          <>
           {/* เงื่อนไขตามแบบราชการ */}
           <div className="mt-6 rounded-lg border border-slate-200 p-3 text-[11px] leading-relaxed text-slate-500">
             <p className="font-bold text-slate-700">คำเตือน</p>
             <ol className="mt-1 list-decimal space-y-0.5 pl-5">
               <li>ผู้มีเงินได้ต้องยื่นรายการเงินได้และภาษีที่ถูกหักไว้นี้รวมกับเงินได้อื่น (ถ้ามี) เพื่อเสียภาษีเงินได้บุคคลธรรมดาประจำปี</li>
               <li>หนังสือรับรองฯ ฉบับนี้จัดทำขึ้น 2 ฉบับ มีข้อความตรงกัน ฉบับที่ 1 สำหรับผู้ถูกหักภาษี ฉบับที่ 2 สำหรับผู้หักภาษีเก็บไว้เป็นหลักฐาน</li>
-              <li>กรณีเงินได้ที่จ่ายยังไม่ถึงเกณฑ์ต้องหักภาษี จะไม่ปรากฏในเอกสารฉบับนี้ (ดูหนังสือรับรองรายได้ประกอบ)</li>
+              <li>กรณีเงินได้ที่จ่ายยังไม่ถึงเกณฑ์ต้องหักภาษี (คราวละไม่ถึง 1,000 บาท) จะไม่ปรากฏในเอกสารฉบับนี้ (ดูหนังสือรับรองรายได้ประกอบ)</li>
             </ol>
           </div>
 
@@ -229,10 +274,14 @@ export default async function TaxCertificatePage({
           </div>
 
           <p className="mt-6 text-[11px] text-slate-400">
-            เลขที่เอกสาร TF50-{selectedYear + 543}-{teacherId.slice(0, 6).toUpperCase()} •
+            เลขที่เอกสาร {docNo(page)} •
             อ้างอิงรายการหักภาษี {rows.length} รายการ • สร้างโดยระบบ TutorFinder อัตโนมัติ
           </p>
+          </>
+          )}
         </div>
+          );
+        })}
       </div>
 
       <style
