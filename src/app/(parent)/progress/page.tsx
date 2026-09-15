@@ -63,6 +63,19 @@ export default async function ProgressPage() {
                       {r.topicsCovered && <p className="mt-2 text-sm text-gray-600"><span className="font-medium">เรื่องที่สอน:</span> {r.topicsCovered}</p>}
                       {r.homework && <p className="mt-1 text-sm text-gray-600"><span className="font-medium">การบ้าน:</span> {r.homework}</p>}
                       {r.notes && <p className="mt-1 text-sm text-gray-500 italic">"{r.notes}"</p>}
+                      {r.aiExplanation && (
+                        <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+                          <p className="text-xs font-bold text-violet-700">✨ คำอธิบายเสริมจากครู</p>
+                          <p className="mt-1 text-sm leading-relaxed text-slate-700">{r.aiExplanation}</p>
+                          {Array.isArray(r.aiPracticeSteps) && r.aiPracticeSteps.length > 0 && (
+                            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+                              {r.aiPracticeSteps.map((step: string, i: number) => (
+                                <li key={i}>{step}</li>
+                              ))}
+                            </ol>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {r.score !== null && r.score !== undefined && (
                       <div className="w-full text-left sm:ml-4 sm:w-auto sm:text-center">

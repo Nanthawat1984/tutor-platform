@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import NotificationBell from '@/components/notifications/notification-bell';
 import {
   BookOpen,
   CalendarCheck,
@@ -232,6 +233,7 @@ export function DashboardLayout({
                 <h1 className="truncate text-xl font-bold text-slate-900">{title}</h1>
               )}
               <div className="ml-auto flex items-center gap-2 shrink-0">
+                <NotificationBell roleHref="/notifications" />
                 <span className={`hidden rounded-full ${config.bg} ${config.color} px-3 py-1 text-xs font-bold sm:inline`}>
                   {config.label}
                 </span>
