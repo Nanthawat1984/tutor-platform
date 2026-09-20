@@ -35,6 +35,8 @@ export async function createStripeCheckoutSession(opts: {
   courseTitle: string;
   studentName: string;
   appUrl?: string;
+  successPath?: string;
+  cancelPath?: string;
 }): Promise<Stripe.Checkout.Session> {
   const stripe = getStripeClient();
   if (!stripe) throw new Error('Stripe is not configured');
@@ -45,8 +47,12 @@ export async function createStripeCheckoutSession(opts: {
   }
 
   const appUrl = (opts.appUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
-  const bookingPath = `/bookings/${encodeURIComponent(opts.bookingId)}/payment`;
-  const successPath = `${bookingPath}/success?paymentId=${encodeURIComponent(opts.paymentId)}&session_id={CHECKOUT_SESSION_ID}`;
+  const bookingPath = opts.successPath
+    ? opts.successPath.split('?')[0]
+    : `/bookings/${encodeURIComponent(opts.bookingId)}/payment`;
+  const successPath = opts.successPath
+    || `${bookingPath}/success?paymentId=${encodeURIComponent(opts.paymentId)}&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelPath = opts.cancelPath || `${bookingPath}?paymentId=${encodeURIComponent(opts.paymentId)}&cancelled=1`;
 
   return stripe.checkout.sessions.create({
     mode: 'payment',
@@ -62,7 +68,7 @@ export async function createStripeCheckoutSession(opts: {
       quantity: 1,
     }],
     success_url: `${appUrl}${successPath}`,
-    cancel_url: `${appUrl}${bookingPath}?paymentId=${encodeURIComponent(opts.paymentId)}&cancelled=1`,
+    cancel_url: `${appUrl}${cancelPath}`,
     expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
     metadata: {
       booking_id: opts.bookingId,

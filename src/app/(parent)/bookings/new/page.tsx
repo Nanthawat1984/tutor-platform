@@ -22,7 +22,7 @@ import {
 } from '@/lib/booking/availability';
 
 class BookingSlotError extends Error {
-  constructor(public readonly code: 'slot_unavailable' | 'booking_conflict' | 'student') {
+  constructor(public readonly code: 'slot_unavailable' | 'booking_conflict' | 'student' | 'trial_used' | 'coupon_invalid') {
     super(code);
     this.name = 'BookingSlotError';
   }
@@ -244,6 +244,26 @@ export default async function NewBookingPage({
           studentLevel = student.level || null;
         }
 
+        // ── คลาสทดลอง (เฟส 3): ครั้งเดียวต่อผู้ปกครอง 1 คนต่อครู 1 คน ──
+        let isTrial = false;
+        let sessionPrice = freshCourse.pricePerSession;
+        const wantsTrial = String(formData.get('is_trial') || '') === '1';
+        if (wantsTrial) {
+          if (freshCourse.trialEnabled !== true || !(Number(freshCourse.trialPrice) > 0)) {
+            throw new BookingSlotError('slot_unavailable');
+          }
+          const priorTrialSnap = await transaction.get(
+            dbRef.collection(COLLECTIONS.BOOKINGS)
+              .where('parentId', '==', current.session.uid)
+              .where('teacherId', '==', freshCourse.teacherId)
+              .where('isTrial', '==', true),
+          );
+          const alreadyUsed = priorTrialSnap.docs.some((d: any) => d.data()?.status !== 'cancelled');
+          if (alreadyUsed) throw new BookingSlotError('trial_used');
+          isTrial = true;
+          sessionPrice = Number(freshCourse.trialPrice);
+        }
+
         if (isNewStudent && studentRef) {
           transaction.create(studentRef, {
             parentId,
@@ -266,9 +286,11 @@ export default async function NewBookingPage({
           bookingDate: validation.slot.date,
           startTime: validation.slot.startTime,
           endTime: validation.slot.endTime,
-          totalPrice: freshCourse.pricePerSession,
+          totalPrice: sessionPrice,
+          isTrial,
           notes: formData.get('notes') as string || null,
           status: 'pending',
+          rescheduleCount: 0,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
@@ -279,7 +301,7 @@ export default async function NewBookingPage({
           teacherId: freshCourse.teacherId,
           studentName,
           courseTitle: freshCourse.title,
-          totalPrice: freshCourse.pricePerSession,
+          totalPrice: sessionPrice,
         };
       });
     } catch (error) {
@@ -363,8 +385,30 @@ export default async function NewBookingPage({
               ไม่พบข้อมูลนักเรียนหรือคุณไม่มีสิทธิ์ใช้ข้อมูลนี้ กรุณาเลือกนักเรียนใหม่
             </p>
           )}
+          {params.error === 'trial_used' && (
+            <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              คุณเคยใช้สิทธิ์ทดลองเรียนกับครูท่านนี้แล้ว กรุณาจองแบบปกติ
+            </p>
+          )}
           <Textarea label="หมายเหตุถึงครู (ถ้ามี)" name="notes" placeholder="เช่น ต้องการเน้นเรื่อง..." />
         </Card>
+
+        {course.trialEnabled === true && Number(course.trialPrice) > 0 && (
+          <Card className="border-2 border-violet-200 bg-violet-50/50">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input type="checkbox" name="is_trial" value="1" className="mt-1 h-5 w-5 rounded border-slate-300 text-violet-600 focus:ring-violet-200" />
+              <span>
+                <span className="font-bold text-slate-900">
+                  ทดลองเรียนครั้งแรก {formatCurrency(Number(course.trialPrice))}
+                  <span className="ml-2 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-bold text-white">TRIAL</span>
+                </span>
+                <span className="mt-1 block text-xs text-slate-500">
+                  ราคาพิเศษเฉพาะครั้งแรกกับครูท่านนี้ (ปกติ {formatCurrency(Number(course.pricePerSession))}) — ใช้ได้ครั้งเดียว
+                </span>
+              </span>
+            </label>
+          </Card>
+        )}
 
         <div className="responsive-actions">
           <Button type="submit" disabled={availableSlots.length === 0} className="w-full sm:w-auto">ยืนยันการจอง</Button>

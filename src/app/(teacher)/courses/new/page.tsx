@@ -101,6 +101,9 @@ export default async function NewCoursePage() {
       durationMinutes: parseInt(formData.get('duration_minutes') as string) || 60,
       centerId: centerId || null,
       centerName: centerName || null,
+      // คลาสทดลอง (เฟส 3) — ราคาพิเศษครั้งเดียวต่อผู้ปกครอง 1 คนต่อครู 1 คน
+      trialEnabled: formData.get('trial_enabled') === 'on',
+      trialPrice: Math.max(0, Math.round(parseFloat(formData.get('trial_price') as string) || 0)),
       isActive: true,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -150,6 +153,19 @@ export default async function NewCoursePage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="ราคาต่อเซสชัน (บาท)" name="price_per_session" type="number" required min="0" step="50" placeholder="500" />
             <Input label="ระยะเวลา (นาที)" name="duration_minutes" type="number" defaultValue="60" min="15" step="15" />
+          </div>
+
+          <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input type="checkbox" name="trial_enabled" className="mt-1 h-5 w-5 rounded border-slate-300 text-violet-600" />
+              <span>
+                <span className="text-sm font-bold text-slate-800">เปิดคลาสทดลองราคาพิเศษ</span>
+                <span className="mt-0.5 block text-xs text-slate-500">ดึงดูดผู้ปกครองใหม่ให้ลองครั้งเดียวในราคาถูก ระบบกันใช้ซ้ำอัตโนมัติ</span>
+              </span>
+            </label>
+            <div className="mt-3">
+              <Input label="ราคาทดลอง (บาท)" name="trial_price" type="number" min="0" step="50" placeholder="199" helperText="ว่างไว้หรือใส่ 0 = ไม่เปิดทดลอง" />
+            </div>
           </div>
 
           <Textarea label="รายละเอียดคอร์ส" name="description" placeholder="อธิบายเนื้อหาที่จะสอน วิธีการสอน ฯลฯ" />

@@ -43,21 +43,79 @@ export async function getOrCreateWallet(db: AdminFirestore, teacherId: string) {
 export async function createPaymentForBooking(
   db: AdminFirestore,
   booking: any,
-  opts: { method?: string } = {},
+  opts: { method?: string; couponCode?: string | null; couponId?: string | null; discountAmount?: number } = {},
 ) {
-  const { fees, netAmount } = computeFees(Number(booking.totalPrice) || 0);
+  const gross = Number(booking.totalPrice) || 0;
+  const discount = Math.max(0, Math.min(Number(opts.discountAmount) || 0, gross));
+  const amount = gross - discount;
+  const { fees, netAmount } = computeFees(amount);
   const ref = await db.collection(COLLECTIONS.PAYMENTS).add({
     bookingId: booking.id,
     parentId: booking.parentId,
     teacherId: booking.teacherId,
     studentName: booking.studentName || '',
     courseTitle: booking.courseTitle || '',
-    amount: Number(booking.totalPrice) || 0,
+    amount,
     fees,
     netAmount,
     currency: 'THB',
     method: opts.method || 'promptpay',
     status: 'pending',
+    kind: 'session',
+    couponCode: opts.couponCode || null,
+    couponId: opts.couponId || null,
+    discountAmount: discount,
+    walletApplied: 0,
+    escrowProcessed: false,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return { id: ref.id, fees, netAmount, amount, discount };
+}
+
+/**
+ * สร้าง payment สำหรับซื้อแพ็กเกจ (kind='package', bookingId=null)
+ * เรียกจาก /api/packages/purchase เท่านั้น — validator อยู่ฝั่งนั้น
+ */
+export async function createPaymentForPackage(
+  db: AdminFirestore,
+  input: {
+    packageId: string;
+    purchaseId: string;
+    parentId: string;
+    parentName?: string;
+    teacherId: string;
+    courseTitle: string;
+    studentName?: string;
+    amount: number;
+    method?: string;
+    couponCode?: string | null;
+    couponId?: string | null;
+    discountAmount?: number;
+    walletApplied?: number;
+  },
+) {
+  const { fees, netAmount } = computeFees(Number(input.amount) || 0);
+  const ref = await db.collection(COLLECTIONS.PAYMENTS).add({
+    bookingId: null,
+    kind: 'package',
+    packageId: input.packageId,
+    packagePurchaseId: input.purchaseId,
+    parentId: input.parentId,
+    teacherId: input.teacherId,
+    studentName: input.studentName || '',
+    courseTitle: input.courseTitle || '',
+    amount: Number(input.amount) || 0,
+    fees,
+    netAmount,
+    currency: 'THB',
+    method: (input.method as any) || 'promptpay',
+    provider: 'mock',
+    status: 'pending',
+    couponCode: input.couponCode || null,
+    couponId: input.couponId || null,
+    discountAmount: Number(input.discountAmount) || 0,
+    walletApplied: Number(input.walletApplied) || 0,
     escrowProcessed: false,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -125,6 +183,11 @@ export async function markPaymentPaid(
   // กันประมวลผลซ้ำ — ถ้ามี escrowProcessed=true แปลว่าทำไปแล้ว
   if (payment.escrowProcessed) return { ok: true, reason: 'already_processed' };
 
+  // ── แพ็กเกจ: กระจายไป markPackagePaymentPaid (เปิดเครดิต + เติม escrow รวมครั้งเดียว) ──
+  if (payment.kind === 'package') {
+    return markPackagePaymentPaid(db, paymentId, opts);
+  }
+
   const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(payment.bookingId);
   const bookingSnap = await bookingRef.get();
   const booking = bookingSnap.exists ? bookingSnap.data() as any : null;
@@ -163,6 +226,41 @@ export async function markPaymentPaid(
     });
   }
 
+  // 3b) หัก wallet ที่ใช้ร่วมจ่าย (กันซ้ำด้วย walletDeducted)
+  if (Number(payment.walletApplied) > 0 && !payment.walletDeducted) {
+    try {
+      const { debitParentWallet } = await import('@/lib/parent-wallet');
+      const debited = await debitParentWallet(db, {
+        parentId: payment.parentId,
+        amount: Number(payment.walletApplied),
+        kind: 'spend',
+        bookingId: payment.bookingId || null,
+        paymentId,
+        note: 'ใช้เครดิตชำระค่าคอร์ส',
+      });
+      if (debited.ok) {
+        await paymentRef.update({ walletDeducted: true, updatedAt: FieldValue.serverTimestamp() });
+      } else {
+        console.error('wallet debit failed:', debited.reason);
+      }
+    } catch (e) {
+      console.error('wallet debit failed:', e);
+    }
+  }
+
+  // 3c) consume คูปอง (ถ้าจองครั้งนี้ใช้คูปอง — กันซ้ำด้วย couponConsumed)
+  if (payment.couponId && !payment.couponConsumed) {
+    try {
+      await db.collection('coupons').doc(payment.couponId).update({
+        usedCount: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      await paymentRef.update({ couponConsumed: true, updatedAt: FieldValue.serverTimestamp() });
+    } catch (e) {
+      console.error('coupon consume failed:', e);
+    }
+  }
+
   // 4) แจ้งเตือนผู้ปกครอง
   try {
     await db.collection(COLLECTIONS.NOTIFICATIONS).add({
@@ -171,6 +269,137 @@ export async function markPaymentPaid(
       title: 'ชำระเงินสำเร็จ',
       body: `การจองเรียนของ ${payment.studentName || 'นักเรียน'} ได้รับการยืนยันแล้ว (${payment.amount} บาท)`,
       data: { bookingId: payment.bookingId, paymentId },
+      isRead: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    console.error('notify failed:', e);
+  }
+
+  return { ok: true };
+}
+
+// ─────────────────────────────────────────────
+// MARK PACKAGE PAYMENT PAID — ซื้อแพ็กเกจสำเร็จ
+// 1. payment → paid (+ใบเสร็จ)
+// 2. purchase → active + เขียน credit ledger (ครั้งแรก — กันซ้ำ)
+// 3. escrow รวมครั้งเดียว: เติม pendingBalance ครูด้วย netAmount ทั้งก้อน
+//    (ปล่อยทีละครั้งตอนเช็คชื่อผ่าน releasePackageSessionEscrow)
+// 4. consume คูปอง (ถ้ามี — increment usedCount ครั้งเดียว)
+// 5. แจ้งเตือนผู้ปกครอง
+// ─────────────────────────────────────────────
+export async function markPackagePaymentPaid(
+  db: AdminFirestore,
+  paymentId: string,
+  opts: { transactionId?: string; providerRef?: string } = {},
+): Promise<{ ok: boolean; reason?: string }> {
+  const paymentRef = db.collection(COLLECTIONS.PAYMENTS).doc(paymentId);
+  const paymentSnap = await paymentRef.get();
+  if (!paymentSnap.exists) return { ok: false, reason: 'payment_not_found' };
+  const payment = paymentSnap.data() as any;
+  if (payment.status === 'paid') {
+    if (!payment.receiptNumber) {
+      await paymentRef.update({
+        receiptNumber: generateReceiptNumber(paymentId),
+        receiptIssuedAt: payment.receiptIssuedAt || FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    return { ok: true, reason: 'already_paid' };
+  }
+  if (payment.escrowProcessed) return { ok: true, reason: 'already_processed' };
+  if (payment.kind !== 'package' || !payment.packagePurchaseId) {
+    return { ok: false, reason: 'not_package_payment' };
+  }
+
+  const purchaseRef = db.collection(COLLECTIONS.PACKAGE_PURCHASES).doc(payment.packagePurchaseId);
+  const purchaseSnap = await purchaseRef.get();
+  if (!purchaseSnap.exists) return { ok: false, reason: 'purchase_not_found' };
+  const purchase = purchaseSnap.data() as any;
+  if (purchase.parentId !== payment.parentId) return { ok: false, reason: 'owner_mismatch' };
+
+  const netAmount = Number(payment.netAmount) || 0;
+  const teacherId = payment.teacherId;
+  const sessionsTotal = Number(purchase.sessionsTotal) || 0;
+
+  await paymentRef.update({
+    status: 'paid',
+    transactionId: opts.transactionId || payment.transactionId || null,
+    providerRef: opts.providerRef || payment.providerRef || null,
+    paidAt: FieldValue.serverTimestamp(),
+    receiptNumber: payment.receiptNumber || generateReceiptNumber(paymentId),
+    receiptIssuedAt: payment.receiptIssuedAt || FieldValue.serverTimestamp(),
+    escrowProcessed: true,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  // purchase → active + ledger (guard: ทำเฉพาะครั้งแรก)
+  if (purchase.status === 'pending') {
+    const perSession = sessionsTotal > 0 ? Math.floor((netAmount / sessionsTotal) * 100) / 100 : 0;
+    await purchaseRef.update({
+      status: 'active',
+      amount: Number(payment.amount) || 0,
+      fees: Number(payment.fees) || 0,
+      netAmount,
+      perSessionNet: perSession,
+      paymentId,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    await db.collection(COLLECTIONS.CREDIT_TRANSACTIONS).add({
+      purchaseId: purchaseRef.id,
+      parentId: payment.parentId,
+      teacherId,
+      bookingId: null,
+      kind: 'purchase',
+      sessionsDelta: sessionsTotal,
+      balanceAfter: sessionsTotal,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    // escrow รวม: เติม pending ครูครั้งเดียวตอนซื้อ
+    if (teacherId && netAmount > 0) {
+      const wallet = await getOrCreateWallet(db, teacherId);
+      await wallet.ref.update({
+        pendingBalance: FieldValue.increment(netAmount),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  // consume คูปอง (กันซ้ำด้วย payment.couponConsumed)
+  if (payment.couponId && !payment.couponConsumed) {
+    try {
+      await db.collection('coupons').doc(payment.couponId).update({
+        usedCount: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      await paymentRef.update({ couponConsumed: true, updatedAt: FieldValue.serverTimestamp() });
+    } catch (e) {
+      console.error('coupon consume failed:', e);
+    }
+  }
+
+  // หัก wallet ที่ใช้ร่วมจ่าย (กันซ้ำด้วย payment.walletDeducted)
+  if (Number(payment.walletApplied) > 0 && !payment.walletDeducted) {
+    const { debitParentWallet } = await import('@/lib/parent-wallet');
+    const res = await debitParentWallet(db, {
+      parentId: payment.parentId,
+      amount: Number(payment.walletApplied),
+      kind: 'spend',
+      paymentId,
+      note: 'ใช้เครดิตชำระค่าแพ็กเกจ',
+    });
+    if (res.ok) {
+      await paymentRef.update({ walletDeducted: true, updatedAt: FieldValue.serverTimestamp() });
+    }
+  }
+
+  try {
+    await db.collection(COLLECTIONS.NOTIFICATIONS).add({
+      userId: payment.parentId,
+      type: 'payment',
+      title: 'ซื้อแพ็กเกจสำเร็จ',
+      body: `แพ็กเกจ ${purchase.packageTitle || 'เรียน'} พร้อมใช้ ${sessionsTotal} ครั้งแล้ว จองครั้งต่อไปได้เลยโดยไม่ต้องจ่ายใหม่`,
+      data: { purchaseId: purchaseRef.id, paymentId },
       isRead: false,
       createdAt: FieldValue.serverTimestamp(),
     });

@@ -27,7 +27,9 @@ function normalizeMethod(value: unknown): PaymentMethod | null {
 
 /**
  * POST /api/payments/initiate
- * Body: { bookingId, method }
+ * Body: { bookingId, method, couponCode?, useWallet? }
+ * - คูปอง: ตรวจ + ล็อกส่วนลดไว้ที่ payment (consume จริงตอน paid)
+ * - วอลเล็ต: หักเครดิตได้บางส่วน/ทั้งหมด ถ้ายอดเหลือ 0 จะ mark paid ทันที
  * Stripe Checkout handles card/PromptPay; bank transfer and Mock remain available.
  */
 export async function POST(request: NextRequest) {
@@ -40,6 +42,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const bookingId = typeof body.bookingId === 'string' ? body.bookingId.trim() : '';
   const method = normalizeMethod(body.method);
+  const couponCode = typeof body.couponCode === 'string' ? body.couponCode.trim().toUpperCase().slice(0, 32) : '';
+  const useWallet = body.useWallet === true;
   if (!bookingId) return NextResponse.json({ error: 'missing_booking_id' }, { status: 400 });
   if (!method) return NextResponse.json({ error: 'invalid_method' }, { status: 400 });
 
@@ -48,10 +52,95 @@ export async function POST(request: NextRequest) {
   const booking = { id: bookingSnap.id, ...bookingSnap.data() } as any;
   if (booking.parentId !== session.uid) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   if (booking.status !== 'pending') return NextResponse.json({ error: 'booking_not_payable' }, { status: 409 });
+  if (booking.paidWithCredit) return NextResponse.json({ error: 'booking_not_payable' }, { status: 409 });
 
-  const amount = Number(booking.totalPrice) || 0;
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const gross = Number(booking.totalPrice) || 0;
+  if (!Number.isFinite(gross) || gross <= 0) {
     return NextResponse.json({ error: 'invalid_payment_amount' }, { status: 422 });
+  }
+
+  // คูปอง (ถ้าส่งมา): ตรวจตอนนี้ ล็อกส่วนลดไว้ที่ payment แล้ว consume ตอน paid
+  let couponId: string | null = null;
+  let discount = 0;
+  if (couponCode) {
+    const { validateCoupon } = await import('@/lib/coupons');
+    const check = await validateCoupon(db, couponCode, gross, session.uid);
+    if (!check.ok) {
+      return NextResponse.json(
+        { error: 'coupon_invalid', reason: check.reason, minAmount: (check as any).minAmount },
+        { status: 422 },
+      );
+    }
+    couponId = check.coupon.id;
+    discount = check.discount;
+  }
+
+  // วอลเล็ต (ถ้าขอใช้): ดูยอดแล้วหักร่วมจ่าย
+  let walletApplied = 0;
+  if (useWallet) {
+    const wSnap = await db.collection(COLLECTIONS.PARENT_WALLETS).doc(session.uid).get();
+    const balance = Math.round((Number(wSnap.data()?.balance) || 0) * 100) / 100;
+    walletApplied = Math.max(0, Math.min(balance, gross - discount));
+  }
+
+  const amount = Math.max(0, Math.round((gross - discount - walletApplied) * 100) / 100);
+
+  // จ่ายครบด้วยคูปอง+เครดิต (ยอดเหลือ 0) → เปิดใช้ทันที ไม่ต้องผ่าน gateway
+  if (amount <= 0) {
+    const existing = await getPaymentForBooking(db, bookingId);
+    const { createPaymentForBooking, markPaymentPaid } = await import('@/lib/payments/process');
+    const { debitParentWallet } = await import('@/lib/parent-wallet');
+    let payId = existing?.id;
+    if (existing) {
+      await db.collection(COLLECTIONS.PAYMENTS).doc(existing.id).update({
+        amount: 0,
+        fees: 0,
+        netAmount: 0,
+        method,
+        kind: 'session',
+        couponCode: couponCode || null,
+        couponId,
+        discountAmount: discount,
+        walletApplied,
+        status: 'pending',
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    } else {
+      const created = await createPaymentForBooking(db, booking, {
+        method,
+        couponCode: couponCode || null,
+        couponId,
+        discountAmount: discount,
+      });
+      payId = created.id;
+      await db.collection(COLLECTIONS.PAYMENTS).doc(created.id).update({
+        amount: 0,
+        fees: 0,
+        netAmount: 0,
+        walletApplied,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    if (walletApplied > 0) {
+      const debited = await debitParentWallet(db, {
+        parentId: session.uid,
+        amount: walletApplied,
+        kind: 'spend',
+        bookingId,
+        paymentId: payId!,
+        note: 'ใช้เครดิตชำระค่าคอร์ส',
+      });
+      if (!debited.ok) {
+        return NextResponse.json({ error: 'insufficient_credit' }, { status: 409 });
+      }
+      await db.collection(COLLECTIONS.PAYMENTS).doc(payId!).update({
+        walletDeducted: true,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    const result = await markPaymentPaid(db, payId!, { transactionId: `wallet_${payId!.slice(0, 8)}` });
+    if (!result.ok) return NextResponse.json({ error: result.reason }, { status: 409 });
+    return NextResponse.json({ ok: true, paymentId: payId, paidByCredit: true, gross, discount, walletApplied });
   }
 
   const provider = getPaymentProvider();
@@ -75,6 +164,13 @@ export async function POST(request: NextRequest) {
     method,
     provider: paymentProvider,
     status: 'pending',
+    kind: 'session',
+    couponCode: couponCode || null,
+    couponId,
+    discountAmount: discount,
+    walletApplied,
+    walletDeducted: false,
+    couponConsumed: false,
     providerRef: null,
     slipURL: null,
     expiresAt: Timestamp.fromDate(expiresAt),
@@ -142,6 +238,10 @@ export async function POST(request: NextRequest) {
     paymentId,
     mode: provider,
     method,
+    gross,
+    discount,
+    walletApplied,
+    couponCode: couponCode || null,
     checkoutUrl,
     qrDataUrl,
     bankDetails,

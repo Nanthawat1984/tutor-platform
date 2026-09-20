@@ -13,6 +13,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { requireSessionUser } from '@/lib/auth/session';
 import { requireRole } from '@/lib/auth/guards';
 import { releaseEscrowForBooking } from '@/lib/payments/process';
+import { releasePackageSessionEscrow } from '@/lib/packages';
 
 const today = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Bangkok',
@@ -133,12 +134,18 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                       }, { merge: true });
 
                       // ถ้านักเรียนมาเรียน → จบเซสชัน + ปล่อย escrow (ย้าย pending → available)
+                      // - จองปกติ: ปล่อยทั้งก้อนของ payment นั้น (releaseEscrowForBooking)
+                      // - จองด้วยเครดิตแพ็กเกจ: ปล่อยรายครั้ง (releasePackageSessionEscrow)
                       if (status === 'present' && booking.status === 'confirmed') {
                         await bookingRef.update({
                           status: 'completed',
                           updatedAt: FieldValue.serverTimestamp(),
                         });
-                        await releaseEscrowForBooking(dbRef, booking.id);
+                        if ((currentBooking.data() as any)?.paidWithCredit) {
+                          await releasePackageSessionEscrow(dbRef, booking.id);
+                        } else {
+                          await releaseEscrowForBooking(dbRef, booking.id);
+                        }
                       }
                     }}>
                       <Button type="submit" size="sm" variant={status === 'present' ? 'primary' : 'outline'} className="w-full">
