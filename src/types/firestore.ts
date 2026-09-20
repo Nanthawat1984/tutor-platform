@@ -159,6 +159,9 @@ export interface Course {
   priceCurrency: string;
   durationMinutes: number;
   isActive: boolean;
+  // ── คลาสทดลอง (เฟส 3) — ราคาพิเศษ ครั้งเดียวต่อผู้ปกครอง 1 คนต่อครู 1 คน ──
+  trialEnabled?: boolean;
+  trialPrice?: number;       // ราคาทดลอง (ใช้ duration เดียวกับคอร์สปกติ)
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -204,6 +207,25 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   totalPrice: number;
   notes?: string;
+  // ── คูปอง (เฟส 3) — ส่วนลดที่ผู้ปกครองใช้ตอนจอง ──
+  couponCode?: string | null;
+  couponDiscount?: number;
+  // ── แพ็กเกจ/เครดิต (เฟส 1) ──
+  packagePurchaseId?: string | null;
+  paidWithCredit?: boolean;  // true = จองด้วยเครดิตแพ็กเกจ (ไม่สร้าง escrow ใหม่)
+  creditReleased?: boolean;  // true = ปล่อย escrow รายครั้งให้ครูแล้ว
+  // ── คลาสทดลอง (เฟส 3) ──
+  isTrial?: boolean;
+  // ── เลื่อน/ข้อพิพาท (เฟส 2) ──
+  rescheduleCount?: number;
+  lateReschedule?: boolean;
+  dispute?: {
+    status: 'open' | 'resolved';
+    reason?: string;
+    note?: string;
+    createdAt?: Timestamp;
+    resolvedAt?: Timestamp;
+  } | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -326,6 +348,27 @@ export interface Payment {
   receiptIssuedAt?: Timestamp;
   slipURL?: string;         // สำหรับวิธี bank_transfer (อัปโหลดสลิป)
   slipPath?: string;        // private Storage path สำหรับ Admin ตรวจสอบ
+  slipHash?: string | null; // sha256 ของไฟล์สลิป — กันส่งสลิปเดิมซ้ำหลายรายการ
+  // ── auto-approve สลิป (เฟส 1คู่) ──
+  autoApproved?: boolean;   // true = ระบบอนุมัติอัตโนมัติตามนโยบาย
+  autoApproveReasons?: string[];
+  agentStatus?: string | null;
+  agentConfidence?: number | null;
+  agentExtracted?: Record<string, any> | null;
+  agentReasons?: string[];
+  agentModel?: string | null;
+  agentAnalyzedAt?: Timestamp;
+  recipientLast4?: string | null;
+  recipientMatchesCompany?: boolean | null;
+  // ── แพ็กเกจ + คูปอง + วอลเล็ต (เฟส 1–3) ──
+  kind?: 'session' | 'package'; // default 'session'
+  packagePurchaseId?: string | null;
+  couponCode?: string | null;
+  couponId?: string | null;
+  discountAmount?: number;  // ส่วนลดคูปอง (บาท)
+  walletApplied?: number;   // เงินที่หักจาก parent wallet (บาท)
+  refundDestination?: 'parent_wallet_credit' | null;
+  refundAmount?: number;
   submittedAt?: Timestamp;  // เวลาที่ผู้ปกครองส่งสลิปเข้าตรวจ
   reviewedBy?: string;      // Admin UID ผู้ตรวจสอบ
   reviewedAt?: Timestamp;
@@ -353,6 +396,99 @@ export interface Wallet {
   availableBalance: number; // เงินพร้อมโอน — ปล่อยเมื่อเรียนเสร็จ
   totalEarned: number;      // ยอดสะสมทั้งหมดที่เคยปล่อยแล้ว
   updatedAt: Timestamp;
+}
+
+// =============================================
+// PACKAGE (แพ็กเกจเรียน — ครูขายเป็นชุด จ่ายครั้งเดียว ได้เครดิตหลายครั้ง)
+// =============================================
+export interface Package {
+  id: string;
+  teacherId: string;
+  teacherName: string;       // denormalized
+  courseId: string;
+  courseTitle: string;       // denormalized
+  title: string;
+  sessionsTotal: number;
+  priceTotal: number;
+  priceCurrency: string;
+  discountPercent: number;   // ส่วนลดเทียบกับราคาต่อครั้ง × จำนวนครั้ง
+  isActive: boolean;
+  soldCount: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// =============================================
+// PACKAGE PURCHASE (การซื้อแพ็กเกจ — ถือเครดิตครั้งเรียน)
+// =============================================
+export interface PackagePurchase {
+  id: string;
+  packageId: string;
+  packageTitle: string;      // denormalized
+  parentId: string;
+  parentName: string;        // denormalized
+  teacherId: string;
+  courseId: string;
+  courseTitle: string;       // denormalized
+  studentId?: string | null;
+  studentName: string;       // denormalized
+  sessionsTotal: number;
+  sessionsUsed: number;
+  sessionsRemaining: number; // stored (denormalized = total - used + refunded) for queries
+  releasedSessions: number;  // จำนวนครั้งที่ปล่อย escrow ให้ครูแล้ว
+  releasedNetTotal: number;  // ยอด net สะสมที่ปล่อยแล้ว
+  taxWithheldTotal: number;  // ภาษีหัก ณ ที่จ่ายสะสม
+  perSessionNet: number;     // net ต่อครั้ง (netAmount / sessionsTotal)
+  amount: number;            // ยอดรวมที่จ่าย (gross, หลังส่วนลด)
+  fees: number;
+  netAmount: number;
+  currency: string;
+  status: 'pending' | 'active' | 'depleted' | 'cancelled' | 'refunded';
+  paymentId?: string | null;
+  lowCreditNotified?: boolean;
+  depletedNotified?: boolean;
+  expiresAt?: Timestamp | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// =============================================
+// CREDIT TRANSACTION (ledger หัก/คืนเครดิตแพ็กเกจ)
+// =============================================
+export interface CreditTransaction {
+  id: string;
+  purchaseId: string;
+  parentId: string;
+  teacherId: string;
+  bookingId?: string | null;
+  kind: 'purchase' | 'consume' | 'refund' | 'expire';
+  sessionsDelta: number;     // +ได้เครดิต / -ใช้เครดิต
+  balanceAfter: number;      // sessionsRemaining หลังรายการ
+  createdAt: Timestamp;
+}
+
+// =============================================
+// PARENT WALLET (เครดิตเงินบาทของผู้ปกครอง — รับเงินคืน/เลื่อนยกเลิก)
+// =============================================
+export interface ParentWallet {
+  id: string;                // = parentId
+  parentId: string;
+  balance: number;           // เครดิตคงเหลือ (บาท)
+  totalCredited: number;     // ยอดเครดิตเข้าสะสม
+  totalSpent: number;        // ยอดใช้ไปสะสม
+  updatedAt: Timestamp;
+}
+
+export interface ParentWalletTx {
+  id: string;
+  parentId: string;
+  kind: 'refund' | 'spend' | 'reversal' | 'adjust';
+  amount: number;            // +เครดิตเข้า / -ใช้หรือตัดออก
+  balanceAfter: number;
+  bookingId?: string | null;
+  paymentId?: string | null;
+  note?: string | null;
+  createdAt: Timestamp;
 }
 
 // =============================================
@@ -393,5 +529,10 @@ export const COLLECTIONS = {
   STRIPE_EVENTS: 'stripeWebhookEvents',
   WALLETS: 'wallets',
   PAYOUTS: 'payouts',
+  PACKAGES: 'packages',
+  PACKAGE_PURCHASES: 'packagePurchases',
+  CREDIT_TRANSACTIONS: 'creditTransactions',
+  PARENT_WALLETS: 'parentWallets',
+  PARENT_WALLET_TXS: 'parentWalletTxs',
   TEACHER_VERIFICATION_EVENTS: 'teacherVerificationEvents',
 } as const;
