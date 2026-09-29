@@ -6,6 +6,7 @@ out
 # Environment
 .env
 .env.local
+.env.development
 .env.*.local
 *firebase-adminsdk*.json
 

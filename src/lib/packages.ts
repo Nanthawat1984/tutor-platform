@@ -75,7 +75,7 @@ export async function consumePackageCredit(
 ): Promise<{ ok: boolean; reason?: string; remaining?: number }> {
   const ref = db.collection(COLLECTIONS.PACKAGE_PURCHASES).doc(purchaseId);
   try {
-    const remaining = await db.runTransaction(async (tx) => {
+    const { remaining, flagsBefore } = await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error('purchase_not_found');
       const p = snap.data() as any;
@@ -87,6 +87,11 @@ export async function consumePackageCredit(
       }
       const used = (Number(p.sessionsUsed) || 0) + 1;
       const nextRemaining = left - 1;
+      // จับ flag ก่อนเซ็ตเพื่อให้ตัวแจ้งเตือน (หลัง commit) รู้ว่าเคยแจ้งไปหรือยัง
+      const flagsBefore = {
+        lowCreditNotified: p.lowCreditNotified === true,
+        depletedNotified: p.depletedNotified === true,
+      };
       tx.update(ref, {
         sessionsUsed: used,
         sessionsRemaining: nextRemaining,
@@ -106,13 +111,57 @@ export async function consumePackageCredit(
         balanceAfter: nextRemaining,
         createdAt: FieldValue.serverTimestamp(),
       });
-      return nextRemaining;
+      return { remaining: nextRemaining, flagsBefore };
     });
+    // แจ้งเตือนผู้ปกครองเมื่อเครดิตใกล้หมด/หมด (หลัง commit — ทำนอก transaction กัน retry)
+    void notifyLowOrDepletedCredit(db, purchaseId, remaining, flagsBefore).catch(() => {});
     return { ok: true, remaining };
   } catch (e: any) {
     const reason = String(e?.message || 'consume_failed');
     return { ok: false, reason };
   }
+}
+
+/**
+ * แจ้งเตือนผู้ปกครองเมื่อเครดิตแพ็กเกจใกล้หมด (≤ LOW_CREDIT_THRESHOLD) หรือหมด
+ * idempotent ด้วย lowCreditNotified / depletedNotified — อ่านสถานะหลัง transaction commit
+ */
+async function notifyLowOrDepletedCredit(
+  db: Firestore,
+  purchaseId: string,
+  remaining: number,
+  flagsBefore: { lowCreditNotified: boolean; depletedNotified: boolean },
+): Promise<void> {
+  const isLow = remaining <= LOW_CREDIT_THRESHOLD;
+  const isDepleted = remaining <= 0;
+  if (!isLow && !isDepleted) return;
+
+  const ref = db.collection(COLLECTIONS.PACKAGE_PURCHASES).doc(purchaseId);
+  const snap = await ref.get();
+  if (!snap.exists) return;
+  const p = snap.data() as any;
+
+  // กันส่งซ้ำ — อ่านจาก flag ก่อน transaction (ที่ transaction เซ็ต true ไปแล้ว):
+  // depleted แจ้งครั้งเดียวตลอดชีวิต purchase, low แจ้งครั้งเดียวต่อรอบ
+  // (แต่ถ้า depleted แล้วเคย low → ยังต้องแจ้ง depleted อีกครั้งเพื่อบอกว่าหมดจริง)
+  if (isDepleted) {
+    if (flagsBefore.depletedNotified) return;
+    await ref.update({ depletedNotified: true, updatedAt: FieldValue.serverTimestamp() });
+  } else {
+    if (flagsBefore.lowCreditNotified) return;
+    await ref.update({ lowCreditNotified: true, updatedAt: FieldValue.serverTimestamp() });
+  }
+
+  await db.collection(COLLECTIONS.NOTIFICATIONS).add({
+    userId: p.parentId,
+    type: 'package',
+    title: isDepleted ? 'เครดิตแพ็กเกจหมดแล้ว' : 'เครดิตแพ็กเกจใกล้หมด',
+    body: isDepleted
+      ? `แพ็กเกจ "${p.packageTitle || ''}" ใช้เครดิตครบแล้ว ซื้อเพิ่มเพื่อจองเรียนต่อได้เลย`
+      : `แพ็กเกจ "${p.packageTitle || ''}" เหลือเครดิต ${remaining} ครั้ง เหลือโอกาสต่อแพ็กเกจก่อนหมด`,
+    data: { purchaseId, remaining, kind: 'package_credit' },
+    isRead: false,    createdAt: FieldValue.serverTimestamp(),
+  });
 }
 
 /**
@@ -136,6 +185,8 @@ export async function refundPackageCredit(
         sessionsUsed: used,
         sessionsRemaining: next,
         status: p.status === 'depleted' ? 'active' : p.status,
+        // คืนเครดิตรอบนี้ทำให้แจ้ง "ใกล้หมด" ได้อีกครั้งเมื่อใช้ลงไปใหม่ (depleted ยังแจ้งครั้งเดียวต่อชีวิต purchase)
+        lowCreditNotified: next <= LOW_CREDIT_THRESHOLD ? (p.lowCreditNotified || false) : false,
         updatedAt: FieldValue.serverTimestamp(),
       });
       tx.set(db.collection(COLLECTIONS.CREDIT_TRANSACTIONS).doc(), {

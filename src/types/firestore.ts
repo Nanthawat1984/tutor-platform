@@ -306,7 +306,7 @@ export interface Student {
 export interface Notification {
   id: string;
   userId: string;
-  type: 'booking' | 'payment' | 'attendance' | 'report' | 'review' | 'system';
+  type: 'booking' | 'payment' | 'attendance' | 'report' | 'review' | 'system' | 'package';
   title: string;
   body: string;
   data: Record<string, any>;

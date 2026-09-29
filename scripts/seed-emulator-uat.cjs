@@ -32,7 +32,7 @@ async function ensureUser({ auth, db, email, displayName, role }) {
     user = await auth.createUser({ email, password: 'Test1234!', displayName, emailVerified: true });
   }
   const ref = db.collection('users').doc(user.uid);
-  await ref.set({
+  const userData = {
     uid: user.uid,
     email,
     displayName,
@@ -40,17 +40,23 @@ async function ensureUser({ auth, db, email, displayName, role }) {
     isVerified: role !== 'teacher',
     verificationLevel: role === 'teacher' ? 'full' : 'basic',
     emailVerified: true,
-    adminReviewStatus: role === 'teacher' ? 'approved' : undefined,
-    kycStatus: role === 'teacher' ? 'verified' : undefined,
     seed: SEED_TAG,
     createdAt: now(),
     updatedAt: now(),
-  }, { merge: true });
+  };
+  if (role === 'teacher') {
+    userData.adminReviewStatus = 'approved';
+    userData.kycStatus = 'verified';
+  }
+  await ref.set(userData, { merge: true });
   return { uid: user.uid, displayName };
 }
 
 async function main() {
-  const app = admin.initializeApp({ projectId: 'demo-tutor-platform' });
+  // ใช้ project เดียวกับ .env เพื่อให้ Auth emulator แชร์ namespace กับ dev server
+  // (Auth users เก็บแยกตาม project — token จาก project อื่นจะ verify ไม่ผ่าน)
+  const PROJECT_ID = process.env.UAT_PROJECT_ID || 'tutor-platform-4e38f';
+  const app = admin.initializeApp({ projectId: PROJECT_ID });
   const auth = admin.auth(app);
   const db = getFirestore(app, 'tutor');
 

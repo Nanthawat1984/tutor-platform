@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Sparkles,
   Star,
+  Ticket,
   Users,
   Video,
 } from 'lucide-react';
@@ -74,7 +75,7 @@ export default async function TeacherProfilePage({
   const totalStudents = teacher?.totalStudents ?? 0;
   const experienceYears = teacher?.experienceYears ?? 0;
 
-  const [reviewsSnap, coursesSnap] = await Promise.all([
+  const [reviewsSnap, coursesSnap, packagesSnap] = await Promise.all([
     db.collection(COLLECTIONS.REVIEWS)
       .where('teacherId', '==', id)
       .where('isVisible', '==', true)
@@ -85,6 +86,11 @@ export default async function TeacherProfilePage({
       .orderBy('createdAt', 'desc')
       .limit(20)
       .get(),
+    db.collection(COLLECTIONS.PACKAGES)
+      .where('teacherId', '==', id)
+      .where('isActive', '==', true)
+      .limit(20)
+      .get(),
   ]);
 
   // Sort reviews in JS (newest first) — avoids needing a composite Firestore index
@@ -92,6 +98,9 @@ export default async function TeacherProfilePage({
     .map((doc: any) => ({ id: doc.id, ...doc.data() }))
     .sort((a: any, b: any) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
   const courses = coursesSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  const packages = packagesSnap.docs
+    .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+    .sort((a: any, b: any) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
 
   // Real-time rating computed from ALL visible reviews (not the denormalized value)
   const totalReviews = reviews.length;
@@ -285,6 +294,46 @@ export default async function TeacherProfilePage({
           )}
         </Card>
       </div>
+
+      {/* ── Packages ── */}
+      {packages.length > 0 && (
+        <Card className="mt-6">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-600">
+              <Ticket className="h-4 w-4" />
+            </span>
+            แพ็กเกจประหยัดค่าเรียน ({packages.length})
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">จ่ายครั้งเดียว ได้เครดิตสอนหลายครั้ง จองเรียนด้วยเครดิตได้เลย</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {packages.map((pkg: any) => (
+              <div key={pkg.id} className="rounded-xl border border-pink-100/70 bg-white/60 p-4 transition-all hover:bg-pink-50/50 hover:shadow-card">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900">{pkg.title}</p>
+                    <p className="mt-1 text-xs text-slate-500">{pkg.courseTitle}</p>
+                    {Number(pkg.discountPercent) > 0 && (
+                      <span className="mt-1.5 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                        ประหยัด {pkg.discountPercent}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-extrabold text-pink-700">{formatCurrency(Number(pkg.priceTotal) || 0)}</p>
+                    <p className="text-[11px] text-slate-400">{pkg.sessionsTotal} ครั้ง</p>
+                  </div>
+                </div>
+                <Link
+                  href={`/packages/${pkg.id}/purchase`}
+                  className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-pink-600 hover:text-pink-800 hover:underline"
+                >
+                  ซื้อแพ็กเกจนี้ →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* ── Reviews ── */}
       <Card className="mt-6">
