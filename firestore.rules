@@ -189,36 +189,44 @@ service cloud.firestore {
     // ส่วนการ "เขียนข้อความ" ยังผ่าน API เหมือนเดิม เพราะต้องกันสแปม นับโควตา
     // และยิงแจ้งเตือน — ฝั่ง client เขียนได้แค่ presence ของตัวเอง
     //
-    // participantIds ถูก denormalize ไว้ทั้งที่ห้องคุยและทุกข้อความ
-    // เพื่อให้กฎอ่านข้อความเป็น list query ได้โดยไม่ต้องเรียก get()
-    // (ถ้าฟิลด์ไม่มี → ปฏิเสธ = fail-closed ไม่ใช่เปิดกว้าง)
+    // participantIds ถูก denormalize ไว้ที่ห้องคุยและทุกข้อความ เพื่อให้ตรวจสิทธิ์
+    // ได้โดยไม่ต้องไล่หาข้อมูลอื่น (ถ้าฟิลด์ไม่มี → ปฏิเสธ = fail-closed)
     function isConversationParty(data) {
       return isAuth() && request.auth.uid in data.participantIds;
     }
 
+    // ห้องคุย (top-level) — อ่านด้วย resource.data ได้ ทดสอบแล้วว่า list query ผ่าน
     match /conversations/{conversationId} {
       allow read: if isConversationParty(resource.data) || isAdmin();
       // สร้าง/แก้ไขห้องคุย = server เท่านั้น (คำนวณ id, ตรวจสิทธิ์ครู, อัปเดต lastMessage)
       allow create, update, delete: if false;
+    }
 
-      match /messages/{messageId} {
-        allow read: if isConversationParty(resource.data) || isAdmin();
-        allow create, update, delete: if false; // server/Admin SDK เท่านั้น
-      }
+    // ⚠️ กฎของ subcollection ต้องเป็น top-level path และต้องใช้ get() อ่านห้องคุย
+    // ทั้งสองข้อนี้ทดสอบกับ rules จริงบน production แล้ว (getDoc ผ่าน แต่ list ไม่ผ่าน):
+    //   1. match ที่ซ้อนใน match ของ parent → list query ถูกปฏิเสธ
+    //   2. ใช้ resource.data.participantIds ใน subcollection → list query ถูกปฏิเสธ
+    // list query คือสิ่งที่ onSnapshot ใช้ ถ้ากฎผ่านแค่ getDoc ฟีเจอร์เรียลไทม์จะไม่ทำงาน
+    // ยืนยันแล้วว่า get() แบบนี้ไม่ชนลิมิตแม้ list 40 เอกสาร (scripts/verify-realtime-chat.cjs)
+    match /conversations/{conversationId}/messages/{messageId} {
+      allow read: if isAuth() && (
+        isAdmin()
+        || request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+      );
+      allow create, update, delete: if false; // server/Admin SDK เท่านั้น
+    }
 
-      // typing / lastSeen / lastRead — client เขียนได้เฉพาะเอกสารของตัวเอง
-      // และเขียนได้แค่สามฟิลด์นี้ (กันเขียนทับ unreadCount หรือข้อมูลอื่น)
-      // การอ่าน presence เป็นการอ่านเอกสารเดียวเสมอ จึงใช้ get() ที่นี่ได้
-      match /presence/{uid} {
-        allow read: if isAuth() && (
-          isAdmin()
-          || request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
-        );
-        allow create, update: if isOwner(uid) && isAuth()
-          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
-          && request.resource.data.keys().hasOnly(['typing', 'lastSeenAt', 'lastReadAt']);
-        allow delete: if isOwner(uid);
-      }
+    // typing / lastSeen / lastRead — client เขียนได้เฉพาะเอกสารของตัวเอง
+    // และเขียนได้แค่สามฟิลด์นี้ (กันเขียนทับ unreadCount หรือข้อมูลอื่น)
+    match /conversations/{conversationId}/presence/{uid} {
+      allow read: if isAuth() && (
+        isAdmin()
+        || request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+      );
+      allow create, update: if isOwner(uid) && isAuth()
+        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+        && request.resource.data.keys().hasOnly(['typing', 'lastSeenAt', 'lastReadAt']);
+      allow delete: if isOwner(uid);
     }
 
     // =============================================
