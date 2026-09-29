@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { requireSessionUser } from '@/lib/auth/session';
 import {
+  AlertTriangle,
   BadgeCheck,
   BookOpen,
   Clock,
@@ -60,8 +61,13 @@ export default async function TeacherProfilePage({
   const user = userSnap.exists ? { id: userSnap.id, ...userSnap.data() } as any : null;
   const teacher = teacherSnap.exists ? { id: teacherSnap.id, ...teacherSnap.data() } as any : null;
 
-  if (!user || !isTeacherAdminApproved(user)) notFound();
+  // Only a missing/non-teacher account is a genuine 404. An account that has not
+  // been admin-approved yet must still render: explore already lists its courses,
+  // so gating here just strands parents on a dead link. Approval status is shown
+  // via the verification badge instead of hiding the whole profile.
+  if (!user || user.role !== 'teacher') notFound();
 
+  const isApproved = isTeacherAdminApproved(user);
   const displayName = user?.displayName || teacher?.displayName || 'ครูพิเศษ';
   const photoURL = user?.photoURL || teacher?.photoURL;
   const totalStudents = teacher?.totalStudents ?? 0;
@@ -126,7 +132,7 @@ export default async function TeacherProfilePage({
               <div className="min-w-0 pb-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-xl font-extrabold text-slate-900 sm:text-2xl">{displayName}</h1>
-                  {user?.isVerified && <BadgeCheck className="h-5 w-5 text-sky-500" />}
+                  {isApproved && <BadgeCheck className="h-5 w-5 text-sky-500" />}
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <RatingStars rating={rating} showValue size="md" />
@@ -169,6 +175,15 @@ export default async function TeacherProfilePage({
           </div>
         </div>
       </Card>
+
+      {!isApproved && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <p className="text-sm leading-relaxed text-amber-900">
+            ครูท่านนี้ยังไม่ผ่านการตรวจสอบจากผู้ดูแลระบบ โปรดพิจารณาอย่างระมัดระวังก่อนทำการจอง
+          </p>
+        </div>
+      )}
 
       {/* ── About + Courses ── */}
       <div className="grid gap-6 lg:grid-cols-2">
