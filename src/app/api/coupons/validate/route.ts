@@ -7,8 +7,6 @@ import { validateCoupon } from '@/lib/coupons';
 // Server-only coupon check — client never reads coupon docs (rules deny all).
 // Returns the discount or a reason code; does not consume the coupon
 // (consumption happens atomically at booking creation / payment paid).
-// NOTE: usageLimit/usedCount is enforced server-side inside validateCoupon() —
-// clients must never be trusted to self-validate remaining uses.
 export async function POST(request: Request) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
