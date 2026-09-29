@@ -22,6 +22,8 @@ export interface NavItem {
   href: string;
   label: string;
   icon?: ReactNode;
+  /** แสดงตัวนับข้อความค้างแบบสด */
+  unreadBadge?: boolean;
 }
 
 export const TEACHER_NAV_ITEMS: NavItem[] = [
@@ -32,7 +34,7 @@ export const TEACHER_NAV_ITEMS: NavItem[] = [
   { href: '/locations', label: 'สถานที่สอน', icon: <MapPin className="h-4 w-4" /> },
   { href: '/earnings', label: 'รายได้', icon: <Wallet className="h-4 w-4" /> },
   { href: '/students', label: 'นักเรียน', icon: <Users className="h-4 w-4" /> },
-  { href: '/messages', label: 'ข้อความ', icon: <MessageCircle className="h-4 w-4" /> },
+  { href: '/messages', label: 'ข้อความ', icon: <MessageCircle className="h-4 w-4" />, unreadBadge: true },
   { href: '/notifications', label: 'การแจ้งเตือน', icon: <Bell className="h-4 w-4" /> },
 ];
 
@@ -43,6 +45,7 @@ export const PARENT_NAV_ITEMS: NavItem[] = [
   { href: '/payments', label: 'การชำระเงิน', icon: <Wallet className="h-4 w-4" /> },
   { href: '/progress', label: 'ผลการเรียน', icon: <BarChart3 className="h-4 w-4" /> },
   { href: '/my-students', label: 'นักเรียนของฉัน', icon: <GraduationCap className="h-4 w-4" /> },
+  { href: '/messages', label: 'ข้อความ', icon: <MessageCircle className="h-4 w-4" />, unreadBadge: true },
   { href: '/notifications', label: 'การแจ้งเตือน', icon: <Bell className="h-4 w-4" /> },
 ];
 

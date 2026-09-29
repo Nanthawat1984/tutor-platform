@@ -535,4 +535,5 @@ export const COLLECTIONS = {
   PARENT_WALLETS: 'parentWallets',
   PARENT_WALLET_TXS: 'parentWalletTxs',
   TEACHER_VERIFICATION_EVENTS: 'teacherVerificationEvents',
+  CONVERSATIONS: 'conversations',
 } as const;

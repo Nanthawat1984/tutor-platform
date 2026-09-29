@@ -66,5 +66,21 @@ service firebase.storage {
       // เนื่องจาก role อยู่ใน named Firestore database `tutor` ซึ่ง Storage rules อ่านไม่ได้
       allow read, write: if false;
     }
+
+    // เสียงในแชท — อ่านได้เฉพาะคู่สนทนานั้น เขียนได้เฉพาะเจ้าของเสียงในโฟลเดอร์ตัวเอง
+    match /chat-audio/{conversationId}/{uid}/{fileName} {
+      allow read: if isAuth() && (
+        isAdmin()
+        || firestore.get(/databases/tutor/documents/conversations/$(conversationId)).data.parentId == request.auth.uid
+        || firestore.get(/databases/tutor/documents/conversations/$(conversationId)).data.teacherId == request.auth.uid
+      );
+      allow create: if isAuth() && request.auth.uid == uid
+        && request.resource.size < 5 * 1024 * 1024
+        && fileName.matches('.*\\.(webm|m4a|ogg)$')
+        && (request.resource.contentType == 'audio/webm'
+          || request.resource.contentType == 'audio/ogg'
+          || request.resource.contentType == 'audio/mp4');
+      allow update, delete: if isAuth() && request.auth.uid == uid;
+    }
   }
 }

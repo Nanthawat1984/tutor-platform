@@ -20,6 +20,7 @@ import { Card } from '@/components/ui/card';
 import { DashboardLayout } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { RatingStars } from '@/components/ui/rating';
+import StartChatButton from '@/components/chat/start-chat-button';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency, formatDate, getInitials } from '@/lib/utils';
 import { isTeacherAdminApproved } from '@/lib/auth/teacher-verification';
@@ -152,6 +153,12 @@ export default async function TeacherProfilePage({
                     จองเรียน
                   </Button>
                 </Link>
+              </div>
+            )}
+
+            {user?.role === 'parent' && (
+              <div className="flex shrink-0 items-center gap-2">
+                <StartChatButton teacherId={id} className="w-full sm:w-auto" />
               </div>
             )}
           </div>

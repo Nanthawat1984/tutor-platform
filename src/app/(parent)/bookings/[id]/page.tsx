@@ -11,7 +11,7 @@ import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
 import { requireSessionUser } from '@/lib/auth/session';
 import { PAYMENT_METHODS } from '@/lib/payments/config';
-import ChatBox from '@/components/chat/chat-box';
+import StartChatButton from '@/components/chat/start-chat-button';
 
 export default async function BookingDetailsPage({
   params,
@@ -105,7 +105,15 @@ export default async function BookingDetailsPage({
 
         <div>
           <h3 className="mb-2 font-bold text-slate-900">คุยกับครู</h3>
-          <ChatBox bookingId={bookingId} />
+          <p className="mb-3 text-xs text-slate-500">
+            เปิดห้องสนทนากับครูเจ้าของรายการนี้ — ข้อความเดินถึงกันทันที ไม่ต้องรอรีเฟรช
+          </p>
+          <StartChatButton
+            teacherId={booking.teacherId}
+            bookingId={bookingId}
+            label="เปิดห้องสนทนา"
+            variant="primary"
+          />
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">

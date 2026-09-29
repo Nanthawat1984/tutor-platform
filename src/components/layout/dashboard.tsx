@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import NotificationBell from '@/components/notifications/notification-bell';
+import UnreadMessagesBadge from '@/components/chat/unread-badge';
 import {
   BookOpen,
   CalendarCheck,
@@ -24,6 +25,7 @@ interface NavItem {
   href: string;
   label: string;
   icon?: React.ReactNode;
+  unreadBadge?: boolean;
 }
 
 interface DashboardLayoutProps {
@@ -144,6 +146,7 @@ export function DashboardLayout({
                     </span>
                   )}
                   <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">{item.label}</span>
+                  {item.unreadBadge && <UnreadMessagesBadge />}
                   {isActive && <ChevronRight className="h-4 w-4 shrink-0 text-pink-500" />}
                 </Link>
               </li>
