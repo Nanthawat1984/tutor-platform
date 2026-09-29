@@ -17,8 +17,8 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const db = getServerDb();
   if (!db) return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
-  if (session.role === 'admin') return NextResponse.json({ ok: true, items: [] });
 
+  // กรองด้วย participantIds ของผู้เรียกเอง ไม่ต้องเชื่อ role ใน token
   try {
     const snap = await db.collection(CONVERSATIONS_COLLECTION)
       .where('participantIds', 'array-contains', session.uid)
@@ -44,7 +44,12 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const db = getServerDb();
   if (!db) return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
-  if (session.role !== 'parent') {
+
+  // ⚠️ อย่าเชื่อ session.role — มาจาก custom claim ใน token ซึ่งบัญชีที่สมัครด้วย
+  // email/password จะไม่มี claim นี้ และ getSessionUser() ตั้ง fallback เป็น 'parent'
+  // ต้องอ่าน role จาก users doc เหมือน requireRole()
+  const callerSnap = await db.collection(COLLECTIONS.USERS).doc(session.uid).get();
+  if (callerSnap.data()?.role !== 'parent') {
     return NextResponse.json({ error: 'parents_only' }, { status: 403 });
   }
 
