@@ -15,7 +15,7 @@ function getBangkokDateString(date: Date = new Date()): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-// GET /api/packages/credits/slots?purchaseId= — ช่วงเวลาที่予約ได้ด้วย credite แพ็กเกจนี้
+// GET /api/packages/credits/slots?purchaseId= — ช่วงเวลาที่จองได้ด้วยเครดิตแพ็กเกจนี้
 export async function GET(request: Request) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });

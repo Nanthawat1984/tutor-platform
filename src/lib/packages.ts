@@ -268,7 +268,7 @@ export function packageTeacherFeeShare() {
 }
 
 /**
- * ช่วงเวลาที่予約ได้ด้วย credite แพ็กเกจ (reuse availability logic เดียวกับการreservation ปกติ)
+ * ช่วงเวลาที่จองได้ด้วยเครดิตแพ็กเกจ (reuse availability logic เดียวกับการreservation ปกติ)
  * @param db Firestore instance
  * @param purchase package purchase record (ต้องมี courseId, teacherId)
  * @param fromDate YYYY-MM-DD
