@@ -41,6 +41,8 @@ interface ChatThreadProps {
   contextLabel: string | null;
   backHref: string;
   bookingHref?: string | null;
+  /** ประวัติจาก SSR — แสดงทันทีโดยไม่ต้องรอสตรีม */
+  initialMessages?: ChatMessage[];
 }
 
 interface PendingMessage {
@@ -69,10 +71,15 @@ export default function ChatThread({
   contextLabel,
   backHref,
   bookingHref,
+  initialMessages = [],
 }: ChatThreadProps) {
   const { ready } = useAuthReady();
   const streamUid = ready ? viewerUid : null;
-  const { messages, loading, error, offline } = useConversationStream(conversationId, streamUid);
+  const { messages, loading, error, offline } = useConversationStream(
+    conversationId,
+    streamUid,
+    initialMessages,
+  );
 
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<PendingMessage[]>([]);
@@ -188,7 +195,7 @@ export default function ChatThread({
 
   function sendText() {
     const text = draft.trim();
-    if (!text || !ready) return;
+    if (!text) return;
 
     const clientMsgId = newClientMsgId();
     const optimistic: ChatMessage = {
@@ -359,11 +366,7 @@ export default function ChatThread({
           </div>
         )}
 
-        {!loading && error === 'forbidden' && (
-          <p className="py-10 text-center text-sm text-slate-500">ไม่พบห้องสนทนานี้</p>
-        )}
-
-        {!loading && !error && rows.length === 0 && (
+        {!loading && rows.length === 0 && (
           <div className="py-12 text-center">
             <p className="text-sm text-slate-500">ยังไม่มีข้อความ — เริ่มคุยกันได้เลย</p>
             <p className="mt-1 text-xs text-slate-400">
@@ -412,7 +415,9 @@ export default function ChatThread({
       {(offline || notice) && (
         <p className="flex items-center gap-1.5 border-t border-amber-100 bg-amber-50 px-4 py-1.5 text-[11px] font-semibold text-amber-800">
           <WifiOff className="h-3 w-3 shrink-0" />
-          {notice || 'ขาดการเชื่อมต่อชั่วคราว — ข้อความจะกลับมาเองเมื่อเน็ตกลับมา'}
+          {notice || (error
+            ? 'ยังรับข้อความสดไม่ได้ชั่วคราว — ข้อความที่ส่งไว้แล้วยังอยู่ครบ และจะเด้งเองเมื่อต่อได้'
+            : 'ขาดการเชื่อมต่อชั่วคราว — ข้อความจะกลับมาเองเมื่อเน็ตกลับมา')}
         </p>
       )}
 
@@ -441,7 +446,7 @@ export default function ChatThread({
           <button
             type="button"
             onClick={sendText}
-            disabled={!draft.trim() || !ready}
+            disabled={!draft.trim()}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-button disabled:opacity-40"
             aria-label="ส่งข้อความ"
           >

@@ -91,19 +91,23 @@ export interface ChatStreamState {
   offline: boolean;
 }
 
-/** ฟังข้อความใหม่แบบสด ๆ — ข้อความเก่ากว่าหน้าต่างสุดท้ายโหลดเพิ่มด้วย useOlderMessages */
-export function useConversationStream(conversationId: string, uid: string | null): ChatStreamState {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+/** ฟังข้อความใหม่แบบสด ๆ — ข้อความเก่ากว่าหน้าต่างสุดท้ายโหลดเพิ่มด้วย useOlderMessages
+ *
+ * initialMessages มาจาก SSR — ถ้า client auth ยังฟื้นไม่ทัน (หรือฟังสตรีมไม่ได้)
+ * ผู้ใช้ยังเห็นประวัติทั้งหมด ไม่ใช่หน้าว่างเปล่า
+ */
+export function useConversationStream(
+  conversationId: string,
+  uid: string | null,
+  initialMessages: ChatMessage[] = [],
+): ChatStreamState {
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [loading, setLoading] = useState(uid === null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
-    if (!uid || !conversationId) {
-      setMessages([]);
-      setLoading(false);
-      return;
-    }
+    if (!uid || !conversationId) return;
 
     const db = getFirebaseDb();
     const q = query(
@@ -120,14 +124,18 @@ export function useConversationStream(conversationId: string, uid: string | null
         setError(null);
         setLoading(false);
       },
-      (err: Error) => {
-        // permission-denied = ยังไม่ล็อกอิน หรือไม่ใช่คู่สนทนา — ไม่ต้องรบกวนผู้ใช้ซ้ำ
-        setError((err as { code?: string }).code === 'permission-denied' ? 'forbidden' : 'stream_failed');
+      () => {
+        // ฟังสดไม่ได้ (auth ยังไม่ฟื้น / เน็ตหลุด) — ยังแสดงประวัติจาก SSR ไปก่อน
+        setError('stream_failed');
         setOffline(true);
         setLoading(false);
       },
     );
   }, [conversationId, uid]);
+
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { messages, loading, error, offline };
 }

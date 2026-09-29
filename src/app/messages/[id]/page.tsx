@@ -4,7 +4,8 @@ import { requireRole } from '@/lib/auth/guards';
 import { PARENT_NAV_ITEMS, TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { DashboardLayout } from '@/components/layout/dashboard';
 import ChatThread from '@/components/chat/chat-thread';
-import { getConversation, otherParty } from '@/lib/chat/conversations';
+import { getConversation, messagesRef, otherParty } from '@/lib/chat/conversations';
+import { toChatMessage } from '@/lib/chat/serialize';
 import type { ChatRole } from '@/types/chat';
 
 export default async function ConversationPage({
@@ -27,6 +28,15 @@ export default async function ConversationPage({
   const other = otherParty(conversation, session.uid);
   const bookingHref = conversation.bookingId && role === 'parent' ? `/bookings/${conversation.bookingId}` : null;
 
+  // ประวัติจาก SSR — ห้องคุยต้องเห็นข้อความทันที แม้ฝั่ง client ยังฟื้น auth ไม่เสร็จ
+  const historySnap = await messagesRef(db, id)
+    .orderBy('createdAt', 'desc')
+    .limit(100)
+    .get();
+  const initialMessages = historySnap.docs
+    .map((d: any) => toChatMessage(d.id, id, d.data()))
+    .reverse();
+
   return (
     <DashboardLayout
       title="ข้อความ"
@@ -46,6 +56,7 @@ export default async function ConversationPage({
           contextLabel={conversation.contextLabel}
           backHref="/messages"
           bookingHref={bookingHref}
+          initialMessages={initialMessages}
         />
       </div>
     </DashboardLayout>

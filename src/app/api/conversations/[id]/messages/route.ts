@@ -23,8 +23,8 @@ import {
   messagesRef,
   otherParty,
   requireParty,
-  toMillis,
 } from '@/lib/chat/conversations';
+import { toChatMessage } from '@/lib/chat/serialize';
 import { checkRateLimit, sweepRateLimitBuckets } from '@/lib/rate-limit';
 import { logEvent } from '@/lib/log';
 
@@ -33,20 +33,6 @@ const STORAGE_HOSTS = ['https://firebasestorage.googleapis.com/', 'https://stora
 
 interface RouteContext {
   params: Promise<{ id: string }>;
-}
-
-function serializeMessage(id: string, conversationId: string, data: Record<string, any>) {
-  return {
-    id,
-    conversationId,
-    senderId: data.senderId,
-    senderRole: data.senderRole,
-    type: (data.type || 'text') as ChatMessageType,
-    text: data.text || '',
-    audio: data.audio || null,
-    clientMsgId: data.clientMsgId || id,
-    createdAt: toMillis(data.createdAt) ?? 0,
-  };
 }
 
 function validAudioUrl(url: string, path: string): boolean {
@@ -82,7 +68,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   try {
     const snap = await query.get();
     const items = snap.docs
-      .map((d: any) => serializeMessage(d.id, id, d.data()))
+      .map((d: any) => toChatMessage(d.id, id, d.data()))
       .reverse(); // เก่า → ใหม่
     return NextResponse.json({
       ok: true,
