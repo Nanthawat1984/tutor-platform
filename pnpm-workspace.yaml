@@ -1,3 +1,9 @@
+# โปรเจกต์นี้เป็น single-package repo (แอปอยู่ที่ root)
+# แต่ไฟล์นี้มีอยู่เพื่อเก็บ allowBuilds/overrides — pnpm 9+ บังคับให้มีฟิลด์ packages
+# ขาดฟิลด์นี้ `pnpm store path` (ที่ pnpm/action-setup เรียกตอน cache) จะ error
+# "packages field missing or empty" และทำให้ CI ตกตั้งแต่ commit ก่อนหน้า
+packages:
+  - '.'
 allowBuilds:
   '@firebase/util': true
   protobufjs: true
