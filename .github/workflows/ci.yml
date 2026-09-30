@@ -23,7 +23,11 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck:all
+      # job นี้ติดตั้งแค่ dependency ของแอป (root) — functions/ เป็นโปรเจกต์ npm แยก
+      # และยังไม่ได้ npm ci ใน job นี้ ถ้าเรียก typecheck:all จะ fail ว่า
+      # หา module 'firebase-functions/v1' ไม่เจอ
+      # ฝั่ง functions ถูก typecheck อยู่แล้วใน job functions (npm run build = tsc)
+      - run: pnpm typecheck
       - run: node --test src/lib/rate-limit.test.ts src/lib/ai/study-help.test.ts src/lib/auth/guards.test.ts src/lib/admin/reconciliation.test.ts src/lib/booking/availability.test.ts src/lib/auth/teacher-verification.test.ts src/lib/students/student-photo.test.ts src/lib/auth/admin-login.test.ts src/lib/auth/password-reset.test.ts src/lib/auth/redirects.test.ts src/lib/admin/parent-detail.test.ts
       - run: node scripts/verify-security-hardening.cjs
       - run: node scripts/verify-bank-transfer-review.cjs
