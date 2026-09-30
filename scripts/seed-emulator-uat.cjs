@@ -126,6 +126,42 @@ async function main() {
     updatedAt: now(),
   });
 
+  // คอร์สราคาสูง (net ≥ 1,000) ไว้ทดสอบ branch หักภาษี 3% ใน session UAT
+  const premiumCourseRef = await db.collection('courses').add({
+    teacherId: teacher.uid,
+    teacherName: teacher.displayName,
+    subjectId: subjectRef.id,
+    subjectName: 'คณิตศาสตร์ UAT',
+    title: 'คณิตศาสตร์ UAT ม.4 (ชั่วโมงละ 2500)',
+    description: 'คอร์สจำลองราคาสูงสำหรับทดสอบหักภาษี ณ ที่จ่าย (emulator เท่านั้น)',
+    level: 'ม.4',
+    format: 'one_on_one',
+    maxStudents: 1,
+    pricePerSession: 2500,
+    priceCurrency: 'THB',
+    durationMinutes: 60,
+    isActive: true,
+    seed: SEED_TAG,
+    createdAt: now(),
+    updatedAt: now(),
+  });
+  await db.collection('schedules').add({
+    courseId: premiumCourseRef.id,
+    courseTitle: 'คณิตศาสตร์ UAT ม.4',
+    teacherId: teacher.uid,
+    dayOfWeek: new Date().getDay(),
+    // ตารางต้องไม่ทับกับคอร์ส 500 (16:00-18:00) — จองสองคอร์สวันเดียวกันต้องไม่ conflict กันเอง
+    startTime: '18:00',
+    endTime: '20:00',
+    startDate,
+    endDate: null,
+    isRecurring: true,
+    isActive: true,
+    seed: SEED_TAG,
+    createdAt: now(),
+    updatedAt: now(),
+  });
+
   const studentRef = await db.collection('students').add({
     parentId: parent.uid,
     name: 'น้อง UAT',
@@ -139,7 +175,7 @@ async function main() {
   console.log('=== Emulator UAT seed ===');
   console.log('teacher:', teacher.uid, teacher.displayName, '<teacher.uat@example.test / Test1234!>');
   console.log('parent :', parent.uid, parent.displayName, '<parent.uat@example.test / Test1234!>');
-  console.log('course :', courseRef.id);
+  console.log('course :', courseRef.id, '(price 500) +', premiumCourseRef.id, '(price 2500 — ทดสอบหักภาษี 3%)');
   console.log('student:', studentRef.id);
   console.log('Next: pnpm dev → login as parent → /explore → จองคอร์ส UAT → ชำระ mock → login as teacher → เช็คชื่อ');
 

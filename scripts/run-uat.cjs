@@ -12,7 +12,6 @@
 // Safety: สคริปต์ลูก (seed/verify) มี guard ของตัวเอง — ต้องมี FIRESTORE_EMULATOR_HOST
 // เท่านั้นจึงจะทำงาน ไม่มีทางยิงโปรดักชัน
 const { spawn, execSync } = require('node:child_process');
-const net = require('node:net');
 const fs = require('node:fs');
 
 const WIN = process.platform === 'win32';
@@ -25,12 +24,15 @@ const children = [];
 let shuttingDown = false;
 
 // ── port helpers ─────────────────────────────────────────────
+// เช็คสถานะ LISTEN จาก netstat เท่านั้น — การ connect ตรง ๆ หลอกได้บน Windows
+// (socket สถานะ TIME_WAIT จากรอบก่อนทำให้ connect สำเร็จโดยไม่มี process จริง)
 function portInUse(port) {
-  return new Promise((resolve) => {
-    const sock = net.connect({ port, host: '127.0.0.1' });
-    sock.once('connect', () => { sock.destroy(); resolve(true); });
-    sock.once('error', () => resolve(false));
-  });
+  try {
+    const out = execSync(`netstat -ano -p tcp | grep ":${port} " | grep -i listen`, { encoding: 'utf8', shell: true });
+    return out.trim().length > 0;
+  } catch {
+    return false; // grep ไม่เจอ = port ว่าง
+  }
 }
 
 async function waitPort(port, timeoutMs, label) {
@@ -136,11 +138,19 @@ async function cleanup() {
 // ── main ─────────────────────────────────────────────────────
 async function main() {
   // ตรวจว่า port ว่างก่อนเริ่ม — retry สั้น ๆ กับ process ชั่วคราวที่กำลังปิดตัว
+  // ถ้ายังไม่ว่าง ลอง kill รายพอร์ตก่อน (self-heal — บางที teardown รอบก่อนค้าง)
+  // แล้วจึง fail ถ้ายังไม่ว่างจริง
   for (const p of [...EMU_PORTS, UI_PORT, DEV_PORT]) {
     let free = false;
     for (let i = 0; i < 10 && !free; i++) {
       free = !(await portInUse(p));
       if (!free) await sleep(500);
+    }
+    if (!free) {
+      console.warn(`⚠ Port ${p} busy — กำลังลอง force-free...`);
+      killByPort(p);
+      await sleep(1000);
+      free = !(await portInUse(p));
     }
     if (!free) {
       throw new Error(`Port ${p} is already in use — ปิด process เดิมก่อน (หรือรัน UAT ใหม่เมื่อ port ว่าง)`);
@@ -153,9 +163,12 @@ async function main() {
   // dev server ต้องเห็น flag emulator (ค่าใน .env.development เป็น false โดยจงใจ)
   process.env.FIREBASE_EMULATOR = 'true';
   process.env.NEXT_PUBLIC_FIREBASE_EMULATOR = 'true';
+  // UAT ใช้ mock gateway เสมอ — ถ้า .env มี Stripe keys, confirm จะไปรอ webhook
+  // ที่หาไม่ได้ในเครื่อง (override ที่ process นี้เท่านั้น ไม่แก้ไฟล์ .env)
+  process.env.PAYMENT_PROVIDER = 'mock';
 
   // 1) Firebase emulators (auth, firestore, storage — ห้ามใส่ --project ตามบทเรียนเดิม)
-  console.log('=== 1/4 Starting Firebase emulators (auth:9099, firestore:8080, storage:9199, UI:4000) ===');
+  console.log('=== 1/5 Starting Firebase emulators (auth:9099, firestore:8080, storage:9199, UI:4000) ===');
   const emuLog = fs.openSync('uat-emulator.log', 'w');
   spawnDetached('emulators', 'npx', ['-y', 'firebase-tools@latest', 'emulators:start', '--only', 'auth,firestore,storage'], {
     logFile: emuLog,
@@ -164,34 +177,45 @@ async function main() {
   await waitPort(8080, 30000, 'firestore emulator');
 
   // 2) Seed ข้อมูล UAT (idempotent — รันซ้ำได้)
-  console.log('=== 2/4 Seeding UAT data ===');
+  console.log('=== 2/5 Seeding UAT data ===');
   execSync('node scripts/seed-emulator-uat.cjs', { stdio: 'inherit' });
 
   // 3) Dev server (Next.js)
-  console.log('=== 3/4 Starting dev server on :3000 ===');
+  console.log('=== 3/5 Starting dev server on :3000 ===');
   const devLog = fs.openSync('uat-dev.log', 'w');
   spawnDetached('dev server', 'pnpm', ['dev'], { logFile: devLog });
   await waitPort(DEV_PORT, 120000, 'dev server');
   // รอ compile จริง — ไม่งั้น request แรกของ verify จะโดน 404
   await waitHttpOk(`http://localhost:${DEV_PORT}/`, 120000, 'dev server');
 
-  // 4) E2E verify
-  console.log('=== 4/4 Running package E2E verify ===');
-  let failed = false;
+  // 4) E2E verify — flow แพ็กเกจ (เครดิต)
+  console.log('=== 4/5 Running package E2E verify ===');
+  const failures = [];
   try {
     execSync('node scripts/verify-package-e2e.cjs', { stdio: 'inherit' });
   } catch (err) {
-    failed = true;
-    console.error('\nUAT FAILED — ดู log เพิ่มเติมที่ uat-emulator.log / uat-dev.log');
-    if (err.status) process.exitCode = err.status;
+    failures.push(`package: exit ${err.status}`);
+    console.error('\nPACKAGE UAT FAILED — ดู log เพิ่มเติมที่ uat-emulator.log / uat-dev.log');
+  }
+
+  // 5) E2E verify — flow จองปกติ (จ่าย mock gateway)
+  console.log('\n=== 5/5 Running session booking E2E verify ===');
+  try {
+    execSync('node scripts/verify-session-e2e.cjs', { stdio: 'inherit' });
+  } catch (err) {
+    failures.push(`session: exit ${err.status}`);
+    console.error('\nSESSION UAT FAILED — ดู log เพิ่มเติมที่ uat-emulator.log / uat-dev.log');
+  }
+  if (failures.length > 0) {
+    process.exitCode = 1;
+    throw new Error(`UAT failed: ${failures.join(', ')}`);
   }
 
   if (process.env.KEEP_EMULATOR === '1') {
     console.log('\nKEEP_EMULATOR=1 — ปล่อย emulator และ dev server รันต่อ (UI: http://127.0.0.1:4000)');
     children.length = 0; // ไม่ kill ตอน exit
   }
-  if (failed) throw new Error('UAT failed');
-  console.log('\n✅ UAT PASSED');
+  console.log('\n✅ UAT PASSED — package + session flows');
 }
 
 process.on('SIGINT', async () => {

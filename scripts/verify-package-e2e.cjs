@@ -77,9 +77,11 @@ async function main() {
   const studentsSnap = await db.collection('students').where('seed', '==', SEED_TAG).limit(1).get();
   assert.ok(!coursesSnap.empty, 'seed course missing — run seed-emulator-uat.cjs first');
   assert.ok(!studentsSnap.empty, 'seed student missing — run seed-emulator-uat.cjs first');
-  const latestCourseDoc = coursesSnap.docs
-    .sort((a, b) => (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0))[0];
-  const course = { id: latestCourseDoc.id, ...latestCourseDoc.data() };
+  const sortedCourses = coursesSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  // ใช้คอร์สมาตรฐานราคา 500 (คอร์ส premium 2500 ให้ session UAT ทดสอบหักภาษี)
+  const course = sortedCourses.find((c) => Number(c.pricePerSession) === 500) || sortedCourses[0];
   const student = { id: studentsSnap.docs[0].id, ...studentsSnap.docs[0].data() };
   const teacherId = course.teacherId;
   const parentId = student.parentId;
