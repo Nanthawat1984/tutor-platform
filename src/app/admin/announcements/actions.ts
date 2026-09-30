@@ -76,3 +76,25 @@ export async function deleteAnnouncement(formData: FormData) {
   await db.collection(COLLECTIONS.ANNOUNCEMENTS).doc(id).delete();
   revalidateAll();
 }
+
+export async function updateAnnouncement(formData: FormData) {
+  const { session } = await requireRole(['admin']);
+  const db = getServerDb();
+  if (!db) return;
+  const id = String(formData.get('id') || '');
+  const title = String(formData.get('title') || '').trim().slice(0, 120);
+  const body = String(formData.get('body') || '').trim().slice(0, 2000);
+  if (!id || !title || !body) return;
+  await db.collection(COLLECTIONS.ANNOUNCEMENTS).doc(id).update({
+    title,
+    body,
+    audience: String(formData.get('audience') || 'all'),
+    category: String(formData.get('category') || 'general'),
+    isPinned: formData.get('isPinned') === 'on',
+    linkUrl: String(formData.get('linkUrl') || '').trim() || null,
+    updatedBy: session.uid,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  revalidateAll();
+  revalidatePath(`/admin/announcements/${id}`);
+}

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getServerDb } from '@/lib/firebase/server';
-import { Megaphone, Pin, Eye, EyeOff, Trash2, Plus } from 'lucide-react';
+import { Megaphone, Pin, Eye, EyeOff, Trash2, Plus, Pencil } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout, SectionCard, EmptyState } from '@/components/layout/dashboard';
@@ -10,6 +10,7 @@ import { requireRole } from '@/lib/auth/guards';
 import { ANNOUNCEMENT_CATEGORIES } from '@/lib/announcements';
 import { formatDate } from '@/lib/utils';
 
+import Link from 'next/link';
 import {
   createAnnouncement,
   togglePinAnnouncement,
@@ -141,6 +142,11 @@ export default async function AdminAnnouncementsPage() {
                         <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{a.body}</p>
                       </div>
                       <div className="flex shrink-0 gap-2">
+                        <Link href={`/admin/announcements/${a.id}`}>
+                          <Button variant="outline" size="sm" className="inline-flex items-center gap-1.5">
+                            <Pencil className="h-3.5 w-3.5" /> แก้ไข
+                          </Button>
+                        </Link>
                         <form action={togglePinAnnouncement}>
                           <input type="hidden" name="id" value={a.id} />
                           <input type="hidden" name="next" value={String(!a.isPinned)} />
