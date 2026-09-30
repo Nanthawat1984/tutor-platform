@@ -31,15 +31,21 @@ export default async function AdminAnalyticsPage() {
   const { db, session } = await requireAdmin();
   if (!db) return redirect('/login');
 
+  // NOTE: หลีกเลี่ยง composite index — where('status') + orderBy('paidAt') ต้องมีดัชนีเฉพาะ
+  // (ไม่มีใน firestore.indexes.json → หน้าจะพังด้วย failed-precondition บน production)
+  // ใช้ orderBy('paidAt') อย่างเดียว (single-field index อัตโนมัติ) แล้วกรอง status ใน memory
+  // — เอกสารที่มี paidAt ส่วนใหญ่คือรายการที่ชำระแล้วอยู่แล้ว
   const [bookingsSnap, paymentsSnap, teachersSnap, parentsSnap] = await Promise.all([
     db.collection(COLLECTIONS.BOOKINGS).orderBy('createdAt', 'desc').limit(500).get(),
-    db.collection(COLLECTIONS.PAYMENTS).where('status', '==', 'paid').orderBy('paidAt', 'desc').limit(500).get(),
+    db.collection(COLLECTIONS.PAYMENTS).orderBy('paidAt', 'desc').limit(500).get(),
     db.collection(COLLECTIONS.USERS).where('role', '==', 'teacher').limit(200).get(),
     db.collection(COLLECTIONS.USERS).where('role', '==', 'parent').limit(200).get(),
   ]);
 
   const bookings = bookingsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-  const payments = paymentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const payments = paymentsSnap.docs
+    .map((d: any) => ({ id: d.id, ...d.data() }))
+    .filter((p: any) => p.status === 'paid');
 
   const confirmed = bookings.filter((b: any) => b.status === 'confirmed').length;
   const completed = bookings.filter((b: any) => b.status === 'completed').length;
