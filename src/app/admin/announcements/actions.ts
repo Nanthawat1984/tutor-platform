@@ -11,11 +11,13 @@ import { ANNOUNCEMENT_MAX_IMAGES, type AnnouncementAudience, type AnnouncementCa
 
 // ── รูปประกอบประกาศ ──
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGES_TOTAL_MAX_BYTES = 6 * 1024 * 1024;
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 /**
  * อัปโหลดรูปประกอบประกาศไป Storage (public read — เนื้อหา PR ไม่ใช่ข้อมูลส่วนบุคคล)
  * รับหลายไฟล์ (สูงสุด ANNOUNCEMENT_MAX_IMAGES) คืนรายการ { url, path } ของไฟล์ที่ผ่านเงื่อนไข
+ * ฝั่ง client ย่อรูปมาแล้ว แต่ยังกันซ้ำที่ฝั่ง server เผื่อ client เก่าหรือถูกเรียกตรง
  */
 async function uploadAnnouncementImages(files: unknown): Promise<{ url: string; path: string }[]> {
   const list = Array.isArray(files) ? files : files ? [files] : [];
@@ -24,10 +26,16 @@ async function uploadAnnouncementImages(files: unknown): Promise<{ url: string; 
   const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
     || `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebasestorage.app`;
   const uploaded: { url: string; path: string }[] = [];
+  let totalBytes = 0;
   for (const file of list.slice(0, ANNOUNCEMENT_MAX_IMAGES)) {
     if (!(file instanceof File) || file.size === 0) continue;
     if (!IMAGE_TYPES.has(file.type)) continue;
     if (file.size > IMAGE_MAX_BYTES) continue;
+    if (totalBytes + file.size > IMAGES_TOTAL_MAX_BYTES) {
+      console.warn('announcement images: total size cap reached, skipping rest');
+      break;
+    }
+    totalBytes += file.size;
     const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
     const path = `announcement-images/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());

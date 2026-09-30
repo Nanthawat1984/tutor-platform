@@ -1,18 +1,18 @@
 import { redirect } from 'next/navigation';
 import { getServerDb } from '@/lib/firebase/server';
-import { Megaphone, Pin, Eye, EyeOff, Trash2, Plus, Pencil } from 'lucide-react';
+import { Megaphone, Pin, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout, SectionCard, EmptyState } from '@/components/layout/dashboard';
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { requireRole } from '@/lib/auth/guards';
-import { ANNOUNCEMENT_CATEGORIES, announcementImages } from '@/lib/announcements';
+import { announcementImages } from '@/lib/announcements';
 import { formatDate } from '@/lib/utils';
+import { AnnouncementForm } from '@/components/admin/announcement-form';
 
 import Link from 'next/link';
 import {
-  createAnnouncement,
   togglePinAnnouncement,
   togglePublishAnnouncement,
   deleteAnnouncement,
@@ -43,78 +43,7 @@ export default async function AdminAnnouncementsPage() {
 
       {/* ── ฟอร์มสร้างข่าว ── */}
       <SectionCard title="สร้างประกาศใหม่">
-        <form action={createAnnouncement} className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs font-bold text-slate-600">หัวข้อ *</label>
-            <input
-              name="title"
-              required
-              maxLength={120}
-              placeholder="เช่น โปรโมชันแพ็กเกจเรียน ลดสูงสุด 20%"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold text-slate-600">เนื้อหา *</label>
-            <textarea
-              name="body"
-              required
-              maxLength={2000}
-              rows={4}
-              placeholder="รายละเอียดข่าว/โปรโมชัน..."
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
-            />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-xs font-bold text-slate-600">กลุ่มเป้าหมาย</label>
-              <select
-                name="audience"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
-              >
-                <option value="all">ทุกคน</option>
-                <option value="parent">ผู้ปกครอง</option>
-                <option value="teacher">ครู</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-bold text-slate-600">หมวด</label>
-              <select
-                name="category"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
-              >
-                {ANNOUNCEMENT_CATEGORIES.map((c) => (
-                  <option key={c.id} value={c.id}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-bold text-slate-600">ลิงก์เพิ่มเติม (ไม่บังคับ)</label>
-              <input
-                name="linkUrl"
-                placeholder="/packages"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-100"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold text-slate-600">รูปประกอบ (ไม่บังคับ — เลือกได้หลายรูป, JPG/PNG/WebP ไม่เกิน 5MB ต่อรูป, สูงสุด 5 รูป)</label>
-            <input
-              type="file"
-              name="image"
-              multiple
-              accept="image/jpeg,image/png,image/webp"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-pink-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-pink-700"
-            />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" name="isPinned" className="h-4 w-4 rounded border-slate-300 text-pink-600" />
-            ปักหมุดไว้บนสุดของแดชบอร์ด
-          </label>
-          <Button type="submit" className="inline-flex items-center gap-2">
-            <Plus className="h-4 w-4" /> เผยแพร่ประกาศ
-          </Button>
-        </form>
+        <AnnouncementForm mode="create" submitLabel="เผยแพร่ประกาศ" />
       </SectionCard>
 
       {/* ── รายการประกาศ ── */}

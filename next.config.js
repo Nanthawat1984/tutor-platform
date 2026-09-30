@@ -7,7 +7,11 @@ const nextConfig = {
   outputFileTracingRoot: path.join(__dirname),
   experimental: {
     serverActions: {
-      bodySizeLimit: '2mb',
+      // ⚠️ เกินลิมิตนี้ Next.js จะตอบ 500 ตั้งแต่ก่อนถึงตัว server action
+      // ทำให้ผู้ใช้เห็นแค่ "Application error: a server-side exception has occurred"
+      // ฟอร์มแนบรูปข่าวสารย่อรูปในเบราว์เซอร์ก่อนอัปโหลดแล้ว (src/lib/image-compress.ts)
+      // ค่านี้เผื่อ headroom ต่อกรณีรูปซับซ้อนหลายรูป ไม่ใช่ขนาดที่อัปโหลดจริง
+      bodySizeLimit: '8mb',
     },
   },
   async rewrites() {
