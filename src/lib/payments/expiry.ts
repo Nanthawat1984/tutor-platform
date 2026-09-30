@@ -63,12 +63,21 @@ export async function sweepExpiredPayments(db: any, now: Date = new Date()): Pro
   for (const doc of pendingSnap.docs) {
     const payment = doc.data();
     if (paymentDeadlineMs(payment) > nowMs) continue;
-    await doc.ref.update({
-      status: 'cancelled',
-      note: 'payment_expired_1day',
-      cancelledAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+    // Race guard — ทำใน transaction เพื่อไม่ให้ทับรายการที่ผู้ปกครองชำระ "พอดี"
+    // ระหว่างที่ sweep กำลังรัน (markPaymentPaid เกิดขึ้นพร้อมกันได้):
+    // transaction จะอ่านสด + เขียนแบบ atomic ถ้าสถานะเปลี่ยนไปแล้วจะ retry/rollback เอง
+    const cancelledNow = await db.runTransaction(async (tx: any) => {
+      const fresh = await tx.get(doc.ref);
+      if (fresh.data()?.status !== 'pending') return false;
+      tx.update(doc.ref, {
+        status: 'cancelled',
+        note: 'payment_expired_1day',
+        cancelledAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return true;
     });
+    if (!cancelledNow) continue;
     result.expiredPayments += 1;
 
     try {
@@ -86,19 +95,22 @@ export async function sweepExpiredPayments(db: any, now: Date = new Date()): Pro
     }
 
     // booking ที่ยังรอชำระค้าง → ยกเลิกตาม (ไม่แตะรายการ confirmed/completed)
+    // ใช้ transaction เดียวกันกัน race กับการยืนยันการจองฝั่งอื่น
     const bookingId = payment.bookingId;
     if (bookingId) {
       const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
-      const bookingSnap = await bookingRef.get();
-      if (bookingSnap.exists && bookingSnap.data()?.status === 'pending') {
-        await bookingRef.update({
+      const bookingCancelled = await db.runTransaction(async (tx: any) => {
+        const fresh = await tx.get(bookingRef);
+        if (!fresh.exists || fresh.data()?.status !== 'pending') return false;
+        tx.update(bookingRef, {
           status: 'cancelled',
           cancelledAt: Timestamp.fromMillis(nowMs),
           cancelReason: 'payment_expired',
           updatedAt: Timestamp.fromMillis(nowMs),
         });
-        result.cancelledBookings += 1;
-      }
+        return true;
+      });
+      if (bookingCancelled) result.cancelledBookings += 1;
     }
   }
 

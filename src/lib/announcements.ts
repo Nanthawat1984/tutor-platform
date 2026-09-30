@@ -16,6 +16,8 @@ export function categoryLabel(id: string): string {
 }
 
 /** ดึงข่าวที่ฉายอยู่สำหรับกลุ่มเป้าหมาย — pin ก่อน แล้วเรียงตามวันที่ล่าสุด */
+// NOTE: ห้าม where+orderBy หลาย field โดยไม่มี composite index — จะพังบน production
+// (failed-precondition) จึงดึงแบบ index-free แล้วกรอง+เรียงใน memory
 export async function getActiveAnnouncements(
   db: any,
   role: 'parent' | 'teacher' | 'admin',
@@ -23,9 +25,7 @@ export async function getActiveAnnouncements(
 ): Promise<any[]> {
   const snap = await db.collection(COLLECTIONS.ANNOUNCEMENTS)
     .where('published', '==', true)
-    .orderBy('isPinned', 'desc')
-    .orderBy('publishedAt', 'desc')
-    .limit(20)
+    .limit(50)
     .get();
   const nowMs = Date.now();
   return snap.docs
@@ -35,6 +35,13 @@ export async function getActiveAnnouncements(
       const exp = a.expiresAt?.toMillis?.();
       if (typeof exp === 'number' && exp < nowMs) return false; // หมดอายุ → ซ่อน
       return true;
+    })
+    .sort((a: any, b: any) => {
+      const pinned = (b.isPinned === true ? 1 : 0) - (a.isPinned === true ? 1 : 0);
+      if (pinned !== 0) return pinned;
+      const ta = a.publishedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
+      const tb = b.publishedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
+      return tb - ta;
     })
     .slice(0, limit);
 }
