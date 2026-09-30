@@ -47,6 +47,15 @@ const INDEXES = [
       { fieldPath: 'paidAt', order: 'DESCENDING' },
     ],
   },
+  // หน้าจัดการแพ็กเกจของครู: where teacherId + orderBy createdAt
+  // (zigzag merge join ครอบ query ที่มีแต่ equality — พอใส่ orderBy ต้องมี index)
+  {
+    collection: 'packages',
+    fields: [
+      { fieldPath: 'teacherId', order: 'ASCENDING' },
+      { fieldPath: 'createdAt', order: 'DESCENDING' },
+    ],
+  },
 ];
 
 function request(method, url, token, body) {
