@@ -48,3 +48,4 @@ uat-*.log
 # Build
 .firebase/
 *.tsbuildinfo
+deploy-rollout.log
