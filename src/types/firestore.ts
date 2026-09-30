@@ -349,9 +349,8 @@ export interface Payment {
   slipURL?: string;         // สำหรับวิธี bank_transfer (อัปโหลดสลิป)
   slipPath?: string;        // private Storage path สำหรับ Admin ตรวจสอบ
   slipHash?: string | null; // sha256 ของไฟล์สลิป — กันส่งสลิปเดิมซ้ำหลายรายการ
-  // ── auto-approve สลิป (เฟส 1คู่) ──
-  autoApproved?: boolean;   // true = ระบบอนุมัติอัตโนมัติตามนโยบาย
-  autoApproveReasons?: string[];
+  duplicateSlip?: boolean;  // สลิปนี้เคยถูกใช้กับรายการอื่นที่ยัง active — สัญญาณเตือนแอดมิน
+  // ── AI pre-check สลิป (ข้อมูลประกอบการตัดสินของแอดมิน — ไม่อนุมัติอัตโนมัติ) ──
   agentStatus?: string | null;
   agentConfidence?: number | null;
   agentExtracted?: Record<string, any> | null;

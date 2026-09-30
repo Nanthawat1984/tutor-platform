@@ -24,6 +24,31 @@ assert.match(confirmRoute, /analyzePaymentSlip/,
   'bank transfer confirmation must run the slip agent pre-check');
 assert.doesNotMatch(confirmRoute, /payment\.method === 'bank_transfer'[\s\S]{0,500}markPaymentPaid/,
   'bank transfer submission must not auto-approve payment');
+
+// ── ไม่มีการอนุมัติสลิปอัตโนมัติ (ถอดแล้ว เพราะเป็นช่องโกงเงิน) ──
+// เดิมมี auto-approve: อนุมัติเองถ้า LLM อ่านสลิปแล้วผ่านทุกเงื่อนไข แต่ทุกเงื่อนไข
+// มาจากรูปที่ผู้ใช้ควบคุมเนื้อหาได้ → ใส่ข้อความสั่งให้ผ่านพร้อมกันทั้งหมดได้
+const bankTransferStart = confirmRoute.indexOf("payment.method === 'bank_transfer'");
+const bankTransferEnd = confirmRoute.indexOf('awaitingReview');
+assert.ok(bankTransferStart >= 0 && bankTransferEnd > bankTransferStart,
+  'confirm route must contain a bank_transfer branch');
+const bankTransferBranch = confirmRoute.slice(bankTransferStart, bankTransferEnd);
+assert.doesNotMatch(bankTransferBranch, /markPaymentPaid|status:\s*'paid'/,
+  'the bank_transfer branch must never mark a payment paid itself');
+assert.equal(
+  fs.existsSync(path.join(root, 'src/lib/payments/auto-approve.ts')),
+  false,
+  'the LLM-based slip auto-approve module must not be reintroduced',
+);
+for (const file of [confirmRoute, read('.env.example'), read('apphosting.yaml')]) {
+  assert.doesNotMatch(file, /SLIP_AUTO_APPROVE/,
+    'the slip auto-approve flag must not come back');
+}
+// สัญญาณสลิปซ้ำยังต้องอยู่ เพราะเป็นข้อมูลให้แอดมินตัดสิน
+assert.match(confirmRoute, /duplicateSlip/,
+  'confirm route must still flag duplicate slips for the admin');
+assert.match(types, /duplicateSlip\?: boolean/,
+  'payments must model the duplicate-slip advisory flag');
 assert.match(paymentFlow, /slipPath/,
   'parent payment flow must submit slipPath for review');
 assert.match(badge, /awaiting_review:\s*\{\s*label:\s*'รอตรวจสอบสลิป'/s,

@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       const expectedReference = typeof payment.providerRef === 'string'
         ? payment.providerRef.replace(/^manual_/, '')
         : null;
-      const { hashSlipBuffer } = await import('@/lib/payments/auto-approve');
+      const { hashSlipBuffer } = await import('@/lib/payments/slip-dedupe');
       slipHash = hashSlipBuffer(buffer);
       agentResult = await analyzePaymentSlip({
         buffer,
@@ -84,6 +84,18 @@ export async function POST(request: NextRequest) {
       const companyDigits = BANK_ACCOUNT.accountNumber.replace(/\D/g, '').slice(-4);
       return companyDigits ? recipientLast4 === companyDigits : null;
     })();
+
+    // สลิปซ้ำ = สัญญาณเตือนแอดมิน ไม่ใช่เงื่อนไขอนุมัติ (ระบบไม่อนุมัติอัตโนมัติ)
+    let duplicateSlip = false;
+    if (slipHash) {
+      const { isDuplicateSlip } = await import('@/lib/payments/slip-dedupe');
+      const dupeSnap = await db.collection(COLLECTIONS.PAYMENTS)
+        .where('slipHash', '==', slipHash)
+        .limit(5)
+        .get();
+      duplicateSlip = isDuplicateSlip(dupeSnap.docs, paymentId);
+    }
+
     await paymentRef.update({
       agentStatus: agentResult.status,
       agentConfidence: agentResult.confidence,
@@ -94,50 +106,15 @@ export async function POST(request: NextRequest) {
       recipientLast4,
       recipientMatchesCompany,
       slipHash,
+      duplicateSlip,
       updatedAt: new Date(),
     } as any);
 
-    // ── Auto-approve (เฟส 1คู่): หลักฐานครบ+เสี่ยงต่ำมาก → paid ทันที ไม่ต้องรอแอดมิน ──
-    if (process.env.SLIP_AUTO_APPROVE_ENABLED === 'true' && slipHash) {
-      const { evaluateSlipAutoApprove } = await import('@/lib/payments/auto-approve');
-      // กันสลิปวน: เคยมี slipHash นี้ใน payment ที่ paid/awaiting_review อื่นหรือไม่
-      const dupeSnap = await db.collection(COLLECTIONS.PAYMENTS)
-        .where('slipHash', '==', slipHash)
-        .limit(5)
-        .get();
-      const duplicateSlip = dupeSnap.docs.some((d: any) => d.id !== paymentId && ['paid', 'awaiting_review'].includes(d.data()?.status));
-      const decision = evaluateSlipAutoApprove({
-        agentStatus: agentResult.status,
-        agentConfidence: agentResult.confidence,
-        extractedAmount: (agentResult.extracted as any)?.amount ?? null,
-        extractedReference: (agentResult.extracted as any)?.reference ?? null,
-        expectedAmount: Number(payment.amount) || 0,
-        expectedReference: typeof payment.providerRef === 'string' ? payment.providerRef.replace(/^manual_/, '') : null,
-        recipientMatchesCompany,
-        duplicateSlip,
-      });
-      if (decision.approved) {
-        const { markPaymentPaid } = await import('@/lib/payments/process');
-        const result = await markPaymentPaid(db, paymentId, {
-          transactionId: `auto_${paymentId.slice(0, 8)}`,
-          providerRef: payment.providerRef,
-        });
-        if (result.ok) {
-          await paymentRef.update({
-            autoApproved: true,
-            autoApproveReasons: decision.reasons,
-            reviewedBy: 'system:auto-approve',
-            reviewedAt: new Date(),
-            updatedAt: new Date(),
-          } as any);
-          const { logEvent } = await import('@/lib/log');
-          logEvent('info', 'slip_auto_approved', { paymentId });
-          return NextResponse.json({ ok: true, autoApproved: true, bookingId: payment.bookingId, purchaseId: (payment as any).packagePurchaseId || null });
-        }
-      } else {
-        await paymentRef.update({ autoApproveReasons: decision.reasons, updatedAt: new Date() } as any);
-      }
-    }
+    // ── การอนุมัติทั้งหมดขึ้นกับแอดมินเท่านั้น ──
+    // เดิมมี auto-approve ตรงนี้ (อนุมัติทันทีถ้าผ่านทุกเงื่อนไข) แต่ทุกเงื่อนไข
+    // มาจาก LLM ที่อ่านรูปซึ่งผู้ใช้ควบคุมเนื้อหาได้ ใส่ข้อความสั่งให้ผ่าน
+    // ทุกข้อพร้อมกันได้ → เป็นช่องโกงเงิน จึงถอดออกแล้ว
+    // ผลวิเคราะห์ข้างบนคงไว้เป็นข้อมูลประกอบการตัดสินของแอดมินเท่านั้น
 
     if (payment.kind === 'package') {
       return NextResponse.json({ ok: true, awaitingReview: true, purchaseId: payment.packagePurchaseId }, { status: 202 });

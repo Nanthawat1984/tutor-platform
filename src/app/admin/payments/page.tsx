@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { FieldValue } from 'firebase-admin/firestore';
-import { Eye, FileCheck2, FileWarning, Sparkles, XCircle } from 'lucide-react';
+import { Eye, FileCheck2, FileWarning, CopyCheck, XCircle } from 'lucide-react';
 import { getServerDb } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -26,13 +26,10 @@ const SLIP_AGENT_STATUS_LABELS: Record<string, string> = {
 const SLIP_REASON_LABELS: Record<string, string> = {
   agent_flagged: 'AI ระบุจุดน่าสงสัยในสลิป',
   agent_unavailable: 'AI วิเคราะห์สลิปไม่สำเร็จ',
-  low_confidence: 'ความมั่นใจต่ำกว่าเกณฑ์',
   amount_mismatch_or_unreadable: 'ยอดเงินไม่ตรงหรืออ่านไม่ได้',
   reference_mismatch_or_unreadable: 'เลขอ้างอิงไม่ตรงหรืออ่านไม่ได้',
-  duplicate_slip: 'สลิปนี้เคยถูกใช้กับรายการอื่น',
-  recipient_mismatch: 'บัญชีผู้รับไม่ตรงกับบริษัท',
   recipient_unreadable: 'อ่านบัญชีผู้รับไม่ได้ — ต้องตรวจเอง',
-  auto_approved_policy_pass: 'ผ่านเกณฑ์อนุมัติอัตโนมัติทุกข้อ',
+  unsupported_slip_format: 'รูปสลิปรูปแบบนี้ AI อ่านไม่ได้',
 };
 
 export default async function AdminPaymentsPage({ searchParams }: AdminPaymentsProps) {
@@ -137,29 +134,27 @@ export default async function AdminPaymentsPage({ searchParams }: AdminPaymentsP
                   <div className="flex flex-wrap items-center gap-2">
                     <PaymentStatusBadge status={payment.status} />
                     <span className="font-bold text-slate-900">{formatCurrency(payment.amount)}</span>
-                    {payment.autoApproved === true && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
-                        <Sparkles className="h-3 w-3" /> ระบบอนุมัติอัตโนมัติ
+                    {payment.duplicateSlip === true && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">
+                        <CopyCheck className="h-3 w-3" /> สลิปนี้เคยถูกใช้กับรายการอื่น
                       </span>
                     )}
                   </div>
                   <p className="mt-2 text-sm font-semibold text-slate-800">{payment.courseTitle || 'คอร์สเรียน'} • {payment.studentName || 'นักเรียน'}</p>
                   <p className="mt-1 text-xs text-slate-500">รหัสรายการ: {payment.id} • ส่งเมื่อ {payment.submittedAt ? formatDate(payment.submittedAt.toDate?.() || payment.submittedAt, 'd MMM yyyy HH:mm') : '-'}</p>
 
-                  {/* AI slip-agent pre-check summary */}
-                  {(payment.agentStatus || payment.autoApproveReasons) && (
+                  {/* AI slip-agent pre-check — ข้อมูลประกอบเท่านั้น การอนุมัติเป็นของแอดมิน */}
+                  {payment.agentStatus && (
                     <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs">
                       <p className="font-bold text-slate-600">
-                        ผลวิเคราะห์สลิป (AI): {SLIP_AGENT_STATUS_LABELS[String(payment.agentStatus || 'none')] || String(payment.agentStatus || '-')}
+                        ผลวิเคราะห์สลิป (AI): {SLIP_AGENT_STATUS_LABELS[String(payment.agentStatus)] || String(payment.agentStatus)}
                         {typeof payment.agentConfidence === 'number' && ` • ความมั่นใจ ${Math.round(payment.agentConfidence * 100)}%`}
                       </p>
                       {Array.isArray(payment.agentReasons) && payment.agentReasons.length > 0 && (
                         <p className="mt-0.5 text-slate-500">หมายเหตุ: {payment.agentReasons.map((r: string) => SLIP_REASON_LABELS[r] || r).join(', ')}</p>
                       )}
-                      {Array.isArray(payment.autoApproveReasons) && payment.autoApproveReasons.length > 0 && (
-                        <p className="mt-0.5 text-slate-500">
-                          ผลพิจารณาอัตโนมัติ: {payment.autoApproveReasons.map((r: string) => SLIP_REASON_LABELS[r] || r).join(', ')}
-                        </p>
+                      {payment.recipientMatchesCompany === false && (
+                        <p className="mt-0.5 font-semibold text-rose-600">บัญชีผู้รับในรูปไม่ตรงกับบัญชีบริษัท — ต้องตรวจเอง</p>
                       )}
                     </div>
                   )}
