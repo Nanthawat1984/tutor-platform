@@ -67,6 +67,13 @@ service firebase.storage {
       allow read, write: if false;
     }
 
+    match /announcement-images/{fileName} {
+      // รูปประกอบประกาศ/ข่าวสารจากศูนย์ — อัปโหลด/ลบผ่าน server action (Admin SDK)
+      // อ่านสาธารณะได้เพราะเป็นเนื้อหาประชาสัมพันธ์ ไม่ใช่ข้อมูลส่วนบุคคล
+      allow read: if true;
+      allow write: if false;
+    }
+
     // เสียงในแชท — อ่านได้เฉพาะคู่สนทนานั้น เขียนได้เฉพาะเจ้าของเสียงในโฟลเดอร์ตัวเอง
     match /chat-audio/{conversationId}/{uid}/{fileName} {
       allow read: if isAuth() && (

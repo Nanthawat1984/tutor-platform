@@ -46,6 +46,15 @@ export function AnnouncementsCard({
               </div>
               <p className="mt-1.5 font-bold text-slate-900">{a.title}</p>
               {a.body && <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{a.body}</p>}
+              {a.imageUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element -- remote Storage URL ไม่อยู่ในโดเมนที่ next/image config */
+                <img
+                  src={a.imageUrl}
+                  alt={a.title}
+                  className="mt-3 max-h-80 w-full rounded-xl border border-slate-200 object-cover"
+                  loading="lazy"
+                />
+              )}
               {a.linkUrl && (
                 <Link
                   href={a.linkUrl}
