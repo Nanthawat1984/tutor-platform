@@ -7,7 +7,7 @@ import { DashboardLayout, SectionCard, EmptyState } from '@/components/layout/da
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { requireRole } from '@/lib/auth/guards';
-import { ANNOUNCEMENT_CATEGORIES } from '@/lib/announcements';
+import { ANNOUNCEMENT_CATEGORIES, announcementImages } from '@/lib/announcements';
 import { formatDate } from '@/lib/utils';
 
 import Link from 'next/link';
@@ -98,10 +98,11 @@ export default async function AdminAnnouncementsPage() {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-bold text-slate-600">รูปประกอบ (ไม่บังคับ — JPG/PNG/WebP ไม่เกิน 5MB)</label>
+            <label className="mb-1 block text-xs font-bold text-slate-600">รูปประกอบ (ไม่บังคับ — เลือกได้หลายรูป, JPG/PNG/WebP ไม่เกิน 5MB ต่อรูป, สูงสุด 5 รูป)</label>
             <input
               type="file"
               name="image"
+              multiple
               accept="image/jpeg,image/png,image/webp"
               className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-pink-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-pink-700"
             />
@@ -149,9 +150,13 @@ export default async function AdminAnnouncementsPage() {
                         </div>
                         <p className="mt-1.5 font-bold text-slate-900">{a.title}</p>
                         <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{a.body}</p>
-                        {a.imageUrl && (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img src={a.imageUrl} alt={a.title} className="mt-2 max-h-40 rounded-lg border border-slate-200 object-cover" loading="lazy" />
+                        {announcementImages(a).length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {announcementImages(a).map((img, i) => (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img key={img.path || img.url || i} src={img.url} alt={`${a.title} (${i + 1})`} className="h-20 rounded-lg border border-slate-200 object-cover" loading="lazy" />
+                            ))}
+                          </div>
                         )}
                       </div>
                       <div className="flex shrink-0 gap-2">

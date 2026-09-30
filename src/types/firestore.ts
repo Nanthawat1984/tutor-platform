@@ -522,8 +522,9 @@ export interface Announcement {
   category: 'promotion' | 'news' | 'general';    // ประชาสัมพันธ์โครงการ / ข่าวสารทั่วไป
   isPinned?: boolean;                             // ปักหมุดไว้บนสุด
   linkUrl?: string | null;                        // ลิงก์เพิ่มเติม (ถ้ามี)
-  imageUrl?: string | null;                       // รูปภาพประกอบ (public URL)
-  imagePath?: string | null;                      // Storage path ของรูป (ไว้ลบไฟล์)
+  imageUrl?: string | null;                       // รูปภาพประกอบ (public URL) — legacy ใช้รูปเดียว
+  imagePath?: string | null;                      // Storage path ของรูป (ไว้ลบไฟล์) — legacy
+  images?: { url: string; path: string }[];       // หลายรูป (รองรับสูงสุด ANNOUNCEMENT_MAX_IMAGES)
   published: boolean;                             // ฉายจริงหรือฉบับร่าง
   publishedAt?: Timestamp | null;
   expiresAt?: Timestamp | null;                   // ถ้ากำหนด หมดอายุแล้วซ่อน

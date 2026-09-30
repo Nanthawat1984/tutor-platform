@@ -15,6 +15,16 @@ export function categoryLabel(id: string): string {
   return ANNOUNCEMENT_CATEGORIES.find((c) => c.id === id)?.label || 'ประกาศ';
 }
 
+/** จำนวนรูปสูงสุดต่อประกาศ */
+export const ANNOUNCEMENT_MAX_IMAGES = 5;
+
+/** รายการรูปทั้งหมดของประกาศ (รองรับทั้งรูปเดียว legacy + images[]) */
+export function announcementImages(a: any): { url: string; path?: string }[] {
+  if (Array.isArray(a.images) && a.images.length > 0) return a.images;
+  if (a.imageUrl) return [{ url: a.imageUrl, path: a.imagePath || undefined }];
+  return [];
+}
+
 /** ดึงข่าวที่ฉายอยู่สำหรับกลุ่มเป้าหมาย — pin ก่อน แล้วเรียงตามวันที่ล่าสุด */
 // NOTE: ห้าม where+orderBy หลาย field โดยไม่มี composite index — จะพังบน production
 // (failed-precondition) จึงดึงแบบ index-free แล้วกรอง+เรียงใน memory

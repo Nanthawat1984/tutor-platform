@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Megaphone, Newspaper, PartyPopper, Pin, ExternalLink } from 'lucide-react';
 import { SectionCard } from '@/components/layout/dashboard';
-import { categoryLabel } from '@/lib/announcements';
+import { categoryLabel, announcementImages } from '@/lib/announcements';
 import { formatDate } from '@/lib/utils';
 
 const CATEGORY_ICON: Record<string, ReactNode> = {
@@ -46,14 +46,19 @@ export function AnnouncementsCard({
               </div>
               <p className="mt-1.5 font-bold text-slate-900">{a.title}</p>
               {a.body && <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{a.body}</p>}
-              {a.imageUrl && (
-                /* eslint-disable-next-line @next/next/no-img-element -- remote Storage URL ไม่อยู่ในโดเมนที่ next/image config */
-                <img
-                  src={a.imageUrl}
-                  alt={a.title}
-                  className="mt-3 max-h-80 w-full rounded-xl border border-slate-200 object-cover"
-                  loading="lazy"
-                />
+              {announcementImages(a).length > 0 && (
+                <div className={`mt-3 grid gap-2 ${announcementImages(a).length > 1 ? 'grid-cols-2' : ''}`}>
+                  {announcementImages(a).map((img, i) => (
+                    /* eslint-disable-next-line @next/next/no-img-element -- remote Storage URL ไม่อยู่ในโดเมนที่ next/image config */
+                    <img
+                      key={img.path || img.url || i}
+                      src={img.url}
+                      alt={`${a.title} (${i + 1})`}
+                      className="max-h-80 w-full rounded-xl border border-slate-200 object-cover"
+                      loading="lazy"
+                    />
+                  ))}
+                </div>
               )}
               {a.linkUrl && (
                 <Link

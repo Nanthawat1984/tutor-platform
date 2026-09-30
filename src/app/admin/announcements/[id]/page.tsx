@@ -7,7 +7,7 @@ import { DashboardLayout, SectionCard } from '@/components/layout/dashboard';
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { COLLECTIONS } from '@/types/firestore';
 import { requireRole } from '@/lib/auth/guards';
-import { ANNOUNCEMENT_CATEGORIES } from '@/lib/announcements';
+import { ANNOUNCEMENT_CATEGORIES, announcementImages } from '@/lib/announcements';
 import { updateAnnouncement } from '../actions';
 
 export default async function EditAnnouncementPage({
@@ -98,20 +98,27 @@ export default async function EditAnnouncementPage({
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-bold text-slate-600">รูปประกอบ (JPG/PNG/WebP ไม่เกิน 5MB)</label>
-            {a.imageUrl && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={a.imageUrl} alt={a.title} className="mb-2 max-h-40 rounded-lg border border-slate-200 object-cover" />
-            )}
+            <label className="mb-1 block text-xs font-bold text-slate-600">รูปประกอบ (เลือกได้หลายรูป — JPG/PNG/WebP ไม่เกิน 5MB ต่อรูป, สูงสุด 5 รูป)</label>
+            {(() => {
+              const imgs = announcementImages(a);
+              if (imgs.length === 0) return null;
+              return (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {imgs.map((img, i) => (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img key={img.path || img.url || i} src={img.url} alt={`${a.title} (${i + 1})`} className="h-20 rounded-lg border border-slate-200 object-cover" />
+                  ))}
+                </div>
+              );
+            })()}
             <input
               type="file"
               name="image"
+              multiple
               accept="image/jpeg,image/png,image/webp"
               className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-pink-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-pink-700"
             />
-            {a.imageUrl && (
-              <p className="mt-1 text-[11px] text-slate-400">ถ้าไม่เลือกไฟล์ใหม่ จะคงรูปเดิมไว้ (เลือกใหม่เพื่อเปลี่ยน)</p>
-            )}
+            <p className="mt-1 text-[11px] text-slate-400">ถ้าเลือกไฟล์ใหม่ รูปเดิมทั้งหมดจะถูกแทนที่ (ไม่เลือก = คงรูปเดิม)</p>
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input

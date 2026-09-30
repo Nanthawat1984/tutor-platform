@@ -7,7 +7,7 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getServerDb, getServerStorage } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
 import { requireRole } from '@/lib/auth/guards';
-import type { AnnouncementAudience, AnnouncementCategory } from '@/lib/announcements';
+import { ANNOUNCEMENT_MAX_IMAGES, type AnnouncementAudience, type AnnouncementCategory } from '@/lib/announcements';
 
 // ── รูปประกอบประกาศ ──
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -15,27 +15,35 @@ const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 /**
  * อัปโหลดรูปประกอบประกาศไป Storage (public read — เนื้อหา PR ไม่ใช่ข้อมูลส่วนบุคคล)
- * คืน { url, path } หรือ null ถ้าไม่ได้แนบ/ไฟล์ไม่ผ่านเงื่อนไข
+ * รับหลายไฟล์ (สูงสุด ANNOUNCEMENT_MAX_IMAGES) คืนรายการ { url, path } ของไฟล์ที่ผ่านเงื่อนไข
  */
-async function uploadAnnouncementImage(file: unknown): Promise<{ url: string; path: string } | null> {
-  if (!(file instanceof File) || file.size === 0) return null;
-  if (!IMAGE_TYPES.has(file.type)) return null;
-  if (file.size > IMAGE_MAX_BYTES) return null;
+async function uploadAnnouncementImages(files: unknown): Promise<{ url: string; path: string }[]> {
+  const list = Array.isArray(files) ? files : files ? [files] : [];
   const storage = getServerStorage();
-  if (!storage) return null;
+  if (!storage) return [];
   const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
     || `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebasestorage.app`;
-  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
-  const path = `announcement-images/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await storage.bucket(bucketName).file(path).save(buffer, {
-    contentType: file.type,
-    metadata: { cacheControl: 'public, max-age=31536000, immutable' },
-  });
-  return { url: `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(path)}?alt=media`, path };
+  const uploaded: { url: string; path: string }[] = [];
+  for (const file of list.slice(0, ANNOUNCEMENT_MAX_IMAGES)) {
+    if (!(file instanceof File) || file.size === 0) continue;
+    if (!IMAGE_TYPES.has(file.type)) continue;
+    if (file.size > IMAGE_MAX_BYTES) continue;
+    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+    const path = `announcement-images/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await storage.bucket(bucketName).file(path).save(buffer, {
+      contentType: file.type,
+      metadata: { cacheControl: 'public, max-age=31536000, immutable' },
+    });
+    uploaded.push({
+      url: `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(path)}?alt=media`,
+      path,
+    });
+  }
+  return uploaded;
 }
 
-/** ลบรูปเก่าออกจาก Storage (ใช้ตอนแก้ไข/ลบประกาศ — fail-safe) */
+/** ลบรูปออกจาก Storage (ใช้ตอนแก้ไข/ลบประกาศ — fail-safe) */
 async function deleteAnnouncementImage(imagePath: unknown) {
   if (typeof imagePath !== 'string' || !imagePath) return;
   try {
@@ -47,6 +55,13 @@ async function deleteAnnouncementImage(imagePath: unknown) {
   } catch (error) {
     console.error('announcement image delete failed:', error instanceof Error ? error.message : error);
   }
+}
+
+/** ลบหลายรูป (legacy imagePath + images[]) */
+async function deleteAllAnnouncementImages(a: any) {
+  await deleteAnnouncementImage(a?.imagePath);
+  const images = Array.isArray(a?.images) ? a.images : [];
+  await Promise.all(images.map((img: any) => deleteAnnouncementImage(img?.path)));
 }
 
 function revalidateAll() {
@@ -81,9 +96,9 @@ export async function createAnnouncement(formData: FormData) {
   const title = String(formData.get('title') || '').trim().slice(0, 120);
   const body = String(formData.get('body') || '').trim().slice(0, 2000);
   if (!title || !body) return;
-  let image: { url: string; path: string } | null = null;
+  let images: { url: string; path: string }[] = [];
   try {
-    image = await uploadAnnouncementImage(formData.get('image'));
+    images = await uploadAnnouncementImages(formData.getAll('image'));
   } catch (error) {
     console.error('announcement image upload failed:', error instanceof Error ? error.message : error);
   }
@@ -94,8 +109,9 @@ export async function createAnnouncement(formData: FormData) {
     category: parseCategory(formData.get('category')),
     isPinned: formData.get('isPinned') === 'on',
     linkUrl: parseInternalLink(formData.get('linkUrl')),
-    imageUrl: image?.url ?? null,
-    imagePath: image?.path ?? null,
+    imageUrl: images[0]?.url ?? null,
+    imagePath: images[0]?.path ?? null,
+    images,
     published: true,
     publishedAt: Timestamp.fromMillis(Date.now()),
     expiresAt: null,
@@ -144,7 +160,7 @@ export async function deleteAnnouncement(formData: FormData) {
   const ref = db.collection(COLLECTIONS.ANNOUNCEMENTS).doc(id);
   const snap = await ref.get();
   await ref.delete();
-  await deleteAnnouncementImage(snap.data()?.imagePath);
+  await deleteAllAnnouncementImages(snap.data());
   revalidateAll();
 }
 
@@ -158,10 +174,10 @@ export async function updateAnnouncement(formData: FormData) {
   if (!id || !title || !body) return;
   const ref = db.collection(COLLECTIONS.ANNOUNCEMENTS).doc(id);
   const existing = await ref.get();
-  const prevImagePath = existing.data()?.imagePath;
-  let image: { url: string; path: string } | null = null;
+  const prev = existing.data();
+  let newImages: { url: string; path: string }[] = [];
   try {
-    image = await uploadAnnouncementImage(formData.get('image'));
+    newImages = await uploadAnnouncementImages(formData.getAll('image'));
   } catch (error) {
     console.error('announcement image upload failed:', error instanceof Error ? error.message : error);
   }
@@ -175,11 +191,12 @@ export async function updateAnnouncement(formData: FormData) {
     updatedBy: session.uid,
     updatedAt: FieldValue.serverTimestamp(),
   };
-  // แนบรูปใหม่ → เก็บ + ลบรูปเก่า; ไม่แนบ → คงรูปเดิมไว้
-  if (image) {
-    updateData.imageUrl = image.url;
-    updateData.imagePath = image.path;
-    await deleteAnnouncementImage(prevImagePath);
+  // แนบรูปใหม่ → แทนชุดเดิมทั้งหมด + ลบไฟล์เก่า; ไม่แนบ → คงรูปเดิมไว้
+  if (newImages.length > 0) {
+    updateData.imageUrl = newImages[0].url;
+    updateData.imagePath = newImages[0].path;
+    updateData.images = newImages;
+    await deleteAllAnnouncementImages(prev);
   }
   await ref.update(updateData);
   revalidateAll();
