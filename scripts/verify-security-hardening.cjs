@@ -39,6 +39,20 @@ const stripeWebhook = read('src/app/api/payments/stripe-webhook/route.ts');
 const publicTutor = read('src/app/tutors/[id]/page.tsx');
 const publicTutors = read('src/app/tutors/page.tsx');
 
+// เนื้อหา rule block เดียวใน storage.rules (จบที่ `    }` ที่ปิด match block)
+// ต้อง scope ให้จบที่ block ตัวเอง — ถ้าเขียน /match \/x\/[\s\S]*?needle/ ตรง ๆ
+// regex จะวิ่งข้ามไปหา needle ใน block ถัดไปแล้ว fail แบบ false positive
+// (เคยเจอจริง: payment-slips ไม่ public อยู่แล้ว แต่ไปโดน `allow read: if true;`
+//  ของ announcement-images ที่อยู่ถัดไปในไฟล์ → CI ตกตั้งแต่ commit ที่เพิ่มรูปประกาศ)
+function storageRuleBody(matchPath) {
+  const start = storage.indexOf(`match ${matchPath}`);
+  assert.notEqual(start, -1, `storage.rules must define ${matchPath}`);
+  const open = storage.indexOf('{', start);
+  const close = storage.indexOf('\n    }', open);
+  assert.notEqual(close, -1, `storage.rules must close the block for ${matchPath}`);
+  return storage.slice(open + 1, close);
+}
+
 assert.match(firestore, /affectedKeys\(\)\.hasAny\(\[[^\]]*'role'/s,
   'users role must be immutable to self-updates');
 assert.match(firestore, /match \/users\/{uid}[\s\S]*?allow create: if false;/,
@@ -53,11 +67,11 @@ assert.match(firestore, /match \/payouts\/{payoutId}[\s\S]*?allow create: if fal
   'payout requests must be created by the server after wallet and KYC checks');
 assert.match(firestore, /match \/payments\/\{paymentId\}[\s\S]*?allow create: if false;/,
   'payments must be server-created only');
-assert.doesNotMatch(storage, /match \/payment-slips\/\{bookingId\}\/\{fileName\}[\s\S]*?allow read: if true;/,
+assert.doesNotMatch(storageRuleBody('/payment-slips/{bookingId}/{fileName}'), /allow read: if true;/,
   'payment slips must not be public');
-assert.doesNotMatch(storage, /match \/kyc\/\{uid\}\/\{fileName\}[\s\S]*?allow read: if request\.auth != null;/,
+assert.doesNotMatch(storageRuleBody('/kyc/{uid}/{fileName}'), /allow read: if request\.auth != null;/,
   'teacher KYC must not be readable by every authenticated user');
-assert.doesNotMatch(storage, /match \/payout-slips\/\{payoutId\}\/\{fileName\}[\s\S]*?allow read: if request\.auth != null;/,
+assert.doesNotMatch(storageRuleBody('/payout-slips/{payoutId}/{fileName}'), /allow read: if request\.auth != null;/,
   'payout slips must not be readable by every authenticated user');
 assert.match(storage, /match \/profile-photos\/\{uid\}\/\{fileName\}[\s\S]*?request\.resource\.size < 5 \* 1024 \* 1024/s,
   'profile photos must enforce a server-side size limit');
@@ -192,16 +206,20 @@ assert.match(adminPayouts, /CsvExportButton/,
   'admin payouts must offer a CSV export');
 
 // ── New-features regression (chat, coupons, PDPA, SW, search, alerts) ──
-const chatApi = read('src/app/api/chat/route.ts');
+// แชทย้ายจาก /api/chat ไปเป็น /api/conversations แล้ว (assertParty → requireParty)
+// และ logic ตรวจโควตูถูกย้ายไป lib/coupons.ts — ชี้ assertion ไปที่ไฟล์ที่เก็บจริง
+const chatConversationsApi = read('src/app/api/conversations/route.ts');
+const chatMessagesApi = read('src/app/api/conversations/[id]/messages/route.ts');
 const couponApi = read('src/app/api/coupons/validate/route.ts');
+const couponsLib = read('src/lib/coupons.ts');
 const meExport = read('src/app/api/me/export/route.ts');
-assert.match(chatApi, /assertParty/,
+assert.match(chatMessagesApi, /requireParty/,
   'chat API must verify the caller is a party of the booking');
-assert.match(chatApi, /checkRateLimit\(`chat:/,
+assert.match(chatMessagesApi, /checkRateLimit\(`chat:/,
   'chat send must be rate-limited per user');
-assert.doesNotMatch(chatApi, /allow read/,
+assert.doesNotMatch(chatMessagesApi, /allow read/,
   'chat authorization must live in the API, never in client rules');
-assert.match(couponApi, /usedCount/,
+assert.match(couponsLib, /usedCount/,
   'coupon validation must check usage limits server-side');
 assert.match(meExport, /where\('parentId', '==', session\.uid\)/,
   'PDPA export must scope every collection to the session owner');
@@ -261,11 +279,15 @@ for (const expected of [
 ]) {
   assert.ok(indexKeys.has(expected), `missing composite index: ${expected}`);
 }
-const chatBox = read('src/components/chat/chat-box.tsx');
+// chat-box.tsx ถูกแยกเป็น chat-thread.tsx (ต่อ/แชทสด) — ข้อความ error เปลี่ยนรูปแบบไปแล้ว
+// เช็กสาระเดิมคือ "ห้ามแสดง empty state เงียบ ๆ ต้องมี error ให้เห็น"
+const chatThread = read('src/components/chat/chat-thread.tsx');
 const bell = read('src/components/notifications/notification-bell.tsx');
-assert.match(chatApi, /index_building/,
+assert.match(chatConversationsApi, /index_building/,
   'chat API must return a retryable status while indexes build');
-assert.match(chatBox, /โหลดข้อความไม่สำเร็จ/,
+assert.match(chatThread, /useConversationStream/,
+  'chat UI must read the stream error state instead of guessing');
+assert.match(chatThread, /notice \|\| \(error/,
   'chat UI must show an error instead of silent empty state');
 assert.match(bell, /โหลดการแจ้งเตือนไม่สำเร็จ/,
   'notification bell must show an error instead of silent empty state');
