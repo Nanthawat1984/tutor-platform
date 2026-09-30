@@ -11,6 +11,9 @@
 //
 // รันผ่าน: (a) sweep เมื่อเปิดหน้าประวัติการชำระเงิน (lazy) และ
 //          (b) Cloud Function scheduledPaymentSweep ทุกชั่วโมง (mirror เดียวกัน)
+//
+// Pagination: วนทีละหน้า (PAGE_SIZE) ด้วย cursor จนหมด backlog — ไม่ตัดที่ 200
+// แต่จำกัด MAX_PAGES ต่อรอบกัน runtime ยาวเกิน (ที่เหลือรอบหน้าจะเก็บต่อเอง)
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { COLLECTIONS } from '@/types/firestore';
 
@@ -18,6 +21,11 @@ import { COLLECTIONS } from '@/types/firestore';
 export const PENDING_PAYMENT_TTL_MS = 24 * 60 * 60 * 1000;
 /** รายการยกเลิกถูกซ่อน/ลบหลังจาก 3 วัน */
 export const CANCELLED_HISTORY_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** ขนาดหน้าต่อการ query หนึ่งรอบ */
+export const SWEEP_PAGE_SIZE = 200;
+/** จำนวนหน้าสูงสุดต่อการ sweep หนึ่งรอบ (200 × 25 = 5,000 รายการ/รอบ) */
+export const SWEEP_MAX_PAGES = 25;
 
 /** เวลาที่รายการ pending หมดอายุ = createdAt + 1 วัน */
 export function paymentDeadlineMs(payment: any): number {
@@ -45,84 +53,122 @@ export interface PaymentSweepResult {
   expiredPayments: number;   // pending → cancelled
   cancelledBookings: number; // booking ที่ถูกยกเลิกตาม
   deletedHistory: number;    // cancelled เกิน 3 วันถูกลบ
+  pagesScanned: { pending: number; cancelled: number }; // จำนวนหน้าที่สแกน (observability)
+  truncated: boolean;        // true = ครบ MAX_PAGES แต่ยังมี backlog เหลือ (รอบหน้าเก็บต่อ)
+}
+
+/** ยกเลิก payment 1 รายการแบบ atomic (คืน false ถ้าสถานะเปลี่ยนไปแล้ว) */
+async function expireOnePayment(db: any, docRef: any): Promise<boolean> {
+  return db.runTransaction(async (tx: any) => {
+    const fresh = await tx.get(docRef);
+    if (fresh.data()?.status !== 'pending') return false;
+    tx.update(docRef, {
+      status: 'cancelled',
+      note: 'payment_expired_1day',
+      cancelledAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  });
+}
+
+/** ยกเลิก booking ที่ยัง pending ค้างตาม payment (แบบ atomic — ไม่แตะ confirmed/completed) */
+async function cancelPendingBooking(db: any, bookingId: string, nowMs: number): Promise<boolean> {
+  const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
+  return db.runTransaction(async (tx: any) => {
+    const fresh = await tx.get(bookingRef);
+    if (!fresh.exists || fresh.data()?.status !== 'pending') return false;
+    tx.update(bookingRef, {
+      status: 'cancelled',
+      cancelledAt: Timestamp.fromMillis(nowMs),
+      cancelReason: 'payment_expired',
+      updatedAt: Timestamp.fromMillis(nowMs),
+    });
+    return true;
+  });
+}
+
+async function notifyPaymentExpired(db: any, payment: any, paymentId: string) {
+  try {
+    await db.collection(COLLECTIONS.NOTIFICATIONS).add({
+      userId: payment.parentId,
+      type: 'payment',
+      title: 'รายการชำระเงินหมดอายุ',
+      body: `รายการชำระเงินของ ${payment.studentName || 'นักเรียน'} ไม่ได้รับการชำระภายใน 1 วัน จึงถูกยกเลิกอัตโนมัติ กรุณาจองใหม่อีกครั้ง`,
+      data: { bookingId: payment.bookingId || null, paymentId },
+      isRead: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('payment expiry notification failed:', error instanceof Error ? error.message : 'unknown');
+  }
 }
 
 /**
- * กวาดรายการค้างทั้งระบบ — idempotent (guard สถานะ + อ่าน snapshot สดก่อนเขียน)
- * ห้ามเรียกจาก client ตรง ๆ — server components/admin เท่านั้น
+ * กวาดรายการค้างทั้งระบบ — idempotent (ยกเลิกภายใน transaction ที่อ่านสดก่อนเขียน)
+ * ห้ามเรียกจาก client ตรง ๆ — server components/scheduled function เท่านั้น
  */
 export async function sweepExpiredPayments(db: any, now: Date = new Date()): Promise<PaymentSweepResult> {
-  const result: PaymentSweepResult = { expiredPayments: 0, cancelledBookings: 0, deletedHistory: 0 };
+  const result: PaymentSweepResult = {
+    expiredPayments: 0,
+    cancelledBookings: 0,
+    deletedHistory: 0,
+    pagesScanned: { pending: 0, cancelled: 0 },
+    truncated: false,
+  };
   const nowMs = now.getTime();
 
-  // 1) pending เกิน 1 วัน → cancelled (+ แจ้งเตือน + ยกเลิก booking ค้าง)
-  const pendingSnap = await db.collection(COLLECTIONS.PAYMENTS)
-    .where('status', '==', 'pending')
-    .limit(200)
-    .get();
-  for (const doc of pendingSnap.docs) {
-    const payment = doc.data();
-    if (paymentDeadlineMs(payment) > nowMs) continue;
-    // Race guard — ทำใน transaction เพื่อไม่ให้ทับรายการที่ผู้ปกครองชำระ "พอดี"
-    // ระหว่างที่ sweep กำลังรัน (markPaymentPaid เกิดขึ้นพร้อมกันได้):
-    // transaction จะอ่านสด + เขียนแบบ atomic ถ้าสถานะเปลี่ยนไปแล้วจะ retry/rollback เอง
-    const cancelledNow = await db.runTransaction(async (tx: any) => {
-      const fresh = await tx.get(doc.ref);
-      if (fresh.data()?.status !== 'pending') return false;
-      tx.update(doc.ref, {
-        status: 'cancelled',
-        note: 'payment_expired_1day',
-        cancelledAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-      return true;
-    });
-    if (!cancelledNow) continue;
-    result.expiredPayments += 1;
+  // ── 1) pending เกิน 1 วัน → cancelled (+ แจ้งเตือน + ยกเลิก booking ค้าง) ──
+  {
+    let cursor: any = null;
+    for (let page = 0; page < SWEEP_MAX_PAGES; page++) {
+      let query = db.collection(COLLECTIONS.PAYMENTS)
+        .where('status', '==', 'pending')
+        .limit(SWEEP_PAGE_SIZE);
+      if (cursor) query = query.startAfter(cursor);
+      const snap = await query.get();
+      result.pagesScanned.pending += 1;
 
-    try {
-      await db.collection(COLLECTIONS.NOTIFICATIONS).add({
-        userId: payment.parentId,
-        type: 'payment',
-        title: 'รายการชำระเงินหมดอายุ',
-        body: `รายการชำระเงินของ ${payment.studentName || 'นักเรียน'} ไม่ได้รับการชำระภายใน 1 วัน จึงถูกยกเลิกอัตโนมัติ กรุณาจองใหม่อีกครั้ง`,
-        data: { bookingId: payment.bookingId || null, paymentId: doc.id },
-        isRead: false,
-        createdAt: FieldValue.serverTimestamp(),
-      });
-    } catch (error) {
-      console.error('payment expiry notification failed:', error instanceof Error ? error.message : 'unknown');
-    }
+      for (const doc of snap.docs) {
+        const payment = doc.data();
+        if (paymentDeadlineMs(payment) > nowMs) continue; // ยังไม่หมดอายุ — ข้าม
+        const cancelledNow = await expireOnePayment(db, doc.ref);
+        if (!cancelledNow) continue; // ถูกชำระ/เปลี่ยนสถานะพอดีระหว่างรัน
+        result.expiredPayments += 1;
+        await notifyPaymentExpired(db, payment, doc.id);
+        if (payment.bookingId) {
+          const done = await cancelPendingBooking(db, payment.bookingId, nowMs);
+          if (done) result.cancelledBookings += 1;
+        }
+      }
 
-    // booking ที่ยังรอชำระค้าง → ยกเลิกตาม (ไม่แตะรายการ confirmed/completed)
-    // ใช้ transaction เดียวกันกัน race กับการยืนยันการจองฝั่งอื่น
-    const bookingId = payment.bookingId;
-    if (bookingId) {
-      const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
-      const bookingCancelled = await db.runTransaction(async (tx: any) => {
-        const fresh = await tx.get(bookingRef);
-        if (!fresh.exists || fresh.data()?.status !== 'pending') return false;
-        tx.update(bookingRef, {
-          status: 'cancelled',
-          cancelledAt: Timestamp.fromMillis(nowMs),
-          cancelReason: 'payment_expired',
-          updatedAt: Timestamp.fromMillis(nowMs),
-        });
-        return true;
-      });
-      if (bookingCancelled) result.cancelledBookings += 1;
+      if (snap.size < SWEEP_PAGE_SIZE) break; // หน้าสุดท้าย — หมด backlog
+      cursor = snap.docs[snap.docs.length - 1];
+      if (page === SWEEP_MAX_PAGES - 1) result.truncated = true;
     }
   }
 
-  // 2) cancelled เกิน 3 วัน → ลบ (ประวัติหาย)
-  const cancelledSnap = await db.collection(COLLECTIONS.PAYMENTS)
-    .where('status', '==', 'cancelled')
-    .limit(200)
-    .get();
-  for (const doc of cancelledSnap.docs) {
-    if (nowMs < cancelledCleanupMs(doc.data())) continue;
-    await doc.ref.delete();
-    result.deletedHistory += 1;
+  // ── 2) cancelled เกิน 3 วัน → ลบ (ประวัติหาย) ──
+  {
+    let cursor: any = null;
+    for (let page = 0; page < SWEEP_MAX_PAGES; page++) {
+      let query = db.collection(COLLECTIONS.PAYMENTS)
+        .where('status', '==', 'cancelled')
+        .limit(SWEEP_PAGE_SIZE);
+      if (cursor) query = query.startAfter(cursor);
+      const snap = await query.get();
+      result.pagesScanned.cancelled += 1;
+
+      for (const doc of snap.docs) {
+        if (nowMs < cancelledCleanupMs(doc.data())) continue;
+        await doc.ref.delete();
+        result.deletedHistory += 1;
+      }
+
+      if (snap.size < SWEEP_PAGE_SIZE) break;
+      cursor = snap.docs[snap.docs.length - 1];
+      if (page === SWEEP_MAX_PAGES - 1) result.truncated = true;
+    }
   }
 
   return result;
