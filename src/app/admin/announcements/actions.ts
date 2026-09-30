@@ -7,11 +7,31 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getServerDb } from '@/lib/firebase/server';
 import { COLLECTIONS } from '@/types/firestore';
 import { requireRole } from '@/lib/auth/guards';
+import type { AnnouncementAudience, AnnouncementCategory } from '@/lib/announcements';
 
 function revalidateAll() {
   revalidatePath('/admin/announcements');
   revalidatePath('/my-bookings');
   revalidatePath('/dashboard');
+}
+
+// ── input validators (union type เป็น source of truth — ค่าผิด fallback เป็นค่าปลอดภัย) ──
+const AUDIENCES: AnnouncementAudience[] = ['all', 'parent', 'teacher'];
+const CATEGORIES: AnnouncementCategory[] = ['promotion', 'news', 'general'];
+
+function parseAudience(value: FormDataEntryValue | null): AnnouncementAudience {
+  return AUDIENCES.includes(value as AnnouncementAudience) ? (value as AnnouncementAudience) : 'all';
+}
+
+function parseCategory(value: FormDataEntryValue | null): AnnouncementCategory {
+  return CATEGORIES.includes(value as AnnouncementCategory) ? (value as AnnouncementCategory) : 'general';
+}
+
+/** ลิงก์ภายในเท่านั้น (path เริ่มด้วย / ไม่มี scheme อื่น) — กัน javascript:/data: URL จาก XSS */
+function parseInternalLink(value: FormDataEntryValue | null): string | null {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  return /^\/[A-Za-z0-9\-._~!$&'()*+,;=:@/%?#]*$/.test(raw) && !raw.includes('..') ? raw : null;
 }
 
 export async function createAnnouncement(formData: FormData) {
@@ -24,10 +44,10 @@ export async function createAnnouncement(formData: FormData) {
   await db.collection(COLLECTIONS.ANNOUNCEMENTS).add({
     title,
     body,
-    audience: String(formData.get('audience') || 'all'),
-    category: String(formData.get('category') || 'general'),
+    audience: parseAudience(formData.get('audience')),
+    category: parseCategory(formData.get('category')),
     isPinned: formData.get('isPinned') === 'on',
-    linkUrl: String(formData.get('linkUrl') || '').trim() || null,
+    linkUrl: parseInternalLink(formData.get('linkUrl')),
     published: true,
     publishedAt: Timestamp.fromMillis(Date.now()),
     expiresAt: null,
@@ -88,10 +108,10 @@ export async function updateAnnouncement(formData: FormData) {
   await db.collection(COLLECTIONS.ANNOUNCEMENTS).doc(id).update({
     title,
     body,
-    audience: String(formData.get('audience') || 'all'),
-    category: String(formData.get('category') || 'general'),
+    audience: parseAudience(formData.get('audience')),
+    category: parseCategory(formData.get('category')),
     isPinned: formData.get('isPinned') === 'on',
-    linkUrl: String(formData.get('linkUrl') || '').trim() || null,
+    linkUrl: parseInternalLink(formData.get('linkUrl')),
     updatedBy: session.uid,
     updatedAt: FieldValue.serverTimestamp(),
   });

@@ -62,8 +62,9 @@ export default async function TeacherDashboard() {
   let announcements: any[] = [];
   try {
     announcements = await getActiveAnnouncements(db, 'teacher');
-  } catch {
-    // ยังไม่มี collection/ดัชนี → แดชบอร์ดยังใช้งานได้ปกติ
+  } catch (error) {
+    // ยังไม่มี collection/ดัชนี → แดชบอร์ดยังใช้งานได้ปกติ แต่ต้องเห็นสาเหตุใน log
+    console.error('[dashboard] failed to load announcements:', error instanceof Error ? error.message : error);
   }
 
   const STATS = [
