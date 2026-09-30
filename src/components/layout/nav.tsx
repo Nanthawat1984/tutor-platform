@@ -10,6 +10,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   MapPin,
+  Megaphone,
   MessageCircle,
   School,
   Search,
@@ -60,5 +61,6 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: '/admin/teachers', label: 'จัดการครู', icon: <Users className="h-4 w-4" /> },
   { href: '/admin/parents', label: 'ผู้ปกครอง', icon: <UserRound className="h-4 w-4" /> },
   { href: '/admin/students', label: 'นักเรียน', icon: <School className="h-4 w-4" /> },
+  { href: '/admin/announcements', label: 'ข่าวสารจากศูนย์', icon: <Megaphone className="h-4 w-4" /> },
   { href: '/admin/company', label: 'ข้อมูลบริษัท', icon: <ClipboardList className="h-4 w-4" /> },
 ];

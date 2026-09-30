@@ -7,6 +7,8 @@ import { DashboardLayout, StatCard, EmptyState, SectionCard } from '@/components
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { BookingStatusBadge } from '@/components/ui/badge';
 import { requireRole } from '@/lib/auth/guards';
+import { getActiveAnnouncements } from '@/lib/announcements';
+import { AnnouncementsCard } from '@/components/layout/announcements-card';
 
 export default async function ParentDashboard() {
   const db = getServerDb();
@@ -18,6 +20,14 @@ export default async function ParentDashboard() {
     .where('parentId', '==', parentId)
     .limit(10)
     .get();
+
+  // ข่าวสารจากศูนย์ (ประชาสัมพันธ์โครงการ / ข่าวสารทั่วไป)
+  let announcements: any[] = [];
+  try {
+    announcements = await getActiveAnnouncements(db, 'parent');
+  } catch {
+    // ยังไม่มี collection/ดัชนี → แดชบอร์ดยังใช้งานได้ปกติ
+  }
 
   const bookings = bookingsSnap.docs
     .map((doc: any) => ({ id: doc.id, ...doc.data() }))
@@ -159,6 +169,9 @@ export default async function ParentDashboard() {
           )}
         </SectionCard>
       </div>
+
+      {/* ── ข่าวสารจากศูนย์ ── */}
+      <AnnouncementsCard announcements={announcements} />
     </DashboardLayout>
   );
 }

@@ -374,7 +374,8 @@ export interface Payment {
   reviewedAt?: Timestamp;
   reviewNote?: string;
   escrowProcessed?: boolean;// guard — กันประมวลผลซ้ำ (แอป process แล้ว trigger จะข้าม)
-  expiresAt?: Timestamp;    // วันหมดอายุของ QR/รายการชำระ
+  expiresAt?: Timestamp;    // วันหมดอายุของ QR/รายการชำระ (pending เกิน 1 วัน → ยกเลิกอัตโนมัติ)
+  cancelledAt?: Timestamp;  // เวลาที่ถูกยกเลิก (รายการยกเลิกจะหายจากประวัติใน 3 วัน)
   // ── ภาษีหัก ณ ที่จ่าย (3% ของ netAmount — หักตอน release escrow) ──
   taxWithheld?: number;     // ยอดภาษีที่หัก (บาท)
   payoutAmount?: number;    // ยอดสุทธิที่ครูได้รับจริง (netAmount - taxWithheld)
@@ -510,6 +511,26 @@ export interface Payout {
 }
 
 // =============================================
+// ANNOUNCEMENT (ข่าวสารจากศูนย์ — แดชบอร์ด)
+// =============================================
+// แอดมินเขียน → แสดงบนแดชบอร์ดผู้ปกครอง/ครู (แบบ pin ได้)
+export interface Announcement {
+  id: string;
+  title: string;                                  // หัวข้อข่าว
+  body: string;                                   // เนื้อหา (ข้อความ)
+  audience: 'all' | 'parent' | 'teacher';        // กลุ่มเป้าหมาย
+  category: 'promotion' | 'news' | 'general';    // ประชาสัมพันธ์โครงการ / ข่าวสารทั่วไป
+  isPinned?: boolean;                             // ปักหมุดไว้บนสุด
+  linkUrl?: string | null;                        // ลิงก์เพิ่มเติม (ถ้ามี)
+  published: boolean;                             // ฉายจริงหรือฉบับร่าง
+  publishedAt?: Timestamp | null;
+  expiresAt?: Timestamp | null;                   // ถ้ากำหนด หมดอายุแล้วซ่อน
+  createdBy: string;                              // uid แอดมิน
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// =============================================
 // Firestore collection paths (constants)
 // =============================================
 export const COLLECTIONS = {
@@ -536,4 +557,5 @@ export const COLLECTIONS = {
   PARENT_WALLET_TXS: 'parentWalletTxs',
   TEACHER_VERIFICATION_EVENTS: 'teacherVerificationEvents',
   CONVERSATIONS: 'conversations',
+  ANNOUNCEMENTS: 'announcements',
 } as const;

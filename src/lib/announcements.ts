@@ -1,0 +1,40 @@
+// ข่าวสารจากศูนย์ (announcements) — ประชาสัมพันธ์โครงการ / ข่าวสารทั่วไป
+// แอดมินเขียน (published=true) → แสดงบนแดชบอร์ดผู้ปกครองและครู
+import { COLLECTIONS } from '@/types/firestore';
+
+export type AnnouncementAudience = 'all' | 'parent' | 'teacher';
+export type AnnouncementCategory = 'promotion' | 'news' | 'general';
+
+export const ANNOUNCEMENT_CATEGORIES: { id: AnnouncementCategory; label: string }[] = [
+  { id: 'promotion', label: 'ประชาสัมพันธ์โครงการ' },
+  { id: 'news', label: 'ข่าวสารทั่วไป' },
+  { id: 'general', label: 'ประกาศจากศูนย์' },
+];
+
+export function categoryLabel(id: string): string {
+  return ANNOUNCEMENT_CATEGORIES.find((c) => c.id === id)?.label || 'ประกาศ';
+}
+
+/** ดึงข่าวที่ฉายอยู่สำหรับกลุ่มเป้าหมาย — pin ก่อน แล้วเรียงตามวันที่ล่าสุด */
+export async function getActiveAnnouncements(
+  db: any,
+  role: 'parent' | 'teacher' | 'admin',
+  limit = 5,
+): Promise<any[]> {
+  const snap = await db.collection(COLLECTIONS.ANNOUNCEMENTS)
+    .where('published', '==', true)
+    .orderBy('isPinned', 'desc')
+    .orderBy('publishedAt', 'desc')
+    .limit(20)
+    .get();
+  const nowMs = Date.now();
+  return snap.docs
+    .map((d: any) => ({ id: d.id, ...d.data() }))
+    .filter((a: any) => {
+      if (a.audience !== 'all' && a.audience !== role) return false;
+      const exp = a.expiresAt?.toMillis?.();
+      if (typeof exp === 'number' && exp < nowMs) return false; // หมดอายุ → ซ่อน
+      return true;
+    })
+    .slice(0, limit);
+}

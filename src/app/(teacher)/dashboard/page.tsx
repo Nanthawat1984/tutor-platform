@@ -18,6 +18,8 @@ import {
 import { DashboardLayout, StatCard, EmptyState, SectionCard } from '@/components/layout/dashboard';
 import { BookingStatusBadge } from '@/components/ui/badge';
 import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
+import { getActiveAnnouncements } from '@/lib/announcements';
+import { AnnouncementsCard } from '@/components/layout/announcements-card';
 
 export default async function TeacherDashboard() {
   const db = getServerDb();
@@ -54,6 +56,14 @@ export default async function TeacherDashboard() {
   } catch (error) {
     if ((error as { code?: number }).code !== 5) throw error;
     setupError = true;
+  }
+
+  // ข่าวสารจากศูนย์ (ประชาสัมพันธ์โครงการ / ข่าวสารทั่วไป)
+  let announcements: any[] = [];
+  try {
+    announcements = await getActiveAnnouncements(db, 'teacher');
+  } catch {
+    // ยังไม่มี collection/ดัชนี → แดชบอร์ดยังใช้งานได้ปกติ
   }
 
   const STATS = [
@@ -249,6 +259,9 @@ export default async function TeacherDashboard() {
           />
         </SectionCard>
       </div>
+
+      {/* ── ข่าวสารจากศูนย์ ── */}
+      <AnnouncementsCard announcements={announcements} />
     </DashboardLayout>
   );
 }

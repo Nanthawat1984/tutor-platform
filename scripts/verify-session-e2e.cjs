@@ -101,6 +101,8 @@ async function main() {
   let conflictCourseId = null;
   let conflictDate = null;
   let conflictSlot = null;
+  let leftoverBookingId = null; // booking คันล่าสุดที่ยัง pending (ไม่ได้จ่าย) ไว้ทดสอบ expiry
+  let leftoverCourseTitle = '';
   for (const course of courses) {
     const amount = Number(course.pricePerSession) || 0;
     const fees = Math.round(amount * FEE_RATE);
@@ -136,6 +138,8 @@ async function main() {
     assert.equal(create.status, 200, `create booking failed: ${JSON.stringify(create.data)}`);
     assert.equal(create.data.created.length, 2, `expected 2 bookings: ${JSON.stringify(create.data)}`);
     const [bookingIdA, bookingIdB] = create.data.created;
+    leftoverBookingId = bookingIdB; // ไม่จ่าย — ทิ้งไว้ทดสอบ payment expiry ท้ายไฟล์
+    leftoverCourseTitle = course.title || '';
     console.log(`booking ok: ${bookingIdA} (${dateA}) + ${bookingIdB} (${dateB})`);
 
     // 2) initiate (method=stripe_checkout → provider=mock บน emulator)
@@ -218,7 +222,76 @@ async function main() {
   assert.deepEqual(dup.data.skipped, [{ date: conflictDate, reason: 'booking_conflict' }], 'must report booking_conflict');
   console.log(`\nconflict guard ok: duplicate slot skipped (booking_conflict)`);
 
-  console.log('\n✅ SESSION BOOKING UAT PASSED — จอง→initiate(mock)→confirm→escrow→release (ทั้ง branch ยกเว้น/หักภาษี 3%)→conflict guard ครบ');
+  // ── 8) payment expiry: pending เกิน 1 วัน → ยกเลิก + booking ถูกยกเลิกตาม ──
+  // ใช้ booking pending ค้างจาก loop + สร้าง payment หมดอายุ (createdAt ย้อนหลัง 2 วัน)
+  assert.ok(leftoverBookingId, 'leftover pending booking missing');
+  const expiredPayRef = await db.collection('payments').add({
+    bookingId: leftoverBookingId,
+    parentId: student.parentId,
+    teacherId,
+    studentName: student.name || '',
+    courseTitle: leftoverCourseTitle,
+    amount: 500,
+    fees: 100,
+    netAmount: 400,
+    currency: 'THB',
+    method: 'stripe_checkout',
+    provider: 'mock',
+    status: 'pending',
+    kind: 'session',
+    escrowProcessed: false,
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+  });
+  const { sweepExpiredPayments } = await import('../src/lib/payments/expiry.ts');
+  const sweepResult = await sweepExpiredPayments(db);
+  assert.ok(sweepResult.expiredPayments >= 1, `sweep must expire stale pending payment: ${JSON.stringify(sweepResult)}`);
+  const expiredPay = (await expiredPayRef.get()).data();
+  assert.equal(expiredPay.status, 'cancelled', 'stale pending payment must be cancelled');
+  assert.equal(expiredPay.note, 'payment_expired_1day', 'must carry expiry note');
+  const bookingBAgain = (await db.collection('bookings').doc(leftoverBookingId).get()).data();
+  assert.equal(bookingBAgain.status, 'cancelled', 'pending booking must be cancelled with its payment');
+  assert.equal(bookingBAgain.cancelReason, 'payment_expired', 'booking must record payment_expired reason');
+  const expiryNotif = await db.collection('notifications')
+    .where('userId', '==', student.parentId).where('type', '==', 'payment').limit(10).get();
+  assert.ok(expiryNotif.docs.some((d) => String(d.data().title || '').includes('หมดอายุ')), 'expiry notification must be sent');
+  console.log(`expiry ok: payment cancelled + booking cancelled + notified (sweep: ${JSON.stringify(sweepResult)})`);
+
+  // ── 9) retention: cancelled เกิน 3 วัน → ลบออกจากประวัติ ──
+  // markPaymentExpired ครั้งแรกใส่ cancelledAt ให้ — ทดสอบโดยตั้งย้อนหลัง 4 วันแล้ว sweep ซ้ำ
+  await expiredPayRef.update({
+    cancelledAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+  });
+  const sweep2 = await sweepExpiredPayments(db);
+  assert.ok(sweep2.deletedHistory >= 1, `sweep must delete old cancelled history: ${JSON.stringify(sweep2)}`);
+  const goneSnap = await expiredPayRef.get();
+  assert.equal(goneSnap.exists, false, 'cancelled payment older than 3 days must be deleted');
+  console.log(`retention ok: cancelled payment deleted after 3 days (sweep: ${JSON.stringify(sweep2)})`);
+
+  // ── 10) announcements: ข่าวจากศูนย์กรองตามกลุ่มเป้าหมาย ──
+  const annRef = await db.collection('announcements').add({
+    title: 'UAT โปรโมชันแพ็กเกจ',
+    body: 'ประชาสัมพันธ์สำหรับผู้ปกครองเท่านั้น',
+    audience: 'parent',
+    category: 'promotion',
+    isPinned: true,
+    linkUrl: null,
+    published: true,
+    publishedAt: new Date(),
+    expiresAt: null,
+    createdBy: 'uat',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  const { getActiveAnnouncements } = await import('../src/lib/announcements.ts');
+  const forParent = await getActiveAnnouncements(db, 'parent');
+  const forTeacher = await getActiveAnnouncements(db, 'teacher');
+  assert.ok(forParent.some((a) => a.id === annRef.id), 'parent must see parent-targeted announcement');
+  assert.ok(!forTeacher.some((a) => a.id === annRef.id), 'teacher must NOT see parent-targeted announcement');
+  console.log('announcements ok: audience filtering works (parent sees, teacher does not)');
+  await annRef.delete();
+
+  console.log('\n✅ SESSION BOOKING UAT PASSED — จอง→initiate(mock)→confirm→escrow→release (ทั้ง branch ยกเว้น/หักภาษี 3%)→conflict guard→expiry+retention+announcements ครบ');
 
   await app.delete();
 }
