@@ -20,7 +20,11 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # ต้อง ≥22.18 — test เป็นไฟล์ .ts ที่รันด้วย node --test ตรง ๆ
+          # (alias-loader.m ช่วยแค่ resolve path ไม่ได้ transpile)
+          # Node 20 จึงพังด้วย ERR_UNKNOWN_FILE_EXTENSION ".ts"
+          # ใช้ 22 เป็น LTS (รวม 24) และตรงกับ Node ที่ dev ใช้ในเครื่อง
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # job นี้ติดตั้งแค่ dependency ของแอป (root) — functions/ เป็นโปรเจกต์ npm แยก
