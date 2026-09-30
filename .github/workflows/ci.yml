@@ -12,7 +12,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          # ต้อง ≥10 — pnpm 9 ไม่อ่าน overrides/allowBuilds จาก pnpm-workspace.yaml
+          # (ฟิลด์เหล่านี้ย้ายเข้า pnpm-workspace.yaml ตั้งแต่ pnpm 10)
+          # ทำให้ lockfile ที่ commit ไว้มี overrides แต่ CI มองไม่เห็น
+          # → ERR_PNPM_LOCKFILE_CONFIG_MISMATCH ตอน --frozen-lockfile
+          # pnpm 10/11 เขียน lockfileVersion 9.0 เหมือน lockfile ใน repo
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 20
