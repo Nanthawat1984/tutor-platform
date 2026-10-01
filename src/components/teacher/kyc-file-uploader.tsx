@@ -16,9 +16,17 @@ interface KycUploaderProps {
   folder?: string;
 }
 
+/**
+ * โฟลเดอร์ที่อัปโหลดผ่าน API ฝั่งแอดมิน (/api/admin/payout-slip) แทนที่จะอัปโหลด
+ * ด้วยโทเคนของผู้กดอัปโหลด — สิทธิ์ตรวจที่ requireAdmin() บน server แล้ว
+ */
+const ADMIN_API_FOLDER = 'payout-slips';
+
 /** อัปโหลดไฟล์ขึ้น Firebase Storage — คืน URL ใส่ hidden input */
 export default function KycFileUploader({ uid, fieldName, label, hint, initialUrl, folder = 'kyc' }: KycUploaderProps) {
   const [url, setUrl] = useState<string>(initialUrl || '');
+  /** path ใน Storage — ข้ามการหมดอายุของ signed URL แบบสั้น ๆ */
+  const [path, setPath] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [authReady, setAuthReady] = useState(false);
@@ -33,20 +41,23 @@ export default function KycFileUploader({ uid, fieldName, label, hint, initialUr
     return () => unsub();
   }, []);
 
+  const usesAdminApi = folder === ADMIN_API_FOLDER;
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setError('');
     setUploading(true);
     try {
-      if (folder === 'payout-slips') {
+      if (usesAdminApi) {
         const formData = new FormData();
         formData.append('payoutId', uid);
         formData.append('file', file);
         const response = await fetch('/api/admin/payout-slip', { method: 'POST', body: formData });
-        const result = await response.json() as { url?: string; error?: string };
+        const result = await response.json() as { url?: string; path?: string; error?: string };
         if (!response.ok || !result.url) throw new Error(result.error || 'อัปโหลดไม่สำเร็จ');
         setUrl(result.url);
+        setPath(result.path || '');
         return;
       }
       const auth = getFirebaseAuth();
@@ -62,13 +73,19 @@ export default function KycFileUploader({ uid, fieldName, label, hint, initialUr
     }
   }
 
-  const authMismatch = authReady && authUid !== null && authUid !== uid;
+  // เช็คเจ้าของโปรไฟล์มีได้เฉพาะทางอัปโหลดด้วยโทเคนของผู้ใช้เอง
+  // (uid ตรงกับผู้อัปโหลด = ครูอัปโหลดเอกสารของตัวเอง) ส่วนการอัปโหลดผ่าน API
+  // ฝั่งแอดมินไม่ได้ใช้โทเคนผู้อัปโหลดกับ Storage และ uid ที่ส่งมาก็เป็น id
+  // ของ payout ไม่ใช่ uid ของครู — ถ้าเช็คตรงนี้ admin จะถูกบังคับให้ login
+  // เป็นครูเจ้าของโปรไฟล์ซึ่งไม่มีทางทำได้
+  const authMismatch = !usesAdminApi && authReady && authUid !== null && authUid !== uid;
 
   return (
     <div className="rounded-xl border border-slate-200 p-4">
       <p className="text-sm font-semibold text-slate-800">{label}</p>
       <p className="mt-0.5 text-xs text-slate-500">{hint}</p>
       <input type="hidden" name={fieldName} value={url} />
+      {usesAdminApi && <input type="hidden" name="slipPath" value={path} />}
       {!authReady ? (
         <div className="mt-3 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin" /> กำลังตรวจสอบการเข้าสู่ระบบ...

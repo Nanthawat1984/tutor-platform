@@ -13,6 +13,7 @@
 // เท่านั้นจึงจะทำงาน ไม่มีทางยิงโปรดักชัน
 const { spawn, execSync } = require('node:child_process');
 const fs = require('node:fs');
+const path = require('node:path');
 
 const WIN = process.platform === 'win32';
 
@@ -167,8 +168,21 @@ async function main() {
   // ที่หาไม่ได้ในเครื่อง (override ที่ process นี้เท่านั้น ไม่แก้ไฟล์ .env)
   process.env.PAYMENT_PROVIDER = 'mock';
 
+  // Admin SDK ต้องมี credential ถึงจะคุยกับ Storage emulator ได้ (Firestore/Auth
+  // ไม่ต้อง) — ไม่มี ADC ในเครื่อง และ .env เก็บแค่ client_email ไม่มี private key
+  // จึงชี้ไปที่ service account ที่สร้างไว้ในเครื่อง (.firebase-sa.json ไม่ track ใน git)
+  // ปลอดภัยเพราะ server.ts ปฏิเสธการต่อ emulator ทันทีเมื่อ NODE_ENV=production
+  // ถ้าไฟล์ไม่อยู่จะข้ามไป — verify ที่ต้องใช้ Storage จะรายงานว่าข้ามเอง
+  const localSaPath = path.join(__dirname, '..', '.firebase-sa.json');
+  if (fs.existsSync(localSaPath)) {
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = localSaPath;
+    console.log('   (ใช้ .firebase-sa.json เป็น credential ของ Admin SDK)');
+  } else {
+    console.warn('⚠ ไม่พบ .firebase-sa.json — Admin SDK จะเขียน Storage emulator ไม่ได้');
+  }
+
   // 1) Firebase emulators (auth, firestore, storage — ห้ามใส่ --project ตามบทเรียนเดิม)
-  console.log('=== 1/5 Starting Firebase emulators (auth:9099, firestore:8080, storage:9199, UI:4000) ===');
+  console.log('=== 1/6 Starting Firebase emulators (auth:9099, firestore:8080, storage:9199, UI:4000) ===');
   const emuLog = fs.openSync('uat-emulator.log', 'w');
   spawnDetached('emulators', 'npx', ['-y', 'firebase-tools@latest', 'emulators:start', '--only', 'auth,firestore,storage'], {
     logFile: emuLog,
@@ -177,11 +191,11 @@ async function main() {
   await waitPort(8080, 30000, 'firestore emulator');
 
   // 2) Seed ข้อมูล UAT (idempotent — รันซ้ำได้)
-  console.log('=== 2/5 Seeding UAT data ===');
+  console.log('=== 2/6 Seeding UAT data ===');
   execSync('node scripts/seed-emulator-uat.cjs', { stdio: 'inherit' });
 
   // 3) Dev server (Next.js)
-  console.log('=== 3/5 Starting dev server on :3000 ===');
+  console.log('=== 3/6 Starting dev server on :3000 ===');
   const devLog = fs.openSync('uat-dev.log', 'w');
   spawnDetached('dev server', 'pnpm', ['dev'], { logFile: devLog });
   await waitPort(DEV_PORT, 120000, 'dev server');
@@ -189,7 +203,7 @@ async function main() {
   await waitHttpOk(`http://localhost:${DEV_PORT}/`, 120000, 'dev server');
 
   // 4) E2E verify — flow แพ็กเกจ (เครดิต)
-  console.log('=== 4/5 Running package E2E verify ===');
+  console.log('=== 4/6 Running package E2E verify ===');
   const failures = [];
   try {
     execSync('node scripts/verify-package-e2e.cjs', { stdio: 'inherit' });
@@ -199,12 +213,21 @@ async function main() {
   }
 
   // 5) E2E verify — flow จองปกติ (จ่าย mock gateway)
-  console.log('\n=== 5/5 Running session booking E2E verify ===');
+  console.log('\n=== 5/6 Running session booking E2E verify ===');
   try {
     execSync('node scripts/verify-session-e2e.cjs', { stdio: 'inherit' });
   } catch (err) {
     failures.push(`session: exit ${err.status}`);
     console.error('\nSESSION UAT FAILED — ดู log เพิ่มเติมที่ uat-emulator.log / uat-dev.log');
+  }
+
+  // 6) E2E verify — หลักฐานการโอนให้ครู (แอดมินอัปโหลดสลิป → ครูเปิดดู)
+  console.log('\n=== 6/6 Running admin payout slip E2E verify ===');
+  try {
+    execSync('node scripts/verify-admin-payout-slip-e2e.cjs', { stdio: 'inherit' });
+  } catch (err) {
+    failures.push(`payout-slip: exit ${err.status}`);
+    console.error('\nPAYOUT SLIP UAT FAILED — ดู log เพิ่มเติมที่ uat-emulator.log / uat-dev.log');
   }
   if (failures.length > 0) {
     process.exitCode = 1;

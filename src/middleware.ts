@@ -23,7 +23,6 @@ const PROTECTED_ROUTES = [
   '/my-students',
   '/messages',
   '/notifications',
-  '/teachers/',
   '/admin/',
 ];
 

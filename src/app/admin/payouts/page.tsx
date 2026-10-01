@@ -9,6 +9,7 @@ import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { requireSessionUser } from '@/lib/auth/session';
 import CsvExportButton from '@/components/admin/csv-export-button';
 import KycFileUploader from '@/components/teacher/kyc-file-uploader';
+import { isSlipRequiredForPaid } from '@/lib/payout-slip';
 import {
   createStripeConnectTransfer,
   getStripeConnectMode,
@@ -84,6 +85,7 @@ export default async function AdminPayoutsPage({
     const payoutId = formData.get('payout_id') as string;
     const newStatus = formData.get('new_status') as string;
     const slipURL = (formData.get('slipURL') as string) || null;
+    const slipPath = (formData.get('slipPath') as string) || null;
     const note = (formData.get('note') as string) || null;
     if (!payoutId || !['processing', 'paid', 'rejected'].includes(newStatus)) return;
 
@@ -93,6 +95,7 @@ export default async function AdminPayoutsPage({
       updatedAt: FieldValue.serverTimestamp(),
     };
     if (slipURL) updates.slipURL = slipURL;
+    if (slipPath) updates.slipPath = slipPath;
     if (newStatus === 'paid') updates.paidAt = FieldValue.serverTimestamp();
 
     const payoutRef = dbRef.collection(COLLECTIONS.PAYOUTS).doc(payoutId);
@@ -136,6 +139,18 @@ export default async function AdminPayoutsPage({
       connectTransferId = transfer.transferId;
     }
 
+    // หลักฐานการโอน — ครูได้รับการแจ้งเตือนให้มาดูสลิปที่หน้ารายได้
+    // ถ้าปิดรายการเป็น 'โอนแล้ว' โดยไม่มีสลิปเลย ครูจะเปิดดูแล้วไม่เจออะไร
+    if (isSlipRequiredForPaid({
+      newStatus,
+      useConnect,
+      existingSlip: (payout.slipPath as string | null) || (payout.slipURL as string | null),
+      submittedSlip: slipPath || slipURL,
+    })) {
+      redirect('/admin/payouts?error=slip_required');
+      return;
+    }
+
     const payoutUpdates = {
       ...updates,
       ...(connectTransferId ? {
@@ -169,7 +184,7 @@ export default async function AdminPayoutsPage({
         body: connectTransferId
           ? `เงินเบิก ${formatCurrency(payout.amount)} บาทถูกส่งเข้า Stripe Connect แล้ว — ตรวจสอบสถานะได้ที่หน้ารายได้`
           : `เงินเบิก ${formatCurrency(payout.amount)} บาท โอนเข้าบัญชี ${payout.bankName} ${payout.accountNumber} แล้ว — ดูหลักฐานการโอนได้ที่หน้ารายได้`,
-        data: { payoutId, slipURL, payoutMethod: connectTransferId ? 'stripe_connect' : 'manual' },
+        data: { payoutId, slipPath, payoutMethod: connectTransferId ? 'stripe_connect' : 'manual' },
         isRead: false,
         createdAt: FieldValue.serverTimestamp(),
       });
@@ -239,6 +254,7 @@ export default async function AdminPayoutsPage({
           {params.error === 'connect_not_onboarded' && 'ครูยังไม่ได้เชื่อมบัญชี Stripe Connect'}
           {params.error === 'connect_not_ready' && 'บัญชี Stripe Connect ยังตรวจสอบไม่เสร็จหรือยังรับโอนไม่ได้'}
           {params.error === 'connect_invalid' && 'ยอดหรือบัญชี Stripe Connect ไม่ถูกต้อง'}
+          {params.error === 'slip_required' && 'ต้องแนบหลักฐานการโอน (สลิป) ก่อนตั้งสถานะเป็น "โอนแล้ว" — ยกเว้นรายการที่ส่งผ่าน Stripe Connect'}
         </div>
       )}
 
@@ -260,15 +276,15 @@ export default async function AdminPayoutsPage({
                       <span className="text-lg font-bold text-slate-900">{formatCurrency(p.amount)}</span>
                     </div>
                     <p className="mt-1 text-sm text-slate-600">
-                      <Link href={`/teachers/${p.teacherId}`} className="font-medium text-pink-700 hover:underline">
+                      <Link href={`/admin/teachers/${p.teacherId}`} className="font-medium text-pink-700 hover:underline">
                         {teacherInfo.get(p.teacherId) || '-'}
                       </Link>
                       {' • '}{p.bankName} • {p.accountNumber} • {p.accountName}
                     </p>
                     <p className="mt-0.5 text-xs text-slate-400">ขอเมื่อ {p.createdAt ? formatDate(p.createdAt.toDate?.() || p.createdAt, 'd MMM yyyy HH:mm') : '-'}</p>
                   </div>
-                  {p.slipURL && (
-                    <a href={p.slipURL} target="_blank" rel="noreferrer" className="text-xs font-semibold text-pink-700 underline">
+                  {(p.slipPath || p.slipURL) && (
+                    <a href={`/api/payouts/${p.id}/slip`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-pink-700 underline">
                       🧾 หลักฐานโอน
                     </a>
                   )}

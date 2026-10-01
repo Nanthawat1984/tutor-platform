@@ -173,7 +173,7 @@ export default async function AdminTaxReportPage({
                     <td className="px-3 py-2">{i + 1}</td>
                     <td className="whitespace-nowrap px-3 py-2">{formatDate(r.paidDate, 'd/MM/yyyy')}</td>
                     <td className="px-3 py-2">
-                      <Link href={`/teachers/${r.teacherId}`} className="font-medium text-pink-700 hover:underline">
+                      <Link href={`/admin/teachers/${r.teacherId}`} className="font-medium text-pink-700 hover:underline">
                         {r.teacherName}
                       </Link>
                       {!r.teacherTaxId && <span className="ml-1 text-[10px] text-red-500">(ไม่มีเลขภาษี)</span>}

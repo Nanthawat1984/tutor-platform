@@ -503,7 +503,8 @@ export interface Payout {
   accountName: string;
   accountNumber: string;
   note?: string;
-  slipURL?: string;         // หลักฐานการโอนเงิน (อัปโหลดโดยแอดมิน)
+  slipPath?: string;        // path หลักฐานการโอนใน Storage (อัปโหลดโดยแอดมิน) — เปิดผ่าน /api/payouts/{id}/slip
+  slipURL?: string;         // signed URL รุ่นเก่า (หมดอายุใน 7 วัน — legacy อย่าเขียนใหม่)
   paidAt?: Timestamp;       // วันที่โอนจริง
   createdAt: Timestamp;
   updatedAt: Timestamp;

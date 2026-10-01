@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react';
 import {
   onAuthStateChanged,
+  onIdTokenChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
@@ -92,9 +93,13 @@ function setPendingGoogleConsent(consent?: RegistrationConsent) {
   }
 }
 
+/** โทเคนล่าสุดที่เขียนลงคุกกี้ __session — ใช้กัน POST ซ้ำตอน token เพิ่งถูกเซ็ต */
+let lastSessionToken: string | null = null;
+
 async function setSessionCookie(firebaseUser: FirebaseUser) {
   try {
     const idToken = await firebaseUser.getIdToken();
+    lastSessionToken = idToken;
     await fetch('/api/auth/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -106,6 +111,7 @@ async function setSessionCookie(firebaseUser: FirebaseUser) {
 }
 
 async function clearSessionCookie() {
+  lastSessionToken = null;
   try {
     await fetch('/api/auth/session', { method: 'DELETE' });
   } catch {
@@ -220,9 +226,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // คุกกี้ __session เก็บ Firebase ID token ที่อายุ ~1 ชม. แต่ตัวคุกกี้เองมี
+    // maxAge 7 วัน — ถ้าไม้ดันคุกกี้ใหม่ตอน Firebase refresh token ฝั่ง client
+    // verifyIdToken() ฝั่ง server จะ fail เมื่อครบ 1 ชม. แล้วทุกหน้าที่ล็อกอินไว้
+    // (รวมถึงหน้าแอดมิน) จะถูกดีดกลับไป /login โดยไม่มีสาเหตุที่ผู้ใช้เห็น
+    const unsubToken = onIdTokenChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) return;
+      const idToken = await firebaseUser.getIdToken().catch(() => null);
+      if (!idToken || idToken === lastSessionToken) return;
+      await setSessionCookie(firebaseUser);
+    });
+
     return () => {
       isMounted = false;
       unsub();
+      unsubToken();
     };
   }, []);
 

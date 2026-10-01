@@ -211,8 +211,8 @@ export default async function EarningsPage() {
                       </p>
                     </div>
                     <div className="w-full sm:w-auto sm:text-right">
-                      {p.slipURL ? (
-                        <a href={p.slipURL} target="_blank" rel="noreferrer" className="text-xs font-semibold text-pink-700 underline">
+                      {p.slipPath || p.slipURL ? (
+                        <a href={`/api/payouts/${p.id}/slip`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-pink-700 underline">
                           🧾 ดูหลักฐานการโอน
                         </a>
                       ) : p.status === 'paid' ? (
