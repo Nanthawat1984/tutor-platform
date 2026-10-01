@@ -8,7 +8,6 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 const ALERT_DOC = 'opsAlerts/hourly';
 
 export const opsAlertMonitor = functions
-  .runWith({ secrets: ['LINE_CHANNEL_SECRET', 'LINE_CHANNEL_ACCESS_TOKEN'] })
   .region('asia-southeast1')
   .pubsub.schedule('every 30 minutes')
   .timeZone('Asia/Bangkok')

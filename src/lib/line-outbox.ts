@@ -1,21 +1,30 @@
 // LINE outbox writer ฝั่ง Next.js (Admin SDK)
 // ใช้เมื่อต้องการแจ้ง LINE จาก API route โดยไม่ผ่าน Cloud Functions trigger
 // dispatcher เดิม (onLineNotificationCreated + retry cron) จะหยิบ status=pending ไปส่งต่อ
+//
+// ค่า flag ต้องอ่านแบบเดียวกับ functions/src/line/config.ts (readBoolean) ไม่งั้น
+// ตั้ง LINE_NOTIFICATIONS_ENABLED=1 จะทำให้สองฝั่งเชื่อมต่างกัน
 
 import { createHash } from 'node:crypto';
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { COLLECTIONS } from '@/types/firestore';
+import type { LineNotificationEvent } from '@/types/line';
 
 export interface OutboxMessage {
   type: string;
   text: string;
 }
 
+// ต้องตรงกับ readBoolean ใน functions/src/line/config.ts
+function readFlagEnabled(): boolean {
+  return ['1', 'true', 'yes', 'on'].includes((process.env.LINE_NOTIFICATIONS_ENABLED || 'false').trim().toLowerCase());
+}
+
 export async function queueLineOutbox(
   db: Firestore,
   input: {
     recipientUid: string;
-    eventType: string;
+    eventType: LineNotificationEvent;
     entityId: string;
     messages: OutboxMessage[];
   },
@@ -24,28 +33,37 @@ export async function queueLineOutbox(
     .update(`${input.eventType}:${input.entityId}:${input.recipientUid}`)
     .digest('hex');
   const ref = db.collection('lineNotificationOutbox').doc(docId);
-  const existing = await ref.get();
-  if (existing.exists) return 'existing';
+  const userRef = db.collection(COLLECTIONS.USERS).doc(input.recipientUid);
+  const notificationsEnabled = readFlagEnabled();
 
-  const userSnap = await db.collection(COLLECTIONS.USERS).doc(input.recipientUid).get();
-  const user = userSnap.exists ? (userSnap.data() as any) : {};
-  const lineUserId = String(user.lineUserId || '');
-  const notificationsEnabled = process.env.LINE_NOTIFICATIONS_ENABLED === 'true';
-  const enabled = notificationsEnabled && Boolean(lineUserId) && user.lineNotificationEnabled !== false;
+  // ต้องเป็น transaction: ถ้าใช้ get() แล้ว set() ตามมา จะมีช่องว่างให้สอง request
+  // จอง/จ่ายเงินพร้อมกันผ่าน doc เดียวกันแล้วส่งซ้ำได้
+  return db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+    if (existing.exists) return 'existing' as const;
 
-  await ref.set({
-    recipientUid: input.recipientUid,
-    lineUserId,
-    eventType: input.eventType,
-    entityId: input.entityId,
-    messages: input.messages,
-    status: enabled ? 'pending' : 'skipped',
-    attempts: 0,
-    lastError: enabled ? null : notificationsEnabled ? 'line_user_not_linked' : 'line_notifications_disabled',
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
+    const userSnap = await transaction.get(userRef);
+    const user = userSnap.exists ? (userSnap.data() as any) : {};
+    const lineUserId = String(user.lineUserId || '');
+    const enabled = notificationsEnabled && Boolean(lineUserId) && user.lineNotificationEnabled !== false;
+
+    const record: Record<string, unknown> = {
+      recipientUid: input.recipientUid,
+      lineUserId,
+      eventType: input.eventType,
+      entityId: input.entityId,
+      messages: input.messages,
+      status: enabled ? 'pending' : 'skipped',
+      attempts: 0,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (!enabled) {
+      record.lastError = notificationsEnabled ? 'line_user_not_linked' : 'line_notifications_disabled';
+    }
+    transaction.create(ref, record);
+    return enabled ? 'created' as const : 'skipped' as const;
   });
-  return enabled ? 'created' : 'skipped';
 }
 
 export async function notifyUser(
@@ -56,7 +74,7 @@ export async function notifyUser(
     title: string;
     body: string;
     data?: Record<string, any>;
-    lineEventType?: string;
+    lineEventType?: LineNotificationEvent;
     lineEntityId?: string;
     lineMessages?: OutboxMessage[];
   },
@@ -79,7 +97,8 @@ export async function notifyUser(
         messages: input.lineMessages,
       });
     } catch (e) {
-      console.error('queueLineOutbox failed:', e);
+      // in-app notification เขียนสำเร็จแล้ว — LINE ล้มเหลวห้ามทำให้ธุรกรรมหลักล้ม
+      console.error('queueLineOutbox failed:', e instanceof Error ? e.message : 'unknown_error');
     }
   }
 }

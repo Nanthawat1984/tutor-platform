@@ -51,6 +51,8 @@ export function LineLinkCard({
   const config = getLineClientConfig();
   const autoLink = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('line_link') === '1';
+  // ผู้ใช้เชื่อมบัญชีแล้วแต่ระบบยังไม่ส่งข้อความ ต้องบอกตรง ๆ ไม่ใช่ปล่อยให้รอเงียบ ๆ
+  const linkable = config.enabled && config.notificationsEnabled;
 
   const finishAndReturn = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
@@ -124,8 +126,8 @@ export function LineLinkCard({
   }, [config.liffId, finishAndReturn, handoffPath]);
 
   useEffect(() => {
-    if (autoLink && !initialLinked) void linkLine();
-  }, [autoLink, initialLinked, linkLine]);
+    if (autoLink && !initialLinked && linkable) void linkLine();
+  }, [autoLink, initialLinked, linkable, linkLine]);
 
   async function unlinkLine() {
     setBusy(true);
@@ -155,25 +157,31 @@ export function LineLinkCard({
         <div>
           <p className="text-base font-bold text-slate-900">แจ้งเตือนผ่าน LINE OA 💖</p>
           <p className="mt-1 text-sm text-slate-600">
-            {linked && enabled ? 'เชื่อมต่อแล้ว พร้อมรับข่าวสารสำคัญ' : 'เชื่อมต่อเพื่อรับแจ้งเตือนการเรียนและค่าเรียน'}
+            {!linkable
+              ? 'ระบบแจ้งเตือนผ่าน LINE กำลังจะเปิดให้ใช้งาน — ตอนนี้ข่าวสารสำคัญยังส่งในแอปให้อยู่'
+              : linked && enabled
+                ? 'เชื่อมต่อแล้ว พร้อมรับข่าวสารสำคัญ'
+                : 'เชื่อมต่อเพื่อรับแจ้งเตือนการเรียนและค่าเรียน'}
           </p>
         </div>
         <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-pink-600 ring-1 ring-pink-100">
-          {linked ? (enabled ? 'เชื่อมแล้ว' : 'ปิดแจ้งเตือน') : 'ยังไม่เชื่อม'}
+          {!linkable ? 'ยังไม่เปิดใช้' : linked ? (enabled ? 'เชื่อมแล้ว' : 'ปิดแจ้งเตือน') : 'ยังไม่เชื่อม'}
         </span>
       </div>
-      <a
-        href="https://line.me/R/ti/p/%40966mqfzj"
-        target="_blank"
-        rel="noreferrer"
-        className="mt-3 inline-block text-xs font-semibold text-pink-600 underline"
-      >
-        เพิ่มเพื่อน OA @966mqfzj ก่อนเชื่อมบัญชี
-      </a>
+      {config.addFriendUrl && (
+        <a
+          href={config.addFriendUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-block text-xs font-semibold text-pink-600 underline"
+        >
+          เพิ่มเพื่อน OA {config.officialAccountId} ก่อนเชื่อมบัญชี
+        </a>
+      )}
       {error && <p className="mt-3 text-sm font-semibold text-rose-600" role="alert">{error}</p>}
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         {!linked ? (
-          <Button type="button" onClick={linkLine} disabled={busy || !config.enabled}>
+          <Button type="button" onClick={linkLine} disabled={busy || !linkable}>
             {busy ? 'กำลังเชื่อมต่อ…' : 'เชื่อมต่อ LINE'}
           </Button>
         ) : (

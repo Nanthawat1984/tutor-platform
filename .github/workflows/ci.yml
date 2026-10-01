@@ -40,6 +40,8 @@ jobs:
       - run: node scripts/verify-connect-testmode.cjs
       - run: node scripts/verify-parent-payment-privacy.cjs
       - run: node scripts/verify-line-link.cjs
+      - run: node scripts/verify-line-webhook.cjs
+      - run: node scripts/verify-line-oa.cjs
       - run: node scripts/verify-firestore-indexes.cjs
       - run: pnpm build
 

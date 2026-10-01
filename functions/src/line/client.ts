@@ -16,6 +16,12 @@ export class LineApiError extends Error {
 
 export type LineMessage = Record<string, unknown>;
 
+// 400/404/410 = ผู้ใช้/คีย์ผิด หรือบล็อกบัญชีแล้ว → retry ไม่มีทางสำเร็จ ต้อง skip
+// ที่เหลือ (429, 5xx, เครือข่าย) = transient → ควร retry
+export function isPermanentLineFailure(status: number): boolean {
+  return status === 400 || status === 404 || status === 410;
+}
+
 export async function pushLineMessages(lineUserId: string, messages: LineMessage[]): Promise<void> {
   const config = requireLineServerConfig();
   if (!config.enabled) return;
@@ -39,7 +45,7 @@ export async function pushLineMessages(lineUserId: string, messages: LineMessage
     // Keep API errors safe even when LINE returns non-JSON.
   }
 
-  const permanentUserError = response.status === 400 || response.status === 404 || response.status === 410;
+  const permanentUserError = isPermanentLineFailure(response.status);
   throw new LineApiError(response.status, !permanentUserError, responseCode);
 }
 

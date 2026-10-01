@@ -4,6 +4,7 @@ export type LineNotificationEvent =
   | 'booking.created'
   | 'booking.confirmed'
   | 'booking.cancelled'
+  | 'booking.rescheduled'
   | 'payment.pending'
   | 'payment.paid'
   | 'attendance.changed'

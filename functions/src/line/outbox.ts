@@ -57,6 +57,11 @@ export async function createLineOutbox(
   });
 }
 
+export function computeRetryDelayMs(attempts: number): number {
+  // 30s → 1m → 2m → 4m … เพดานที่ 1 ชั่วโมง
+  return Math.min(60 * 60 * 1000, 30_000 * (2 ** Math.max(0, attempts - 1)));
+}
+
 export async function dispatchLineOutbox(
   db: Firestore,
   docId: string,
@@ -81,6 +86,8 @@ export async function dispatchLineOutbox(
 
   if (!claimed) {
     const current = await ref.get();
+    // ไม่พบเอกสาร = ไม่มีอะไรให้ส่ง ไม่ใช่เคสที่ต้อง retry
+    if (!current.exists) return 'skipped';
     const status = current.data()?.status;
     return status === 'skipped' ? 'skipped' : status === 'sent' ? 'sent' : 'retry';
   }
@@ -96,7 +103,7 @@ export async function dispatchLineOutbox(
       return 'skipped';
     }
 
-    const delayMs = Math.min(60 * 60 * 1000, 30_000 * (2 ** Math.max(0, claimed.attempts - 1)));
+    const delayMs = computeRetryDelayMs(claimed.attempts);
     await ref.update({
       status: 'failed',
       lastError: error instanceof Error ? error.message.slice(0, 160) : 'line_delivery_failed',

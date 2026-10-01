@@ -67,9 +67,18 @@ export async function POST(request: NextRequest) {
 
   if (role === 'parent' || role === 'teacher') {
     try {
-      await assignLineRichMenu(lineUserId, role);
-    } catch {
-      // Linking is authoritative; a missing/unavailable Rich Menu is retryable from setup.
+      const assigned = await assignLineRichMenu(lineUserId, role);
+      if (!assigned) {
+        // token/Rich Menu ID ยังไม่ได้ตั้งค่า — log ไว้เพราะเดิมกลืนเงียบจนแก้ไม่ได้
+        console.warn('LINE rich menu not assigned: missing configuration', { role });
+      }
+    } catch (cause) {
+      // Linking สำเร็จแล้วถือเป็น authoritative — Rich Menu กลับมา assign ซ้ำได้จาก setup script
+      // ห้าม log lineUserId เด็ดขาด ข้อความจาก assignLineRichMenu มีแต่ status code
+      console.warn('LINE rich menu assignment failed:', {
+        role,
+        message: cause instanceof Error ? cause.message : 'unknown_error',
+      });
     }
   }
 

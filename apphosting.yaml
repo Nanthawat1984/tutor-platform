@@ -80,6 +80,22 @@ env:
       - BUILD
       - RUNTIME
 
+  # ฝั่ง browser ใช้แสดงลิงก์ "เพิ่มเพื่อน OA" — ต้องประกาศที่นี่
+  # ไม่งั้น src/lib/line/config.ts จะ fallback ไปค่า hardcode
+  - variable: NEXT_PUBLIC_LINE_OFFICIAL_ACCOUNT_ID
+    value: "@966mqfzj"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # ต้องประกาศตรงกับ LINE_NOTIFICATIONS_ENABLED เสมอ ไม่งั้นผู้ใช้จะเชื่อมแล้ว
+  # ไม่ได้รับข้อความโดยไม่มีคำอธิบาย — ประกาศไว้เป็น false จนกว่า smoke test ผ่าน
+  - variable: NEXT_PUBLIC_LINE_NOTIFICATIONS_ENABLED
+    value: "false"
+    availability:
+      - BUILD
+      - RUNTIME
+
   - variable: LINE_LOGIN_CHANNEL_ID
     value: "2011204493"
     availability:
