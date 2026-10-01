@@ -42,6 +42,9 @@ export default async function TeacherProfilePage({
   const session = await requireSessionUser();
   const { id } = await params;
 
+  // แอดมินเข้าหน้าโปรไฟล์ครูได้ พร้อมลิงก์ไปจัดการรีวิว
+  const isAdmin = session.role === 'admin';
+
   const [userSnap, teacherSnap] = await Promise.all([
     db.collection(COLLECTIONS.USERS).doc(id).get(),
     db.collection(COLLECTIONS.TEACHERS).doc(id).get(),
@@ -356,6 +359,11 @@ export default async function TeacherProfilePage({
               <p className="text-5xl font-extrabold text-slate-900">{rating.toFixed(1)}</p>
               <RatingStars rating={rating} size="lg" className="mt-2 justify-center" />
               <p className="mt-1 text-xs text-slate-500">{totalReviews} รีวิว</p>
+              {isAdmin && (
+                <a href="/admin/reviews" className="mt-2 inline-block text-[11px] font-bold text-slate-400 underline decoration-dotted hover:text-pink-600">
+                  จัดการรีวิว (แอดมิน)
+                </a>
+              )}
 
               <div className="mt-5 space-y-1.5">
                 {ratingBreakdown.map((b) => (

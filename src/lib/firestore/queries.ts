@@ -93,10 +93,11 @@ export async function updateTeacherRating(teacherId: string) {
     .where('isVisible', '==', true)
     .get();
 
-  if (reviewsSnap.empty) return;
-
+  // ไม่มีรีวิว visible แล้ว (เช่น แอดมินซ่อนทั้งหมด) → reset เป็น 0 ไม่คงค่าเก่า
   const ratings = reviewsSnap.docs.map((d) => (d.data() as Review).rating);
-  const avg = Math.round((ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length) * 10) / 10;
+  const avg = ratings.length > 0
+    ? Math.round((ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length) * 10) / 10
+    : 0;
 
   await docRef(COLLECTIONS.TEACHERS, teacherId).update({
     rating: avg,
