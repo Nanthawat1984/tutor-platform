@@ -1,7 +1,7 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Receipt, ReceiptText, CalendarDays, QrCode, CreditCard, Smartphone, Landmark, Clock } from 'lucide-react';
+import { Receipt, ReceiptText, CalendarDays, QrCode, CreditCard, Smartphone, Landmark, Clock, Wallet } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
@@ -76,6 +76,28 @@ export default async function PaymentsPage() {
       return tb - ta;
     });
 
+  // ── วอลเล็ตผู้ปกครอง — เงินคืนจากการยกเลิกถูกเครดิตไว้ที่นี่ และถูกหักอัตโนมัติ
+  // ตอนชำระครั้งถัดไป (debitParentWallet) — ผู้ปกครองต้องเห็นยอดนี้
+  const walletSnap = await db.collection(COLLECTIONS.PARENT_WALLETS).doc(parentId).get();
+  const wallet = walletSnap.exists ? walletSnap.data() as any : null;
+  const walletBalance = Number(wallet?.balance) || 0;
+  const walletTxsSnap = wallet && walletBalance !== Number(wallet?.totalCredited) - Number(wallet?.totalSpent)
+    ? await db.collection(COLLECTIONS.PARENT_WALLET_TXS)
+      .where('parentId', '==', parentId)
+      .limit(20)
+      .get()
+    : null;
+  const walletTxs = walletTxsSnap
+    ? walletTxsSnap.docs
+      .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+      .sort((a: any, b: any) => {
+        const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return tb - ta;
+      })
+      .slice(0, 5)
+    : [];
+
   return (
     <DashboardLayout
       title="การชำระเงิน"
@@ -84,6 +106,52 @@ export default async function PaymentsPage() {
       userName={session.displayName || 'ผู้ปกครอง'}
     >
       <p className="mb-6 text-sm text-slate-500">ประวัติการชำระเงินและใบเสร็จของคุณ</p>
+
+      {wallet && (
+        <Card className="mb-6 border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-teal-50/50">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-sm">
+                <Wallet className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900">เครดิตวอลเล็ตของคุณ</h3>
+                <p className="text-xs text-slate-500">เงินคืนจากการยกเลิกคลาส — ถูกหักใช้อัตโนมัติเมื่อชำระครั้งถัดไป</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-extrabold text-emerald-700">{formatCurrency(walletBalance)}</p>
+              <p className="text-[11px] text-slate-400">
+                รับมาแล้ว {formatCurrency(Number(wallet.totalCredited) || 0)} • ใช้ไป {formatCurrency(Number(wallet.totalSpent) || 0)}
+              </p>
+            </div>
+          </div>
+          {walletTxs.length > 0 && (
+            <div className="mt-4 space-y-1.5 border-t border-emerald-100 pt-3">
+              {walletTxs.map((tx: any) => {
+                const isCredit = Number(tx.amount) > 0;
+                const kindLabel: Record<string, string> = {
+                  refund: 'เงินคืนจากการยกเลิก',
+                  spend: 'ใช้ชำระค่าเรียน',
+                  reversal: 'ปรับยอดย้อนหลัง',
+                  adjust: 'ปรับยอดโดยแอดมิน',
+                };
+                return (
+                  <div key={tx.id} className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-slate-500">
+                      {kindLabel[tx.kind] || tx.kind}
+                      {tx.createdAt?.toDate ? ` • ${formatDate(tx.createdAt.toDate().toISOString().slice(0, 10), 'd MMM yyyy')}` : ''}
+                    </span>
+                    <span className={`font-bold ${isCredit ? 'text-emerald-600' : 'text-slate-600'}`}>
+                      {isCredit ? '+' : ''}{formatCurrency(Number(tx.amount) || 0)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      )}
 
       {payments.length === 0 ? (
         <EmptyState

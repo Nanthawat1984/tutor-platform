@@ -36,9 +36,10 @@ export default async function TeacherDashboard() {
   let upcomingBookings: any[] = [];
   let activeCourses = 0;
   let setupError = false;
+  let teacherStats = { totalStudents: 0, rating: 0, totalReviews: 0 };
 
   try {
-    const [bookingsSnap, coursesSnap] = await Promise.all([
+    const [bookingsSnap, coursesSnap, teacherSnap] = await Promise.all([
       db.collection(COLLECTIONS.BOOKINGS)
         .where('teacherId', '==', teacherId)
         .where('status', '==', 'confirmed')
@@ -49,10 +50,21 @@ export default async function TeacherDashboard() {
         .where('teacherId', '==', teacherId)
         .where('isActive', '==', true)
         .get(),
+      // stat จริงของครู — cron updateTeacherStats อัปเดต totalStudents ทุกชั่วโมง
+      // updateTeacherRating อัปเดต rating/totalReviews ทุกครั้งที่รีวิวถูกสร้าง/ถูก moderate
+      db.collection(COLLECTIONS.TEACHERS).doc(teacherId).get(),
     ]);
 
     upcomingBookings = bookingsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
     activeCourses = coursesSnap.size;
+    if (teacherSnap.exists) {
+      const t = teacherSnap.data() as any;
+      teacherStats = {
+        totalStudents: Number(t.totalStudents) || 0,
+        rating: Number(t.rating) || 0,
+        totalReviews: Number(t.totalReviews) || 0,
+      };
+    }
   } catch (error) {
     if ((error as { code?: number }).code !== 5) throw error;
     setupError = true;
@@ -70,10 +82,9 @@ export default async function TeacherDashboard() {
   const STATS = [
     {
       label: 'นักเรียนทั้งหมด',
-      value: 0,
+      value: teacherStats.totalStudents,
       icon: <Users className="h-6 w-6" />,
       iconGradient: 'from-pink-500 to-rose-600',
-      trend: { value: 12, isPositive: true },
     },
     {
       label: 'คอร์สที่เปิดสอน',
@@ -83,14 +94,14 @@ export default async function TeacherDashboard() {
     },
     {
       label: 'คะแนนเฉลี่ย',
-      value: '—',
+      value: teacherStats.rating > 0 ? teacherStats.rating.toFixed(1) : '—',
       icon: <Star className="h-6 w-6" />,
       iconGradient: 'from-amber-500 to-orange-500',
-      subtext: 'ยังไม่มีรีวิว',
+      subtext: teacherStats.rating > 0 ? undefined : 'ยังไม่มีรีวิว',
     },
     {
       label: 'รีวิวทั้งหมด',
-      value: 0,
+      value: teacherStats.totalReviews,
       icon: <MessageCircle className="h-6 w-6" />,
       iconGradient: 'from-emerald-500 to-teal-600',
     },
@@ -144,7 +155,7 @@ export default async function TeacherDashboard() {
 
       {/* ── Stats Grid ── */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {STATS.map((stat, i) => (
+        {STATS.map((stat) => (
           <StatCard
             key={stat.label}
             label={stat.label}
@@ -152,7 +163,6 @@ export default async function TeacherDashboard() {
             icon={stat.icon}
             iconGradient={stat.iconGradient}
             subtext={stat.subtext}
-            trend={stat.trend}
           />
         ))}
       </div>
