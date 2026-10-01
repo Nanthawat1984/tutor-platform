@@ -8,7 +8,8 @@ export type LineNotificationEvent =
   | 'payment.pending'
   | 'payment.paid'
   | 'attendance.changed'
-  | 'payment.released';
+  | 'payment.released'
+  | 'report.created';
 
 export interface LineNotificationOutbox {
   recipientUid: string;

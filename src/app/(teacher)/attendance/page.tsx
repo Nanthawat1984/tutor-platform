@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Check, ClipboardCheck, GraduationCap, X, Clock } from 'lucide-react';
+import { Check, ClipboardCheck, GraduationCap, X, Clock, FileCheck2, CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AttendanceStatusBadge, Badge } from '@/components/ui/badge';
@@ -14,6 +14,20 @@ import { requireSessionUser } from '@/lib/auth/session';
 import { requireRole } from '@/lib/auth/guards';
 import { releaseEscrowForBooking } from '@/lib/payments/process';
 import { releasePackageSessionEscrow } from '@/lib/packages';
+import RescheduleForm from '@/components/booking/reschedule-form';
+import { hoursUntilSession } from '@/lib/booking-policy';
+import { buildAvailableBookingSlots, type AvailabilitySchedule, type AvailabilityBooking } from '@/lib/booking/availability';
+
+function getBangkokDateString(date: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
 
 const today = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Bangkok',
@@ -22,7 +36,7 @@ const today = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 }).format(new Date());
 
-export default async function AttendancePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+export default async function AttendancePage({ searchParams }: { searchParams: Promise<{ date?: string; reported?: string }> }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
   const session = await requireSessionUser();
@@ -69,6 +83,56 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
     attendanceSnap.docs.map((d: any) => [d.data().bookingId, d.data().status])
   );
 
+  // สถานะรายงานผล — booking ไหนมี session report แล้ว (equality-only ไม่ต้องมี composite index)
+  const reportsSnap = await db.collection(COLLECTIONS.SESSION_REPORTS)
+    .where('teacherId', '==', teacherId)
+    .where('sessionDate', '==', selectedDate)
+    .get();
+  const reportStatusByBooking = new Set<string>(
+    reportsSnap.docs.map((d: any) => String(d.data().bookingId || '')),
+  );
+
+  // เตรียมสล็อตว่างสำหรับเลื่อนคาบ (ครูเลื่อนเองได้ — กติกาเดียวกับผู้ปกครอง)
+  // สล็อตต่อ booking: ใช้ duration ของคอร์สนั้น ๆ (validateBookingSlot ตรวจอีกชั้นตอนบันทึก)
+  let rescheduleSlotsByBooking = new Map<string, { scheduleId: string; date: string; startTime: string; endTime: string }[]>();
+  try {
+    const [teacherCoursesSnap, schedulesSnap, teacherBookingsSnap] = await Promise.all([
+      db.collection(COLLECTIONS.COURSES).where('teacherId', '==', teacherId).where('isActive', '==', true).get(),
+      db.collection(COLLECTIONS.SCHEDULES).where('teacherId', '==', teacherId).get(),
+      db.collection(COLLECTIONS.BOOKINGS)
+        .where('teacherId', '==', teacherId)
+        .where('status', 'in', ['pending', 'confirmed'])
+        .get(),
+    ]);
+    const durationsByCourse = new Map<string, number>(
+      teacherCoursesSnap.docs.map((d: any) => [d.id, Number(d.data().durationMinutes) || 0]),
+    );
+    const schedules = schedulesSnap.docs
+      .map((doc: any) => ({ id: doc.id, ...doc.data() }) as AvailabilitySchedule)
+      .filter((s) => s.isActive === true);
+    const allTeacherBookings = teacherBookingsSnap.docs.map((doc: any) => doc.data() as AvailabilityBooking);
+    for (const b of bookings) {
+      const duration = durationsByCourse.get(b.courseId) || 0;
+      if (b.status !== 'confirmed' || duration <= 0) continue;
+      const hours = hoursUntilSession(b.bookingDate, b.startTime);
+      if (hours === null || hours <= 0) continue;
+      if (b.disputeStatus === 'open') continue; // ระหว่างข้อพิพาทเปิดอยู่ งดเลื่อน
+      rescheduleSlotsByBooking.set(
+        b.id,
+        buildAvailableBookingSlots({
+          schedules: schedules.filter((s) => s.courseId === b.courseId),
+          bookings: allTeacherBookings,
+          courseDurationMinutes: duration,
+          fromDate: getBangkokDateString(),
+          daysAhead: 60,
+        }),
+      );
+    }
+  } catch {
+    // query ล้ม (เช่น ยังไม่มี index) — หน้ายังใช้ได้ เพียงไม่มีสล็อตให้เลื่อน
+    rescheduleSlotsByBooking = new Map();
+  }
+
   return (
     <DashboardLayout
       title="เช็คชื่อ"
@@ -76,6 +140,12 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
       role="teacher"
       userName={session.displayName || 'คุณครู'}
     >
+      {params.reported === '1' && (
+        <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+          ✅ บันทึกรายงานผลการเรียนแล้ว — ผู้ปกครองได้รับแจ้งแล้ว
+        </p>
+      )}
+
       <div className="responsive-page-header mb-6">
         <p className="text-sm text-slate-500">บันทึกการเข้าเรียนของนักเรียน</p>
         <form method="get" className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -109,12 +179,22 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                     {booking.rescheduleCount > 0 && <Badge variant="info" size="sm">เลื่อน {booking.rescheduleCount} ครั้ง</Badge>}
                     {booking.disputeStatus === 'open' && <Badge variant="danger" size="sm" dot>ข้อพิพาท</Badge>}
                     <AttendanceStatusBadge status={attendanceStatusByBooking.get(booking.id) || 'pending'} />
+                    {reportStatusByBooking.has(booking.id) && <Badge variant="success" size="sm">มีรายงานแล้ว</Badge>}
                   </div>
                   <p className="mt-1 text-sm text-gray-500">
                     {booking.courseTitle} • {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
                   </p>
                 </div>
-                <div className="grid w-full grid-cols-3 gap-2 sm:w-auto">
+                <div className="w-full space-y-2 sm:w-auto">
+                  {booking.status === 'completed' && (
+                    <Link href={`/attendance/report/${booking.id}`} className="block w-full">
+                      <Button size="sm" variant={reportStatusByBooking.has(booking.id) ? 'outline' : 'primary'} className="w-full">
+                        <FileCheck2 className="h-4 w-4" />
+                        {reportStatusByBooking.has(booking.id) ? 'แก้รายงาน' : 'เขียนรายงาน'}
+                      </Button>
+                    </Link>
+                  )}
+                  <div className="grid w-full grid-cols-3 gap-2 sm:w-auto">
                   {['present', 'absent', 'late'].map((status) => (
                     <form key={status} action={async () => {
                       'use server';
@@ -161,8 +241,31 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                       </Button>
                     </form>
                   ))}
+                  </div>
                 </div>
               </div>
+
+              {/* เลื่อนคาบฝั่งครู — กติกาเดียวกับผู้ปกครอง (ฟรี 2 ครั้ง ≥24 ชม., สายติดธง) */}
+              {rescheduleSlotsByBooking.has(booking.id) && (
+                <details className="mt-3 rounded-xl border border-pink-100 bg-pink-50/40 px-4 py-3">
+                  <summary className="flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-700">
+                    <CalendarClock className="h-4 w-4 text-pink-600" />
+                    เลื่อนคาบนี้ (ผู้ปกครองได้รับแจ้งอัตโนมัติ)
+                  </summary>
+                  <div className="mt-3">
+                    <RescheduleForm
+                      bookingId={booking.id}
+                      slots={rescheduleSlotsByBooking.get(booking.id) || []}
+                      rescheduleCount={booking.rescheduleCount}
+                      currentSlot={{
+                        date: booking.bookingDate,
+                        startTime: booking.startTime,
+                        endTime: booking.endTime,
+                      }}
+                    />
+                  </div>
+                </details>
+              )}
             </Card>
           ))}
         </div>
