@@ -22,14 +22,30 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function apphostingFlag(name) {
+  const match = appHosting.match(new RegExp(`variable:\\s*${name}\\s*\\n\\s+value:\\s*["']([^"']+)["']`));
+  return match ? match[1] : null;
+}
+
+// Unset must stay fail-closed, whatever the deployed value is.
+assert(config.includes("'false'"), 'LINE notifications must default to disabled when unset');
+
+// Server and browser read different variables, so they can silently disagree:
+// the client would then show a link button that never delivers anything.
+// Both must be declared, and must carry the same value.
+const serverFlag = apphostingFlag('LINE_NOTIFICATIONS_ENABLED');
+const clientFlag = apphostingFlag('NEXT_PUBLIC_LINE_NOTIFICATIONS_ENABLED');
+assert(serverFlag !== null, 'App Hosting must declare LINE_NOTIFICATIONS_ENABLED explicitly');
+assert(clientFlag !== null, 'App Hosting must declare NEXT_PUBLIC_LINE_NOTIFICATIONS_ENABLED explicitly');
+assert(
+  serverFlag === clientFlag,
+  `LINE flag tiers disagree (server=${serverFlag}, client=${clientFlag}) — change both together`,
+);
+assert(['true', 'false'].includes(serverFlag), `LINE flag must be "true" or "false", got "${serverFlag}"`);
+
 assert(link.includes('verifyLineIdToken'), 'LIFF link route must verify LINE tokens');
 assert(outbox.includes('createHash'), 'Outbox must derive deterministic IDs');
 assert(outbox.includes('lineNotificationOutbox'), 'Outbox collection must be explicit');
-assert(config.includes("'false'"), 'LINE notifications must default to disabled');
-assert(
-  /variable:\s*LINE_NOTIFICATIONS_ENABLED\s*\n\s+value:\s*["']false["']/.test(appHosting),
-  'App Hosting must keep LINE notifications disabled until external smoke test passes',
-);
 assert(rules.includes('lineNotificationOutbox') && rules.includes('allow read, write: if false'), 'Outbox must be server-only');
 assert(rules.includes('lineUserId') && rules.includes('lineNotificationEnabled'), 'LINE identity fields must be protected by rules');
 assert(webhook.includes('verifyLineWebhookSignature'), 'Webhook signature verification must be wired');

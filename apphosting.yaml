@@ -89,9 +89,9 @@ env:
       - RUNTIME
 
   # ต้องประกาศตรงกับ LINE_NOTIFICATIONS_ENABLED เสมอ ไม่งั้นผู้ใช้จะเชื่อมแล้ว
-  # ไม่ได้รับข้อความโดยไม่มีคำอธิบาย — ประกาศไว้เป็น false จนกว่า smoke test ผ่าน
+  # ไม่ได้รับข้อความโดยไม่มีคำอธิบาย — scripts/verify-line-oa.cjs ตรวจให้ค่าสองตัวตรงกัน
   - variable: NEXT_PUBLIC_LINE_NOTIFICATIONS_ENABLED
-    value: "false"
+    value: "true"
     availability:
       - BUILD
       - RUNTIME
@@ -114,7 +114,7 @@ env:
       - RUNTIME
 
   - variable: LINE_NOTIFICATIONS_ENABLED
-    value: "false"
+    value: "true"
     availability:
       - RUNTIME
 
