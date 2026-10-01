@@ -223,6 +223,7 @@ export interface Booking {
     status: 'open' | 'resolved';
     reason?: string;
     note?: string;
+    filedBy?: 'parent' | 'teacher';
     createdAt?: Timestamp;
     resolvedAt?: Timestamp;
   } | null;

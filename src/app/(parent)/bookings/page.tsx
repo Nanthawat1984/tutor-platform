@@ -2,7 +2,7 @@ import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
-import { BookingStatusBadge } from '@/components/ui/badge';
+import { BookingStatusBadge, Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
@@ -64,6 +64,8 @@ export default async function BookingsPage() {
                     <div className="flex flex-wrap items-center gap-3">
                       <h3 className="font-semibold text-gray-900">{b.studentName}</h3>
                       <BookingStatusBadge status={b.status} />
+                      {b.dispute?.status === 'open' && <Badge variant="danger" dot>ข้อพิพาท</Badge>}
+                      {b.lateReschedule === true && b.status !== 'completed' && <Badge variant="warning" dot>เลื่อนสาย</Badge>}
                     </div>
                     <p className="mt-1 text-sm text-gray-500">
                       {b.courseTitle} • ครู{b.teacherName}
@@ -119,6 +121,19 @@ export default async function BookingsPage() {
                             ยกเลิก
                           </Button>
                         </form>
+                      </div>
+                    )}
+                    {b.status === 'confirmed' && (
+                      <div className="mt-2 flex flex-col gap-2 sm:items-end">
+                        {b.dispute?.status === 'open' ? (
+                          <span className="text-xs font-semibold text-rose-600">รอแอดมินตัดสินข้อพิพาท</span>
+                        ) : (
+                          <Link href={`/bookings/${b.id}`} className="w-full sm:w-auto">
+                            <Button size="sm" variant="outline" className="w-full sm:w-auto">
+                              เลื่อนคาบ / จัดการ
+                            </Button>
+                          </Link>
+                        )}
                       </div>
                     )}
                   </div>

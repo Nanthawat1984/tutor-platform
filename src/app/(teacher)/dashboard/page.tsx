@@ -16,7 +16,7 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 import { DashboardLayout, StatCard, EmptyState, SectionCard } from '@/components/layout/dashboard';
-import { BookingStatusBadge } from '@/components/ui/badge';
+import { Badge, BookingStatusBadge } from '@/components/ui/badge';
 import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { getActiveAnnouncements } from '@/lib/announcements';
 import { AnnouncementsCard } from '@/components/layout/announcements-card';
@@ -194,12 +194,20 @@ export default async function TeacherDashboard() {
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-slate-900 text-sm">{b.studentName}</p>
                       <p className="truncate text-xs text-slate-500">{b.courseTitle} • {b.startTime}</p>
-                      {b.studentLevel && (
-                        <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-700">
-                          <GraduationCap className="h-3 w-3" />
-                          {b.studentLevel}
-                        </span>
-                      )}
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {b.studentLevel && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-700">
+                            <GraduationCap className="h-3 w-3" />
+                            {b.studentLevel}
+                          </span>
+                        )}
+                        {b.lateReschedule === true && (
+                          <Badge variant="warning" size="sm" dot>เลื่อนล่าช้า</Badge>
+                        )}
+                        {b.rescheduleCount > 0 && (
+                          <Badge variant="info" size="sm">เลื่อน {b.rescheduleCount} ครั้ง</Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <BookingStatusBadge status={b.status} />

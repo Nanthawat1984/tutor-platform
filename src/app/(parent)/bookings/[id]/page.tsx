@@ -1,7 +1,7 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CalendarDays, Clock, CreditCard, MapPin } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, Clock, CreditCard, Flag, MapPin } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/dashboard';
@@ -12,6 +12,25 @@ import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
 import { requireSessionUser } from '@/lib/auth/session';
 import { PAYMENT_METHODS } from '@/lib/payments/config';
 import StartChatButton from '@/components/chat/start-chat-button';
+import RescheduleForm from '@/components/booking/reschedule-form';
+import DisputeForm from '@/components/booking/dispute-form';
+import {
+  buildAvailableBookingSlots,
+  type AvailabilityBooking,
+  type AvailabilitySchedule,
+} from '@/lib/booking/availability';
+import { hoursUntilSession } from '@/lib/booking-policy';
+
+function getBangkokDateString(date: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
 
 export default async function BookingDetailsPage({
   params,
@@ -43,6 +62,38 @@ export default async function BookingDetailsPage({
     ? PAYMENT_METHODS.find((method) => method.id === payment.method)?.label
       || (payment.method === 'bank_transfer' ? 'โอนเงิน / สลิป' : 'ชำระเงิน')
     : '-';
+
+  // ── เลื่อนคาบ (self-service): เตรียมสล็อตว่างจากตารางครู เหมือนหน้าจองใหม่ ──
+  const disputeOpen = booking.dispute?.status === 'open';
+  const canSelfServe = (booking.status === 'confirmed' || booking.status === 'pending') && !disputeOpen;
+  const hoursToSession = hoursUntilSession(booking.bookingDate, booking.startTime);
+  const canReschedule = canSelfServe && hoursToSession !== null && hoursToSession > 0;
+  let rescheduleSlots: { scheduleId: string; date: string; startTime: string; endTime: string }[] = [];
+  if (canReschedule) {
+    const [courseSnap, schedulesSnap, teacherBookingsSnap] = await Promise.all([
+      db.collection(COLLECTIONS.COURSES).doc(booking.courseId).get(),
+      db.collection(COLLECTIONS.SCHEDULES).where('courseId', '==', booking.courseId).get(),
+      db.collection(COLLECTIONS.BOOKINGS)
+        .where('teacherId', '==', booking.teacherId)
+        .where('status', 'in', ['pending', 'confirmed'])
+        .get(),
+    ]);
+    const courseDurationMinutes = Number(courseSnap.data()?.durationMinutes) || 0;
+    const schedules = schedulesSnap.docs
+      .map((doc: any) => ({ id: doc.id, ...doc.data() }) as AvailabilitySchedule)
+      .filter((schedule) => schedule.isActive === true);
+    // ตัดการจอง "ตัวเอง" ออก — ไม่งั้นสล็อตปัจจุบันของตัวเองจะถูกมองว่าชน
+    const teacherBookings = teacherBookingsSnap.docs
+      .filter((doc: any) => doc.id !== booking.id)
+      .map((doc: any) => doc.data() as AvailabilityBooking);
+    rescheduleSlots = buildAvailableBookingSlots({
+      schedules,
+      bookings: teacherBookings,
+      courseDurationMinutes,
+      fromDate: getBangkokDateString(),
+      daysAhead: 60,
+    });
+  }
 
   return (
     <DashboardLayout
@@ -85,7 +136,35 @@ export default async function BookingDetailsPage({
               <div><p className="text-xs text-slate-500">นักเรียน / ยอดรวม</p><p className="font-semibold text-slate-800">{booking.studentName || '-'} • {formatCurrency(Number(booking.totalPrice) || 0)}</p></div>
             </div>
           </div>
+
+          {booking.lateReschedule === true && booking.rescheduleCount > 0 && (
+            <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              <Flag className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <span>
+                การจองนี้ถูกเลื่อนโดยแจ้งล่วงหน้าน้อยกว่า 24 ชม. (ธงเลื่อนสาย) —
+                ครูสามารถเปิดข้อพิพาทจากการเลื่อนครั้งนี้ได้
+              </span>
+            </div>
+          )}
         </Card>
+
+        {disputeOpen && (
+          <Card className="border-rose-200 bg-rose-50/50">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+              <div className="min-w-0 text-sm">
+                <h3 className="font-bold text-rose-700">ข้อพิพาทของการจองนี้กำลังถูกตรวจสอบ</h3>
+                <p className="mt-1 text-slate-600">
+                  สาเหตุ: {booking.dispute?.reason || '-'}</p>
+                {booking.dispute?.note && <p className="mt-1 text-slate-500">รายละเอียด: {booking.dispute.note}</p>}
+                <p className="mt-2 text-xs text-slate-500">
+                  {booking.dispute?.filedBy === 'parent' ? 'คุณเป็นผู้เปิดข้อพิพาทนี้' : 'ครูเป็นผู้เปิดข้อพิพาทนี้'} —
+                  ระหว่างรอผลตัดสินจากแอดมิน การเลื่อนคาบจะถูกระงับชั่วคราว
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
 
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -102,6 +181,23 @@ export default async function BookingDetailsPage({
             </div>
           )}
         </Card>
+
+        {canReschedule && (
+          <RescheduleForm
+            bookingId={bookingId}
+            slots={rescheduleSlots}
+            rescheduleCount={Number(booking.rescheduleCount) || 0}
+            currentSlot={{
+              date: booking.bookingDate,
+              startTime: booking.startTime,
+              endTime: booking.endTime,
+            }}
+          />
+        )}
+
+        {canSelfServe && (
+          <DisputeForm bookingId={bookingId} />
+        )}
 
         <div>
           <h3 className="mb-2 font-bold text-slate-900">คุยกับครู</h3>

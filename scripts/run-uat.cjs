@@ -182,7 +182,7 @@ async function main() {
   }
 
   // 1) Firebase emulators (auth, firestore, storage — ห้ามใส่ --project ตามบทเรียนเดิม)
-  console.log('=== 1/6 Starting Firebase emulators (auth:9099, firestore:8080, storage:9199, UI:4000) ===');
+  console.log('=== 1/7 Starting Firebase emulators (auth:9099, firestore:8080, storage:9199, UI:4000) ===');
   const emuLog = fs.openSync('uat-emulator.log', 'w');
   spawnDetached('emulators', 'npx', ['-y', 'firebase-tools@latest', 'emulators:start', '--only', 'auth,firestore,storage'], {
     logFile: emuLog,
@@ -191,11 +191,11 @@ async function main() {
   await waitPort(8080, 30000, 'firestore emulator');
 
   // 2) Seed ข้อมูล UAT (idempotent — รันซ้ำได้)
-  console.log('=== 2/6 Seeding UAT data ===');
+  console.log('=== 2/7 Seeding UAT data ===');
   execSync('node scripts/seed-emulator-uat.cjs', { stdio: 'inherit' });
 
   // 3) Dev server (Next.js)
-  console.log('=== 3/6 Starting dev server on :3000 ===');
+  console.log('=== 3/7 Starting dev server on :3000 ===');
   const devLog = fs.openSync('uat-dev.log', 'w');
   spawnDetached('dev server', 'pnpm', ['dev'], { logFile: devLog });
   await waitPort(DEV_PORT, 120000, 'dev server');
@@ -203,7 +203,7 @@ async function main() {
   await waitHttpOk(`http://localhost:${DEV_PORT}/`, 120000, 'dev server');
 
   // 4) E2E verify — flow แพ็กเกจ (เครดิต)
-  console.log('=== 4/6 Running package E2E verify ===');
+  console.log('=== 4/7 Running package E2E verify ===');
   const failures = [];
   try {
     execSync('node scripts/verify-package-e2e.cjs', { stdio: 'inherit' });
@@ -213,7 +213,7 @@ async function main() {
   }
 
   // 5) E2E verify — flow จองปกติ (จ่าย mock gateway)
-  console.log('\n=== 5/6 Running session booking E2E verify ===');
+  console.log('\n=== 5/7 Running session booking E2E verify ===');
   try {
     execSync('node scripts/verify-session-e2e.cjs', { stdio: 'inherit' });
   } catch (err) {
@@ -222,12 +222,21 @@ async function main() {
   }
 
   // 6) E2E verify — หลักฐานการโอนให้ครู (แอดมินอัปโหลดสลิป → ครูเปิดดู)
-  console.log('\n=== 6/6 Running admin payout slip E2E verify ===');
+  console.log('\n=== 6/7 Running admin payout slip E2E verify ===');
   try {
     execSync('node scripts/verify-admin-payout-slip-e2e.cjs', { stdio: 'inherit' });
   } catch (err) {
     failures.push(`payout-slip: exit ${err.status}`);
     console.error('\nPAYOUT SLIP UAT FAILED — ดู log เพิ่มเติมที่ uat-emulator.log / uat-dev.log');
+  }
+
+  // 7) E2E verify — เลื่อนคาบ + ข้อพิพาท (เลื่อนฟรี/สาย/เกินโควตา → dispute → resolve)
+  console.log('\n=== 7/7 Running reschedule + dispute E2E verify ===');
+  try {
+    execSync('node scripts/verify-reschedule-dispute-e2e.cjs', { stdio: 'inherit' });
+  } catch (err) {
+    failures.push(`reschedule-dispute: exit ${err.status}`);
+    console.error('\nRESCHEDULE/DISPUTE UAT FAILED — ดู log เพิ่มเติมที่ uat-emulator.log / uat-dev.log');
   }
   if (failures.length > 0) {
     process.exitCode = 1;
@@ -238,7 +247,7 @@ async function main() {
     console.log('\nKEEP_EMULATOR=1 — ปล่อย emulator และ dev server รันต่อ (UI: http://127.0.0.1:4000)');
     children.length = 0; // ไม่ kill ตอน exit
   }
-  console.log('\n✅ UAT PASSED — package + session flows');
+  console.log('\n✅ UAT PASSED — package + session + payout-slip + reschedule/dispute flows');
 }
 
 process.on('SIGINT', async () => {

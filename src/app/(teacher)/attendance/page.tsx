@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Check, ClipboardCheck, GraduationCap, X, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { AttendanceStatusBadge } from '@/components/ui/badge';
+import { AttendanceStatusBadge, Badge } from '@/components/ui/badge';
 import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
 import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { formatTime } from '@/lib/utils';
@@ -54,6 +54,9 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
       endTime: data.endTime,
       status: data.status,
       totalPrice: data.totalPrice,
+      lateReschedule: data.lateReschedule === true,
+      rescheduleCount: Number(data.rescheduleCount) || 0,
+      disputeStatus: data.dispute?.status || null,
     };
   });
 
@@ -102,6 +105,9 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                         {booking.studentLevel}
                       </span>
                     )}
+                    {booking.lateReschedule && <Badge variant="warning" size="sm" dot>เลื่อนล่าช้า</Badge>}
+                    {booking.rescheduleCount > 0 && <Badge variant="info" size="sm">เลื่อน {booking.rescheduleCount} ครั้ง</Badge>}
+                    {booking.disputeStatus === 'open' && <Badge variant="danger" size="sm" dot>ข้อพิพาท</Badge>}
                     <AttendanceStatusBadge status={attendanceStatusByBooking.get(booking.id) || 'pending'} />
                   </div>
                   <p className="mt-1 text-sm text-gray-500">
