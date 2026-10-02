@@ -81,7 +81,9 @@ export default async function PaymentsPage() {
   const walletSnap = await db.collection(COLLECTIONS.PARENT_WALLETS).doc(parentId).get();
   const wallet = walletSnap.exists ? walletSnap.data() as any : null;
   const walletBalance = Number(wallet?.balance) || 0;
-  const walletTxsSnap = wallet && walletBalance !== Number(wallet?.totalCredited) - Number(wallet?.totalSpent)
+  // query เมื่อ wallet มีอยู่จริง — ledger invariant ทำให้ balance === totalCredited - totalSpent เสมอ
+  // ดังนั้นเงื่อนไข "ยอดไม่ตรง" จึงเป็น false เสมอและไม่เคยแสดงประวัติธุรกรรม
+  const walletTxsSnap = wallet
     ? await db.collection(COLLECTIONS.PARENT_WALLET_TXS)
       .where('parentId', '==', parentId)
       .limit(20)
