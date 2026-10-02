@@ -16,7 +16,9 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 import { DashboardLayout, StatCard, EmptyState, SectionCard } from '@/components/layout/dashboard';
-import { Badge, BookingStatusBadge } from '@/components/ui/badge';
+import { AttendanceStatusBadge, Badge, BookingStatusBadge } from '@/components/ui/badge';
+import { RatingStars } from '@/components/ui/rating';
+import { formatDate } from '@/lib/utils';
 import { TEACHER_NAV_ITEMS } from '@/components/layout/nav';
 import { getActiveAnnouncements } from '@/lib/announcements';
 import { AnnouncementsCard } from '@/components/layout/announcements-card';
@@ -77,6 +79,55 @@ export default async function TeacherDashboard() {
   } catch (error) {
     // ยังไม่มี collection/ดัชนี → แดชบอร์ดยังใช้งานได้ปกติ แต่ต้องเห็นสาเหตุใน log
     console.error('[dashboard] failed to load announcements:', error instanceof Error ? error.message : error);
+  }
+
+  // ── ข้อมูลจริงของ 2 section ด้านล่าง: เช็คชื่อวันนี้ + รีวิวล่าสุด
+  // คิวเช็กชื่อวันนี้ (เช็กชื่อวันนี้ + สถานะจริงจาก attendance ของวันนี้)
+  const todayStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
+  let todaySessions: { id: string; studentName: string; courseTitle: string; startTime: string; attendanceStatus: string }[] = [];
+  let recentReviews: any[] = [];
+  try {
+    const [attendanceSnap, todayBookingsSnap, reviewsSnap] = await Promise.all([
+      db.collection(COLLECTIONS.ATTENDANCE)
+        .where('teacherId', '==', teacherId)
+        .where('sessionDate', '==', todayStr)
+        .get(),
+      db.collection(COLLECTIONS.BOOKINGS)
+        .where('teacherId', '==', teacherId)
+        .where('bookingDate', '==', todayStr)
+        .where('status', 'in', ['confirmed', 'completed'])
+        .orderBy('startTime')
+        .get(),
+      db.collection(COLLECTIONS.REVIEWS).where('teacherId', '==', teacherId).limit(10).get(),
+    ]);
+    const attendanceByBooking = new Map<string, string>(
+      attendanceSnap.docs.map((d: any) => [d.data().bookingId, d.data().status]),
+    );
+    todaySessions = todayBookingsSnap.docs
+      .map((doc: any) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          studentName: data.studentName || 'นักเรียน',
+          courseTitle: data.courseTitle || 'คอร์สเรียน',
+          startTime: data.startTime || '',
+          attendanceStatus: attendanceByBooking.get(doc.id) || 'pending',
+        };
+      })
+      .sort((a: any, b: any) => String(a.startTime).localeCompare(String(b.startTime)));
+    recentReviews = reviewsSnap.docs
+      .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+      .sort((a: any, b: any) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
+      .filter((r: any) => r.isVisible !== false);
+  } catch (error) {
+    // แดชบอร์ดยังใช้ได้ปกติ — 2 section นี้แค่แสดงว่าง
+    console.error('[dashboard] failed to load today sessions/reviews:', error instanceof Error ? error.message : error);
   }
 
   const STATS = [
@@ -262,20 +313,68 @@ export default async function TeacherDashboard() {
             </Link>
           }
         >
-          <EmptyState
-            icon={<ClipboardCheck className="h-7 w-7" />}
-            title="ยังไม่มีการเช็คชื่อ"
-            description="การเช็คชื่อวันนี้จะแสดงที่นี่หลังเริ่มสอน"
-          />
+          {todaySessions.length === 0 ? (
+            <EmptyState
+              icon={<ClipboardCheck className="h-7 w-7" />}
+              title="วันนี้ไม่มีคลาส"
+              description="เมื่อมีการจองของวันนี้ รายการจะปรากฏพร้อมปุ่มเช็คชื่อ"
+            />
+          ) : (
+            <div className="space-y-2.5">
+              {todaySessions.slice(0, 5).map((s) => (
+                <Link
+                  key={s.id}
+                  href={`/attendance?date=${encodeURIComponent(todayStr)}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-pink-100/60 bg-pink-50/40 p-3 transition-colors hover:bg-pink-50"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-900">{s.studentName}</p>
+                    <p className="truncate text-xs text-slate-500">{s.courseTitle} • {s.startTime}</p>
+                  </div>
+                  <AttendanceStatusBadge status={s.attendanceStatus} />
+                </Link>
+              ))}
+              {todaySessions.length > 5 && (
+                <p className="pt-1 text-center text-xs font-semibold text-slate-400">
+                  และอีก {todaySessions.length - 5} คลาสวันนี้
+                </p>
+              )}
+            </div>
+          )}
         </SectionCard>
 
         {/* Recent Reviews */}
-        <SectionCard title="รีวิวล่าสุด">
-          <EmptyState
-            icon={<Star className="h-7 w-7" />}
-            title="ยังไม่มีรีวิว"
-            description="รีวิวจากผู้ปกครองจะแสดงที่นี่หลังเรียนจบ"
-          />
+        <SectionCard
+          title="รีวิวล่าสุด"
+          action={
+            <Link href="/reviews" className="text-xs font-bold text-pink-600 hover:underline">
+              ดูทั้งหมด →
+            </Link>
+          }
+        >
+          {recentReviews.length === 0 ? (
+            <EmptyState
+              icon={<Star className="h-7 w-7" />}
+              title="ยังไม่มีรีวิว"
+              description="รีวิวจากผู้ปกครองจะแสดงที่นี่หลังเรียนจบ"
+            />
+          ) : (
+            <div className="space-y-3">
+              {recentReviews.slice(0, 3).map((r: any) => (
+                <div key={r.id} className="rounded-xl border border-pink-100/60 bg-pink-50/40 p-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <RatingStars rating={Number(r.rating) || 0} size="sm" />
+                    <span className="text-[11px] text-slate-400">
+                      {r.createdAt?.toDate ? formatDate(r.createdAt.toDate(), 'd MMM yyyy') : '-'}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-700">
+                    {r.comment || 'ให้คะแนนโดยไม่ได้เขียนความคิดเห็น'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </SectionCard>
       </div>
 

@@ -402,6 +402,12 @@ export default async function TeacherProfilePage({
                   {review.comment && (
                     <p className="mt-2.5 text-sm leading-relaxed text-slate-600">{review.comment}</p>
                   )}
+                  {review.reply && (
+                    <div className="mt-2.5 rounded-xl border border-pink-100 bg-pink-50/50 p-3">
+                      <p className="text-[11px] font-bold text-pink-700">ตอบกลับโดยคุณ{user?.displayName ? ` ${user.displayName}` : 'ครู'}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-700">{review.reply}</p>
+                    </div>
+                  )}
                 </div>
               ))}
               {reviews.length > 20 && (

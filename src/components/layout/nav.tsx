@@ -38,6 +38,7 @@ export const TEACHER_NAV_ITEMS: NavItem[] = [
   { href: '/locations', label: 'สถานที่สอน', icon: <MapPin className="h-4 w-4" /> },
   { href: '/earnings', label: 'รายได้', icon: <Wallet className="h-4 w-4" /> },
   { href: '/students', label: 'นักเรียน', icon: <Users className="h-4 w-4" /> },
+  { href: '/reviews', label: 'รีวิว', icon: <Star className="h-4 w-4" /> },
   { href: '/messages', label: 'ข้อความ', icon: <MessageCircle className="h-4 w-4" />, unreadBadge: true },
   { href: '/notifications', label: 'การแจ้งเตือน', icon: <Bell className="h-4 w-4" /> },
 ];
