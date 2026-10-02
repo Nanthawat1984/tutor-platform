@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   GraduationCap,
+  Heart,
   LayoutDashboard,
   MapPin,
   Megaphone,
@@ -46,6 +47,7 @@ export const TEACHER_NAV_ITEMS: NavItem[] = [
 export const PARENT_NAV_ITEMS: NavItem[] = [
   { href: '/my-bookings', label: 'แดชบอร์ด', icon: <LayoutDashboard className="h-4 w-4" /> },
   { href: '/explore', label: 'ค้นหาครู', icon: <Search className="h-4 w-4" /> },
+  { href: '/favorites', label: 'ครูที่สนใจ', icon: <Heart className="h-4 w-4" /> },
   { href: '/bookings', label: 'การจอง', icon: <CalendarDays className="h-4 w-4" /> },
   { href: '/payments', label: 'การชำระเงิน', icon: <Wallet className="h-4 w-4" /> },
   { href: '/packages', label: 'แพ็กเกจ', icon: <Ticket className="h-4 w-4" /> },

@@ -20,6 +20,7 @@ import { RatingStars } from '@/components/ui/rating';
 import { EmptyState } from '@/components/layout/dashboard';
 import { formatCurrency, getInitials } from '@/lib/utils';
 import { loadGoogleMaps, hasGoogleMapsKey } from '@/lib/maps/loader';
+import FavoriteTeacherButton from '@/components/parent/favorite-teacher-button';
 import { haversineDistance, formatDistance, isValidLatLng } from '@/lib/geo';
 
 export interface ExploreCourse {
@@ -44,6 +45,8 @@ export interface ExploreCourse {
 
 interface ExploreResultsProps {
   courses: ExploreCourse[];
+  /** teacherId ที่ผู้ปกครองกดหัวใจไว้แล้ว (ส่งมาจาก server) */
+  favoriteTeacherIds?: string[];
 }
 
 const formatLabel: Record<string, string> = {
@@ -53,7 +56,7 @@ const formatLabel: Record<string, string> = {
   hybrid: 'ผสม',
 };
 
-export default function ExploreResults({ courses }: ExploreResultsProps) {
+export default function ExploreResults({ courses, favoriteTeacherIds = [] }: ExploreResultsProps) {
   const [view, setView] = useState<'list' | 'map'>('list');
   const [mapsReady, setMapsReady] = useState(false);
   const [mapsError, setMapsError] = useState('');
@@ -71,6 +74,20 @@ export default function ExploreResults({ courses }: ExploreResultsProps) {
     () => courses.filter((c) => isValidLatLng(c.lat, c.lng)),
     [courses]
   );
+
+  const favoriteSet = useMemo(() => new Set(favoriteTeacherIds), [favoriteTeacherIds]);
+
+  // ครูหนึ่งคนมีหลายคอร์ส — ปุ่มหัวใจแสดงครั้งเดียวต่อครู (ที่การ์ดแรกของเขา)
+  const isFirstCardOfTeacher = useMemo(() => {
+    const seen = new Set<string>();
+    const map = new Map<string, boolean>();
+    for (const c of courses) {
+      const first = !seen.has(c.teacherId);
+      seen.add(c.teacherId);
+      map.set(c.teacherId, first);
+    }
+    return map;
+  }, [courses]);
 
   // เรียงตามระยะทาง (เมื่อมีตำแหน่งผู้ใช้)
   const sortedCourses = useMemo(() => {
@@ -280,7 +297,8 @@ export default function ExploreResults({ courses }: ExploreResultsProps) {
           const dist = distanceOf(course);
           return (
             <Card key={course.id} className="flex flex-col hoverable">
-              <Link href={`/teachers/${course.teacherId}`} className="group flex items-start gap-3">
+              <div className="flex items-start justify-between gap-2">
+              <Link href={`/teachers/${course.teacherId}`} className="group flex min-w-0 flex-1 items-start gap-3">
                 <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-pink-100 to-rose-100">
                   {course.photoURL ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -311,6 +329,13 @@ export default function ExploreResults({ courses }: ExploreResultsProps) {
                   )}
                 </div>
               </Link>
+                {isFirstCardOfTeacher.get(course.teacherId) && (
+                  <FavoriteTeacherButton
+                    teacherId={course.teacherId}
+                    initialFavorite={favoriteSet.has(course.teacherId)}
+                  />
+                )}
+              </div>
 
               <div className="mt-3 flex-1">
                 <Link href={`/teachers/${course.teacherId}`} className="font-semibold text-gray-900 hover:text-pink-700">

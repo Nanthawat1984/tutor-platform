@@ -493,6 +493,19 @@ export interface ParentWalletTx {
 }
 
 // =============================================
+// PARENT FAVORITE (ครูที่ผู้ปกครองกดหัวใจเก็บไว้ — ข้อมูลส่วนตัว)
+// =============================================
+// doc id = `${parentId}_${teacherId}` → กดซ้ำไม่สร้างซ้ำ
+// อ่าน/เขียนผ่าน Admin SDK เท่านั้น (client อ่านเองไม่ได้ตาม firestore.rules)
+export interface ParentFavorite {
+  id: string;
+  parentId: string;
+  teacherId: string;
+  teacherName?: string | null;   // denormalize ตอนกดหัวใจ เผื่อครูเปลี่ยนชื่อทีหลัง
+  createdAt: Timestamp;
+}
+
+// =============================================
 // PAYOUT (การเบิกเงิน/โอนเงินให้ครู)
 // =============================================
 export interface Payout {
@@ -559,6 +572,7 @@ export const COLLECTIONS = {
   CREDIT_TRANSACTIONS: 'creditTransactions',
   PARENT_WALLETS: 'parentWallets',
   PARENT_WALLET_TXS: 'parentWalletTxs',
+  PARENT_FAVORITES: 'parentFavorites',
   TEACHER_VERIFICATION_EVENTS: 'teacherVerificationEvents',
   CONVERSATIONS: 'conversations',
   ANNOUNCEMENTS: 'announcements',

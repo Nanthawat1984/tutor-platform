@@ -135,6 +135,18 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     };
   });
 
+  // ครูที่ผู้ปกครองกดหัวใจไว้ — ส่งมาให้การ์ดแสดงสถานะถูกต้องตั้งแต่โหลดหน้าแรก
+  let favoriteTeacherIds: string[] = [];
+  try {
+    const favSnap = await db.collection(COLLECTIONS.PARENT_FAVORITES)
+      .where('parentId', '==', session.uid)
+      .limit(100)
+      .get();
+    favoriteTeacherIds = favSnap.docs.map((d: any) => String(d.data()?.teacherId || '')).filter(Boolean);
+  } catch (error) {
+    console.error('[explore] failed to load favorites:', error instanceof Error ? error.message : error);
+  }
+
   return (
     <DashboardLayout
       title="ค้นหาครูพิเศษ"
@@ -166,7 +178,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
         </p>
       </Card>
 
-      <ExploreResults courses={serializedCourses} />
+      <ExploreResults courses={serializedCourses} favoriteTeacherIds={favoriteTeacherIds} />
 
       {hasMore && (
         <div className="mt-6 text-center">

@@ -22,6 +22,7 @@ import { DashboardLayout } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { RatingStars } from '@/components/ui/rating';
 import StartChatButton from '@/components/chat/start-chat-button';
+import FavoriteTeacherButton from '@/components/parent/favorite-teacher-button';
 import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency, formatDate, getInitials } from '@/lib/utils';
 import { isTeacherAdminApproved } from '@/lib/auth/teacher-verification';
@@ -117,6 +118,19 @@ export default async function TeacherProfilePage({
     return { star, count };
   });
 
+  // สถานะรายการโปรดของผู้ปกครองที่กำลังดูอยู่
+  let isFavorite = false;
+  try {
+    const favSnap = await db.collection(COLLECTIONS.PARENT_FAVORITES)
+      .where('parentId', '==', session.uid)
+      .where('teacherId', '==', id)
+      .limit(1)
+      .get();
+    isFavorite = !favSnap.empty;
+  } catch (error) {
+    console.error('[teacher-profile] failed to load favorite state:', error instanceof Error ? error.message : error);
+  }
+
   return (
     <DashboardLayout
       title="โปรไฟล์ครู"
@@ -170,6 +184,7 @@ export default async function TeacherProfilePage({
 
             {user?.role === 'parent' && (
               <div className="flex shrink-0 items-center gap-2">
+                <FavoriteTeacherButton teacherId={id} initialFavorite={isFavorite} />
                 <StartChatButton teacherId={id} className="w-full sm:w-auto" />
               </div>
             )}
