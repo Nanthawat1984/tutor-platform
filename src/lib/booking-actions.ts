@@ -346,7 +346,8 @@ export async function resolveBookingDispute(
   const outcome = input.outcome && DISPUTE_OUTCOMES.includes(input.outcome) ? input.outcome : 'no_refund';
   const snap = await db.collection(COLLECTIONS.BOOKINGS).doc(input.bookingId).get();
   if (!snap.exists) return { ok: false, error: 'not_found' };
-  const booking = snap.data() as any;
+  // ต้องแนบ id ด้วย — ส่วนคืนเงินใช้ booking.id ใน query
+  const booking = { id: snap.id, ...snap.data() } as any;
   if (booking.dispute?.status !== 'open') return { ok: false, error: 'not_open' };
 
   let refunded = 0;

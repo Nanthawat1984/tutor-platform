@@ -361,11 +361,25 @@ export async function openConversationWithTeacher(
   teacherId: string,
   bookingId?: string,
 ): Promise<{ id: string | null; error?: string }> {
+  return openConversation({ teacherId, bookingId });
+}
+
+/** เปิดห้องคุยกับผู้ปกครอง (ฝั่งครู) — ได้เฉพาะผู้ปกครองที่เคยจองกับครูคนนี้ */
+export async function openConversationWithParent(
+  parentId: string,
+  bookingId?: string,
+): Promise<{ id: string | null; error?: string }> {
+  return openConversation({ parentId, bookingId });
+}
+
+async function openConversation(
+  body: { teacherId?: string; parentId?: string; bookingId?: string },
+): Promise<{ id: string | null; error?: string }> {
   try {
     const res = await fetch('/api/conversations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teacherId, bookingId }),
+      body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return { id: null, error: data.error || 'open_failed' };

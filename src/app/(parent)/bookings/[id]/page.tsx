@@ -14,6 +14,7 @@ import { PAYMENT_METHODS } from '@/lib/payments/config';
 import StartChatButton from '@/components/chat/start-chat-button';
 import RescheduleForm from '@/components/booking/reschedule-form';
 import DisputeForm from '@/components/booking/dispute-form';
+import CancelBookingButton from '@/components/booking/cancel-booking-button';
 import {
   buildAvailableBookingSlots,
   type AvailabilityBooking,
@@ -196,7 +197,17 @@ export default async function BookingDetailsPage({
         )}
 
         {canSelfServe && (
-          <DisputeForm bookingId={bookingId} />
+          <>
+            <div>
+              <h3 className="mb-2 font-bold text-slate-900">ยกเลิกคลาส</h3>
+              <p className="mb-3 text-xs text-slate-500">
+                ยกเลิกแล้วกู้คืนไม่ได้ — เงินคืนเป็นเครดิตวอลเล็ต (ยกเลิกล่วงหน้า ≥ 24 ชม. คืนเต็ม, สายคืน 50%)
+              </p>
+              <CancelBookingButton bookingId={bookingId} />
+            </div>
+
+            <DisputeForm bookingId={bookingId} />
+          </>
         )}
 
         <div>

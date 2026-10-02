@@ -291,6 +291,20 @@ async function main() {
   // ไม่แตะยอดของครู — เซสชันจบไปแล้ว/เงินถูกปล่อยเป็น available
   assert.equal(paymentAfter.status, 'paid', 'dispute refund must not re-open payment status');
   console.log(`resolve ok: dispute closed + คืนเครดิต ${refundable} บาทเข้าวอลเล็ต + both parties notified`);
+
+  // ── 8b) ครูเปิดห้องคุยกับผู้ปกครองเองได้ (เฉพาะคู่ที่เคยจองด้วยกัน) ──
+  const chatOpen = await apiCall(teacherCookie, 'POST', '/api/conversations', {
+    parentId: student.parentId,
+    bookingId,
+  });
+  assert.equal(chatOpen.status, 200, `teacher chat must work: ${JSON.stringify(chatOpen.data)}`);
+  assert.ok(chatOpen.data.conversation?.id, 'conversation id must be returned');
+  const chatBlocked = await apiCall(teacherCookie, 'POST', '/api/conversations', {
+    parentId: 'uat-stranger-parent',
+  });
+  assert.equal(chatBlocked.status, 403, `teacher must not chat with unrelated parent: ${JSON.stringify(chatBlocked.data)}`);
+  assert.equal(chatBlocked.data.error, 'forbidden', 'must report forbidden');
+  console.log('teacher chat ok: เปิดห้องกับผู้ปกครองที่เคยจองได้ + บล็อกผู้ปกครองที่ไม่ใช่คู่สัญญา');
   const bothNotifs = await db.collection('notifications')
     .where('type', '==', 'booking').limit(50).get();
   assert.ok(

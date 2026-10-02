@@ -194,6 +194,13 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                       </Button>
                     </Link>
                   )}
+                  {/* รายละเอียดคลาสฝั่งครู — เลื่อนคาบ/ยกเลิก/เปิดข้อพิพาท/ทักผู้ปกครอง */}
+                  <Link href={`/sessions/${booking.id}`} className="block w-full">
+                    <Button size="sm" variant="outline" className="w-full">
+                      <CalendarClock className="h-4 w-4" />
+                      รายละเอียด/จัดการคลาส
+                    </Button>
+                  </Link>
                   <div className="grid w-full grid-cols-3 gap-2 sm:w-auto">
                   {['present', 'absent', 'late'].map((status) => (
                     <form key={status} action={async () => {
