@@ -1,7 +1,7 @@
 import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Receipt, ReceiptText, CalendarDays, QrCode, CreditCard, Smartphone, Landmark, Clock, Wallet } from 'lucide-react';
+import { Receipt, ReceiptText, CalendarDays, QrCode, CreditCard, Smartphone, Landmark, Clock, Wallet, Tag } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout, EmptyState } from '@/components/layout/dashboard';
@@ -16,6 +16,11 @@ import {
   isHistoryVisible,
   pendingExpiryMs,
 } from '@/lib/payments/expiry';
+import {
+  ensureFirstBookingCoupon,
+  validateCoupon,
+  FIRST_BOOKING_MIN_AMOUNT,
+} from '@/lib/coupons';
 
 function methodIcon(method: string) {
   switch (method) {
@@ -76,6 +81,27 @@ export default async function PaymentsPage() {
       return tb - ta;
     });
 
+  // ── คูปองลูกค้าใหม่: ออกให้อัตโนมัติตอนเข้าหน้านี้ (ยังไม่เคยจ่ายสำเร็จเท่านั้น)
+  // เดิม API /api/coupons/mine มีอยู่แต่ไม่มีที่ไหนเรียก → ผู้ปกครองไม่มีทางรู้โค้ดของตัวเอง
+  let welcomeCoupon: { code: string; discount: number; expiresAt: Date | null } | null = null;
+  try {
+    const ensured = await ensureFirstBookingCoupon(db, parentId);
+    if (ensured?.code) {
+      const check = await validateCoupon(db, ensured.code, FIRST_BOOKING_MIN_AMOUNT, parentId);
+      if (check.ok) {
+        const expMs = (check.coupon.expiresAt as any)?.toMillis?.() || 0;
+        welcomeCoupon = {
+          code: ensured.code,
+          discount: check.discount,
+          expiresAt: expMs ? new Date(expMs) : null,
+        };
+      }
+    }
+  } catch (error) {
+    // ไม่มีคูปอง/ยังไม่ได้สร้าง coupons collection — หน้านี้ยังใช้ได้ปกติ
+    console.error('welcome coupon load failed (non-fatal):', error instanceof Error ? error.message : 'unknown');
+  }
+
   // ── วอลเล็ตผู้ปกครอง — เงินคืนจากการยกเลิกถูกเครดิตไว้ที่นี่ และถูกหักอัตโนมัติ
   // ตอนชำระครั้งถัดไป (debitParentWallet) — ผู้ปกครองต้องเห็นยอดนี้
   const walletSnap = await db.collection(COLLECTIONS.PARENT_WALLETS).doc(parentId).get();
@@ -108,6 +134,35 @@ export default async function PaymentsPage() {
       userName={session.displayName || 'ผู้ปกครอง'}
     >
       <p className="mb-6 text-sm text-slate-500">ประวัติการชำระเงินและใบเสร็จของคุณ</p>
+
+      {welcomeCoupon && (
+        <Card className="mb-6 border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-lime-50/50">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-lime-600 shadow-sm">
+                <Tag className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-slate-900">คูปองลูกค้าใหม่ของคุณ</h3>
+                <p className="text-xs text-slate-500">
+                  โค้ด <span className="font-mono font-bold text-emerald-700">{welcomeCoupon.code}</span>
+                  {' '}ลด {formatCurrency(welcomeCoupon.discount)} เมื่อชำระขั้นต่ำ {formatCurrency(FIRST_BOOKING_MIN_AMOUNT)}
+                  {welcomeCoupon.expiresAt ? ` • ใช้ได้ถึง ${formatDate(welcomeCoupon.expiresAt.toISOString().slice(0, 10), 'd MMM yyyy')}` : ''}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/my-bookings"
+              className="shrink-0 rounded-xl bg-edu-gradient px-4 py-2 text-xs font-bold text-white shadow-button"
+            >
+              ไปจองคลาส
+            </Link>
+          </div>
+          <p className="mt-3 text-[11px] text-slate-500">
+            กรอกโค้ดนี้ในช่อง “รหัสคูปอง” ตอนชำระเงินของคลาส (ใช้ได้ครั้งเดียว)
+          </p>
+        </Card>
+      )}
 
       {wallet && (
         <Card className="mb-6 border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-teal-50/50">

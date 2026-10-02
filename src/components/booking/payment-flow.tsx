@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
@@ -21,6 +21,8 @@ interface PaymentFlowProps {
   amount: number;
   studentName: string;
   courseTitle: string;
+  /** โค้ดคูปองที่ระบบแนะนำ (เช่น คูปองลูกค้าใหม่) — ใส่ให้อัตโนมัติ */
+  initialCouponCode?: string | null;
 }
 
 interface InitiateResult {
@@ -54,7 +56,13 @@ const COUPON_ERROR_TH: Record<string, string> = {
   missing_code: 'กรุณากรอกรหัสคูปอง',
 };
 
-export function PaymentFlow({ bookingId, amount, studentName, courseTitle }: PaymentFlowProps) {
+export function PaymentFlow({
+  bookingId,
+  amount,
+  studentName,
+  courseTitle,
+  initialCouponCode,
+}: PaymentFlowProps) {
   const router = useRouter();
   const [method, setMethod] = useState<PaymentMethodInfo | null>(null);
   const [initiating, setInitiating] = useState(false);
@@ -64,11 +72,21 @@ export function PaymentFlow({ bookingId, amount, studentName, courseTitle }: Pay
   const [slipURL, setSlipURL] = useState<string | null>(null);
   const [slipPath, setSlipPath] = useState<string | null>(null);
   const [uploadingSlip, setUploadingSlip] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
+  const [couponCode, setCouponCode] = useState(initialCouponCode || '');
   const [couponState, setCouponState] = useState<{ ok: boolean; discount: number; reason?: string } | null>(null);
   const [checkingCoupon, setCheckingCoupon] = useState(false);
   const [useWallet, setUseWallet] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  // ตรวจคูปองที่ระบบใส่มาให้อัตโนมัติหนึ่งครั้งตอนเปิดหน้า (ลูกค้าใหม่ไม่ต้องพิมพ์เอง)
+  const autoCheckedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const code = (initialCouponCode || '').trim().toUpperCase();
+    if (!code || autoCheckedRef.current === code) return;
+    autoCheckedRef.current = code;
+    void checkCoupon();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCouponCode]);
 
   async function checkCoupon() {
     const code = couponCode.trim().toUpperCase();

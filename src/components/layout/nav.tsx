@@ -61,6 +61,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: '/admin/dashboard', label: 'แดชบอร์ด', icon: <LayoutDashboard className="h-4 w-4" /> },
   { href: '/admin/analytics', label: 'ภาพรวมการเติบโต', icon: <BarChart3 className="h-4 w-4" /> },
   { href: '/admin/payments', label: 'ตรวจสอบการชำระเงิน', icon: <Wallet className="h-4 w-4" /> },
+  { href: '/admin/coupons', label: 'คูปองส่วนลด', icon: <Ticket className="h-4 w-4" /> },
   { href: '/admin/disputes', label: 'ข้อพิพาทการจอง', icon: <ClipboardCheck className="h-4 w-4" /> },
   { href: '/admin/reviews', label: 'Moderation รีวิว', icon: <Star className="h-4 w-4" /> },
   { href: '/admin/reconciliation', label: 'กระทบยอดรายเด็ก', icon: <ClipboardList className="h-4 w-4" /> },

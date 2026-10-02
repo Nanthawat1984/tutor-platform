@@ -9,6 +9,7 @@ import { COLLECTIONS } from '@/types/firestore';
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
 import { requireSessionUser } from '@/lib/auth/session';
 import { PaymentFlow } from '@/components/booking/payment-flow';
+import { ensureFirstBookingCoupon, validateCoupon } from '@/lib/coupons';
 import { getGatewayLabel } from '@/lib/payments/config';
 
 export default async function PaymentPage({
@@ -29,6 +30,18 @@ export default async function PaymentPage({
   if (booking.status !== 'pending') redirect('/bookings');
 
   const amount = Number(booking.totalPrice) || 0;
+
+  // ใส่โค้ดคูปองลูกค้าใหม่ให้อัตโนมัติ (ถ้ายังใช้ได้กับยอดนี้) — ลูกค้าใหม่ไม่ต้องพิมพ์เอง
+  let welcomeCouponCode: string | null = null;
+  try {
+    const ensured = await ensureFirstBookingCoupon(db, session.uid);
+    if (ensured?.code) {
+      const check = await validateCoupon(db, ensured.code, amount, session.uid);
+      if (check.ok) welcomeCouponCode = ensured.code;
+    }
+  } catch (error) {
+    console.error('welcome coupon prefill failed (non-fatal):', error instanceof Error ? error.message : 'unknown');
+  }
 
   return (
     <DashboardLayout
@@ -84,6 +97,7 @@ export default async function PaymentPage({
             amount={amount}
             studentName={booking.studentName}
             courseTitle={booking.courseTitle}
+            initialCouponCode={welcomeCouponCode}
           />
         </Card>
 

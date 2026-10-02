@@ -87,6 +87,75 @@ export async function ensureFirstBookingCoupon(
   return { code: finalCode, created: true };
 }
 
+// ────────────────────────────────────────────
+// จัดการคูปองฝั่งแอดมิน
+// ────────────────────────────────────────────
+export interface CreateCouponInput {
+  code: string;
+  kind: 'percent' | 'fixed';
+  value: number;
+  maxDiscount?: number | null;
+  minAmount?: number | null;
+  usageLimit?: number | null;
+  validDays?: number | null;      // null/0 = ไม่มีวันหมดอายุ
+}
+
+export function normalizeCouponCode(code: string): string {
+  return String(code || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 32);
+}
+
+/**
+ * สร้างคูปองทั่วไป (admin) — โค้ดต้องไม่ซ้ำ
+ * ปิดท้ายด้วยเงื่อนไขการใช้งานชุดเดียวกับ validateCoupon เพื่อให้ admin ไม่ต้องเดา
+ */
+export async function createCoupon(
+  db: Firestore,
+  input: CreateCouponInput,
+): Promise<{ id: string; code: string }> {
+  const code = normalizeCouponCode(input.code);
+  if (code.length < 3) throw new Error('invalid_code');
+  if (input.kind !== 'percent' && input.kind !== 'fixed') throw new Error('invalid_kind');
+  const value = Number(input.value);
+  if (!Number.isFinite(value) || value <= 0) throw new Error('invalid_value');
+  if (input.kind === 'percent' && value > 100) throw new Error('invalid_percent');
+
+  const clash = await db.collection('coupons').where('code', '==', code).limit(1).get();
+  if (!clash.empty) throw new Error('code_taken');
+
+  const validDays = Number(input.validDays) || 0;
+  const ref = await db.collection('coupons').add({
+    code,
+    kind: input.kind,
+    value,
+    maxDiscount: Number(input.maxDiscount) > 0 ? Number(input.maxDiscount) : null,
+    minAmount: Number(input.minAmount) > 0 ? Number(input.minAmount) : null,
+    usageLimit: Number(input.usageLimit) > 0 ? Number(input.usageLimit) : null,
+    usedCount: 0,
+    isActive: true,
+    scope: 'general',
+    ownerUid: null,
+    expiresAt: validDays > 0
+      ? Timestamp.fromMillis(Date.now() + validDays * 24 * 3600 * 1000)
+      : null,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return { id: ref.id, code };
+}
+
+/** เปิด/ปิดคูปอง — ปิดแล้วใช้ไม่ได้ทันที (validateCoupon เช็ค isActive) */
+export async function setCouponActive(
+  db: Firestore,
+  couponId: string,
+  isActive: boolean,
+): Promise<{ ok: boolean }> {
+  await db.collection('coupons').doc(couponId).update({
+    isActive,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return { ok: true };
+}
+
 export type CouponCheck =
   | { ok: true; coupon: CouponDoc; discount: number }
   | { ok: false; reason: string; minAmount?: number };
