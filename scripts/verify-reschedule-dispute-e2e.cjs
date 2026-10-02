@@ -249,23 +249,54 @@ async function main() {
   assert.equal(disputeDup.data.error, 'already_open', 'duplicate dispute must report already_open');
   console.log('dispute idempotency ok: second dispute rejected (already_open)');
 
-  // ── 8) admin resolve — ปิดข้อพิพาท + แจ้งทั้งสองฝ่าย ──
+  // ── 8) admin resolve — ปิดข้อพิพาท + คืนเครดิตวอลเล็ต + แจ้งทั้งสองฝ่าย ──
+  const walletBefore = (await db.collection('parentWallets').doc(student.parentId).get()).data() || {};
+  const balanceBefore = Number(walletBefore.balance) || 0;
+  const paymentBefore = (await db.collection('payments').doc(paymentId).get()).data() || {};
+  const refundable = Math.round(Number(paymentBefore.amount) || 0);
   const resolve = await resolveBookingDispute(db, {
     bookingId,
     note: 'ตรวจสอบแล้ว ให้เลื่อนไปวันใหม่ได้ ครั้งนี้ยกเว้น',
+    outcome: 'refund_full',
+    adminId: 'uat-admin',
   });
   assert.equal(resolve.ok, true, `resolve failed: ${JSON.stringify(resolve)}`);
+  assert.equal(resolve.refunded, refundable, `refunded must equal paid amount (${refundable})`);
   const booking5 = (await db.collection('bookings').doc(bookingId).get()).data() || {};
   assert.equal(booking5.dispute?.status, 'resolved', 'dispute must be resolved');
   assert.equal(booking5.disputeOpen, false, 'disputeOpen must flip to false');
   assert.ok(booking5.dispute?.resolvedAt, 'resolvedAt must be set');
+  assert.equal(booking5.dispute?.outcome, 'refund_full', 'dispute.outcome must be recorded');
+  assert.equal(Number(booking5.dispute?.refundedAmount), refundable, 'dispute.refundedAmount must be recorded');
+
+  // คืนเงินจริงเข้าวอลเล็ต + ledger + payment
+  const walletAfter = (await db.collection('parentWallets').doc(student.parentId).get()).data() || {};
+  assert.equal(
+    Number(walletAfter.balance) - balanceBefore,
+    refundable,
+    `parent wallet must increase by ${refundable}`,
+  );
+  assert.equal(
+    Math.round((Number(walletAfter.balance) - (Number(walletAfter.totalCredited) - Number(walletAfter.totalSpent))) * 100) / 100,
+    0,
+    'wallet ledger invariant must hold after dispute refund',
+  );
+  const disputeTxs = await db.collection('parentWalletTxs')
+    .where('parentId', '==', student.parentId).where('bookingId', '==', bookingId).limit(5).get();
+  assert.ok(!disputeTxs.empty, 'dispute refund must create a wallet ledger entry');
+  assert.equal(Number(disputeTxs.docs[0].data().amount), refundable, 'ledger amount must equal refund');
+  const paymentAfter = (await db.collection('payments').doc(paymentId).get()).data() || {};
+  assert.equal(paymentAfter.refundDestination, 'parent_wallet_credit', 'payment must record refund destination');
+  assert.equal(paymentAfter.disputeRefund?.outcome, 'refund_full', 'payment must record disputeRefund');
+  // ไม่แตะยอดของครู — เซสชันจบไปแล้ว/เงินถูกปล่อยเป็น available
+  assert.equal(paymentAfter.status, 'paid', 'dispute refund must not re-open payment status');
+  console.log(`resolve ok: dispute closed + คืนเครดิต ${refundable} บาทเข้าวอลเล็ต + both parties notified`);
   const bothNotifs = await db.collection('notifications')
     .where('type', '==', 'booking').limit(50).get();
   assert.ok(
     bothNotifs.docs.some((d) => String(d.data().title || '').includes('แก้ไขแล้ว')),
     'both parties must receive a resolution notification',
   );
-  console.log('resolve ok: dispute closed + both parties notified');
 
   // ── 9) หลัง resolve → เลื่อนต่อได้ (late — ตั้งเซสชันใกล้เข้ามาอีกครั้ง) ──
   //    booking อยู่ที่ dateD 16:00 อยู่แล้ว — เลื่อนเป็นวันเดียวกันแต่เวลาถัดไป (17:00)

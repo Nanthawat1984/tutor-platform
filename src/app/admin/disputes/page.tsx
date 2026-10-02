@@ -7,10 +7,24 @@ import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { BookingStatusBadge, Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/input';
+import { Textarea, Select } from '@/components/ui/input';
 import { requireSessionUser } from '@/lib/auth/session';
 import { resolveBookingDispute } from '@/lib/booking-actions';
-import { AlertTriangle, CheckCircle2, Flag, Scale } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Flag, Scale, Wallet } from 'lucide-react';
+
+// ผลตัดสินข้อพิพาท — เลือกได้ว่าจะคืนเครดิตผู้ปกครองหรือไม่
+// (คืนเป็นเครดิตวอลเล็ตเท่านั้น — เซสชันจบไปแล้ว เงินถูกปล่อยให้ครูแล้ว)
+const OUTCOME_OPTIONS = [
+  { value: 'no_refund', label: 'ไม่คืนเงิน' },
+  { value: 'refund_full', label: 'คืนเครดิตเต็ม' },
+  { value: 'refund_half', label: 'คืนเครดิต 50%' },
+];
+
+const OUTCOME_LABELS: Record<string, string> = {
+  no_refund: 'ไม่คืนเงิน',
+  refund_full: 'คืนเครดิตเต็ม',
+  refund_half: 'คืนเครดิต 50%',
+};
 
 // /admin/disputes — คิวข้อพิพาทของการจอง (disputeOpen == true)
 // แอดมินอ่านสาเหตุจากทั้งสองฝ่าย (เห็นเฉพาะ reason/note ที่ถูกบันทึกไว้)
@@ -19,7 +33,7 @@ import { AlertTriangle, CheckCircle2, Flag, Scale } from 'lucide-react';
 export default async function AdminDisputesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; error?: string }>;
+  searchParams: Promise<{ status?: string; error?: string; refunded?: string }>;
 }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
@@ -57,8 +71,19 @@ export default async function AdminDisputesPage({
 
     const bookingId = String(formData.get('bookingId') || '');
     const note = String(formData.get('note') || '').slice(0, 500);
+    const outcome = String(formData.get('outcome') || 'no_refund');
     if (!bookingId) return;
-    await resolveBookingDispute(dbRef, { bookingId, note: note || undefined });
+
+    const result = await resolveBookingDispute(dbRef, {
+      bookingId,
+      note: note || undefined,
+      outcome: (outcome === 'refund_full' || outcome === 'refund_half' ? outcome : 'no_refund'),
+      adminId: admin.uid,
+    });
+    if (!result.ok) {
+      redirect(`/admin/disputes?error=${encodeURIComponent(result.error || 'resolve_failed')}`);
+    }
+    redirect(`/admin/disputes?status=resolved&refunded=${result.refunded ?? 0}`);
   }
 
   return (
@@ -101,6 +126,15 @@ export default async function AdminDisputesPage({
       {params.error && (
         <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
           ⚠ เกิดข้อผิดพลาด: {params.error}
+        </p>
+      )}
+
+      {params.refunded !== undefined && (
+        <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+          ✓ ปิดข้อพิพาทเรียบร้อย
+          {Number(params.refunded) > 0
+            ? ` — คืนเครดิตวอลเล็ตให้ผู้ปกครอง ${Number(params.refunded).toLocaleString('th-TH')} บาท (ผู้ปกครองเห็นในหน้าการชำระเงิน)`
+            : ' — ไม่มีการคืนเครดิต'}
         </p>
       )}
 
@@ -152,10 +186,17 @@ export default async function AdminDisputesPage({
                   {!showResolved && (
                     <form action={resolveDisputeAction} className="space-y-2">
                       <input type="hidden" name="bookingId" value={b.id} />
+                      <Select
+                        label="ผลตัดสินทางการเงิน"
+                        name="outcome"
+                        options={OUTCOME_OPTIONS}
+                        defaultValue="no_refund"
+                        helperText="คืนเป็นเครดิตวอลเล็ตเท่ายอดที่ผู้ปกครองจ่ายจริง (เซสชันจบไปแล้ว จึงไม่แตะยอดของครู)"
+                      />
                       <Textarea
                         label="บันทึกการตัดสิน (ส่งให้ทั้งสองฝ่าย)"
                         name="note"
-                        placeholder="เช่น ตรวจสอบแล้วตัดสินให้ฝั่งผู้ปกครอง คืนเครดิตเรียบร้อย"
+                        placeholder="เช่น ตรวจสอบแล้วครูไม่มาสอนตามนัด ตัดสินคืนเครดิตให้ฝั่งผู้ปกครอง"
                         className="min-h-[72px]"
                       />
                       <Button type="submit" size="sm" variant="success" className="w-full sm:w-auto">
@@ -170,6 +211,17 @@ export default async function AdminDisputesPage({
                       <p className="font-bold text-emerald-700">ปิดข้อพิพาทแล้ว</p>
                       <p className="mt-1">
                         {formatDate(dispute.resolvedAt.toDate().toISOString().slice(0, 10), 'd MMM yyyy')}
+                      </p>
+                      <p className="mt-1.5 font-semibold text-slate-700">
+                        ผลตัดสิน: {OUTCOME_LABELS[dispute.outcome || 'no_refund'] || 'ไม่คืนเงิน'}
+                        {Number(dispute.refundedAmount) > 0 && (
+                          <span className="ml-1 inline-flex items-center gap-1 text-emerald-700">
+                            <Wallet className="h-3 w-3" />
+                            {dispute.refundedKind === 'package_credit'
+                              ? '1 เครดิตแพ็กเกจ'
+                              : `${Number(dispute.refundedAmount).toLocaleString('th-TH')} บาท`}
+                          </span>
+                        )}
                       </p>
                     </div>
                   )}
