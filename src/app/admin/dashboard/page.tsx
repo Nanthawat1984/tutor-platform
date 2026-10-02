@@ -9,19 +9,26 @@ import { Button } from '@/components/ui/button';
 import { DashboardLayout, StatCard, SectionCard } from '@/components/layout/dashboard';
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
 import { VerificationBadge } from '@/components/ui/badge';
+import OpsQueueCards from '@/components/admin/ops-queue-cards';
+import { buildOpsQueueCards, countOpsQueues, summarizeOpsQueues } from '@/lib/admin/ops-queues';
 
 export default async function AdminDashboard() {
   const db = getServerDb();
   if (!db) return redirect('/login');
 
-  const [teachersSnap, bookingsSnap, paymentsSnap] = await Promise.all([
+  const [teachersSnap, bookingsSnap, paymentsSnap, opsCounts] = await Promise.all([
     db.collection(COLLECTIONS.USERS).where('role', '==', 'teacher').get(),
     db.collection(COLLECTIONS.BOOKINGS).get(),
     db.collection(COLLECTIONS.PAYMENTS).where('status', '==', 'paid').get(),
+    // คิวงานค้างใช้ count aggregation จึงไม่ดึงเอกสารเพิ่ม
+    countOpsQueues(db),
   ]);
   const teachers = teachersSnap.docs.map((doc: any) => ({ uid: doc.id, ...doc.data() }));
   const pendingTeachers = teachers.filter((t: any) => deriveAdminReviewStatus(t) !== 'approved');
   const totalRevenue = paymentsSnap.docs.reduce((sum: number, d: any) => sum + ((d.data() as any).amount || 0), 0);
+
+  const opsCards = buildOpsQueueCards(opsCounts);
+  const opsSummary = summarizeOpsQueues(opsCards);
 
   const STATS = [
     {
@@ -89,6 +96,10 @@ export default async function AdminDashboard() {
             iconGradient={stat.iconGradient}
           />
         ))}
+      </div>
+
+      <div className="mt-6">
+        <OpsQueueCards queues={opsCards} summary={opsSummary} />
       </div>
 
       <div className="mt-6">

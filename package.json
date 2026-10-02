@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:functions": "tsc --noEmit -p functions",
     "typecheck:all": "pnpm typecheck && pnpm typecheck:functions",
-    "test": "node --import ./scripts/register-alias-loader.mjs --test src/lib/*.test.ts",
+    "test": "node --import ./scripts/register-alias-loader.mjs --test \"src/lib/**/*.test.ts\"",
     "emulators": "firebase emulators:start --only auth,firestore",
     "uat": "node scripts/run-uat.cjs"
   },
