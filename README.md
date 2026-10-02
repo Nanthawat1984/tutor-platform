@@ -174,6 +174,11 @@ pnpm typecheck
 pnpm build
 ```
 
+## เอกสารประกอบ
+
+- [สรุปฟีเจอร์ที่เพิ่มล่าสุด (13 คอมมิต)](./docs/CHANGELOG-recent-features.md) — changelog แบบอ่านง่าย จัดกลุ่มตามฟีเจอร์
+- [Roadmap: ช่องว่างที่ควรพัฒนาต่อ](./docs/ROADMAP-gaps.md) — API ที่ยังไม่มี UI, ช่องว่างด้านความปลอดภัย, งานที่แนะนำลำดับก่อน
+
 ## Local Firebase Emulator
 
 Cloud Firestore ยังต้องถูกสร้างใน Firebase project จริงก่อนใช้ production database ได้ หากยังไม่มีสิทธิ์สร้าง Cloud Firestore ให้รันระบบบน local emulator ก่อน:
