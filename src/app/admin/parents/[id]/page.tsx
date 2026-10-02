@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { COLLECTIONS, type Booking, type Payment, type Student, type User } from '@/types/firestore';
 import { requireAdmin } from '@/lib/auth/guards';
 import { summarizeParentActivity } from '@/lib/admin/parent-detail';
@@ -7,8 +7,11 @@ import { Badge, BookingStatusBadge, PaymentStatusBadge } from '@/components/ui/b
 import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { DashboardLayout, EmptyState, SectionCard, StatCard } from '@/components/layout/dashboard';
 import { ADMIN_NAV_ITEMS } from '@/components/layout/nav';
-import { ArrowLeft, CalendarDays, CreditCard, GraduationCap, History, MailCheck, Phone, Users } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CreditCard, GraduationCap, History, MailCheck, Phone, Users, Wallet } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input, Select, Textarea } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/utils';
+import { creditParentWallet, debitParentWallet } from '@/lib/parent-wallet';
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   stripe_checkout: 'Stripe Checkout',
@@ -38,17 +41,28 @@ function sortByDateDesc(items: any[], getKey: (item: any) => string): any[] {
 
 interface ParentDetailProps {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ adjusted?: string; adjust_error?: string }>;
 }
 
-export default async function AdminParentDetailPage({ params }: ParentDetailProps) {
+const WALLET_TX_LABELS: Record<string, string> = {
+  refund: 'เงินคืนจากการยกเลิก/ตัดสินข้อพิพาท',
+  spend: 'ใช้ชำระค่าเรียน',
+  reversal: 'ปรับยอดย้อนหลัง',
+  adjust: 'ปรับยอดโดยแอดมิน',
+};
+
+export default async function AdminParentDetailPage({ params, searchParams }: ParentDetailProps) {
   const { db } = await requireAdmin();
   const { id } = await params;
+  const query = (await searchParams) || {};
 
-  const [parentSnap, studentsSnap, bookingsSnap, paymentsSnap] = await Promise.all([
+  const [parentSnap, studentsSnap, bookingsSnap, paymentsSnap, walletSnap, walletTxsSnap] = await Promise.all([
     db.collection(COLLECTIONS.USERS).doc(id).get(),
     db.collection(COLLECTIONS.STUDENTS).where('parentId', '==', id).get(),
     db.collection(COLLECTIONS.BOOKINGS).where('parentId', '==', id).get(),
     db.collection(COLLECTIONS.PAYMENTS).where('parentId', '==', id).get(),
+    db.collection(COLLECTIONS.PARENT_WALLETS).doc(id).get(),
+    db.collection(COLLECTIONS.PARENT_WALLET_TXS).where('parentId', '==', id).limit(50).get(),
   ]);
 
   if (!parentSnap.exists || parentSnap.data()?.role !== 'parent') notFound();
@@ -57,6 +71,57 @@ export default async function AdminParentDetailPage({ params }: ParentDetailProp
   const students = studentsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Student));
   const bookings = bookingsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Booking));
   const payments = paymentsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Payment));
+  const wallet = walletSnap.exists
+    ? (walletSnap.data() as any)
+    : { balance: 0, totalCredited: 0, totalSpent: 0 };
+  const walletBalance = Number(wallet.balance) || 0;
+  const walletTxs = [...walletTxsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }))]
+    .sort((a: any, b: any) => timestampMillis(b.createdAt) - timestampMillis(a.createdAt))
+    .slice(0, 10);
+
+  // ── ปรับยอดเครดิตวอลเล็ต (แอดมินเท่านั้น) ──
+  // ทุกครั้งเขียน ledger แบบ adjust ผ่าน parent-wallet.ts → ยอดไม่หลุดและตรวจสอบย้อนหลังได้
+  async function adjustWalletAction(formData: FormData) {
+    'use server';
+    const { db: dbRef, session: current } = await requireAdmin();
+    const direction = String(formData.get('direction') || 'add');
+    const amount = Number(formData.get('amount'));
+    const note = String(formData.get('note') || '').trim().slice(0, 300);
+    const parentRef = dbRef.collection(COLLECTIONS.PARENT_WALLETS).doc(id);
+    const snapNow = await parentRef.get();
+    const before = Number(snapNow.data()?.balance) || 0;
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      redirect(`/admin/parents/${id}?adjust_error=${encodeURIComponent('invalid_amount')}`);
+    }
+
+    try {
+      if (direction === 'subtract') {
+        // หัดได้เท่าที่มีเท่านั้น — ไม่ให้ยอดติดลบเงินจริง
+        const res = await debitParentWallet(dbRef, {
+          parentId: id,
+          amount,
+          kind: 'adjust',
+          note: note || `ปรับยอดโดยแอดมิน (${current.uid})`,
+        });
+        if (!res.ok) {
+          redirect(`/admin/parents/${id}?adjust_error=${encodeURIComponent(res.reason || 'adjust_failed')}`);
+        }
+      } else {
+        await creditParentWallet(dbRef, {
+          parentId: id,
+          amount,
+          kind: 'adjust',
+          note: note || `ปรับยอดโดยแอดมิน (${current.uid})`,
+        });
+      }
+    } catch {
+      redirect(`/admin/parents/${id}?adjust_error=${encodeURIComponent('adjust_failed')}`);
+    }
+
+    const after = direction === 'subtract' ? before - amount : before + amount;
+    redirect(`/admin/parents/${id}?adjusted=${encodeURIComponent(String(Math.round(after * 100) / 100))}`);
+  }
   const summary = summarizeParentActivity(students, bookings, payments);
   const sortedBookings = sortByDateDesc(bookings, (booking) => `${booking.bookingDate || ''} ${booking.startTime || ''}`).slice(0, 50);
   const sortedPayments = [...payments].sort((a, b) => timestampMillis(b.createdAt) - timestampMillis(a.createdAt)).slice(0, 50);
@@ -69,6 +134,12 @@ export default async function AdminParentDetailPage({ params }: ParentDetailProp
     { label: 'รายการชำระเงิน', value: summary.paymentCount, icon: <CreditCard className="h-6 w-6" />, iconGradient: 'from-amber-500 to-orange-500' },
     { label: 'ยอดชำระแล้ว', value: formatCurrency(summary.paidAmount), icon: <History className="h-6 w-6" />, iconGradient: 'from-emerald-500 to-teal-600' },
   ];
+
+  const ADJUST_ERRORS: Record<string, string> = {
+    invalid_amount: 'จำนวนเงินไม่ถูกต้อง (ต้องมากกว่า 0)',
+    insufficient_credit: 'ยอดเครดิตไม่พอสำหรับการหัก',
+    adjust_failed: 'ปรับยอดไม่สำเร็จ กรุณาลองใหม่',
+  };
 
   return (
     <DashboardLayout title="รายละเอียดผู้ปกครอง" navItems={ADMIN_NAV_ITEMS} role="admin" userName="แอดมิน">
@@ -102,6 +173,17 @@ export default async function AdminParentDetailPage({ params }: ParentDetailProp
         </div>
       </div>
 
+      {query.adjusted && (
+        <p className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+          ✓ ปรับยอดเครดิตเรียบร้อย — ยอดคงเหลือ {formatCurrency(Number(query.adjusted))} (ผู้ปกครองเห็นในหน้าการชำระเงินทันที)
+        </p>
+      )}
+      {query.adjust_error && (
+        <p className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          ⚠ {ADJUST_ERRORS[query.adjust_error] || 'ปรับยอดไม่สำเร็จ'}
+        </p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {STATS.map((stat) => (
           <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} iconGradient={stat.iconGradient} />
@@ -121,6 +203,73 @@ export default async function AdminParentDetailPage({ params }: ParentDetailProp
             <div><dt className="text-slate-500">แก้ไขล่าสุด</dt><dd className="text-slate-800">{formatTimestamp(parent.updatedAt)}</dd></div>
           </dl>
           <p className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">ข้อมูล KYC และไฟล์เอกสารส่วนตัวไม่ได้แสดงในหน้าผู้ปกครองนี้</p>
+        </SectionCard>
+      </div>
+
+      <div className="mt-6">
+        <SectionCard title="เครดิตวอลเล็ตของผู้ปกครอง">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+              <p className="text-xs font-semibold text-slate-500">ยอดคงเหลือ</p>
+              <p className="mt-1 text-2xl font-extrabold text-emerald-700">{formatCurrency(walletBalance)}</p>
+            </div>
+            <div className="rounded-xl border border-pink-100 bg-pink-50/40 p-4">
+              <p className="text-xs font-semibold text-slate-500">รับมาแล้ว (สะสม)</p>
+              <p className="mt-1 text-lg font-extrabold text-slate-800">{formatCurrency(Number(wallet.totalCredited) || 0)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-xs font-semibold text-slate-500">ใช้ไป (สะสม)</p>
+              <p className="mt-1 text-lg font-extrabold text-slate-800">{formatCurrency(Number(wallet.totalSpent) || 0)}</p>
+            </div>
+          </div>
+
+          <form action={adjustWalletAction} className="mt-4 space-y-3 rounded-xl border border-pink-100 bg-pink-50/30 p-4">
+            <p className="text-xs text-slate-600">
+              ปรับยอดเครดิต (ใช้เมื่อมีเครดิตค้าง/ผิดพลาด) — ทุกครั้งบันทึก ledger แบบ “ปรับยอดโดยแอดมิน”
+              หักได้ไม่เกินยอดคงเหลือ ผู้ปกครองจะเห็นรายการนี้ในหน้าการชำระเงินทันที
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Select
+                label="ประเภท"
+                name="direction"
+                options={[
+                  { value: 'add', label: 'เพิ่มเครดิต' },
+                  { value: 'subtract', label: 'หักเครดิต' },
+                ]}
+                defaultValue="add"
+              />
+              <Input label="จำนวนเงิน (บาท)" name="amount" type="number" min="1" step="1" required placeholder="เช่น 100" />
+              <Textarea label="เหตุผล (ไม่บังคับ)" name="note" rows={1} maxLength={300} placeholder="เช่น แก้ไขยอดที่คืนเงินซ้ำ" />
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" size="sm" variant="primary">
+                <Wallet className="h-4 w-4" /> บันทึกการปรับยอด
+              </Button>
+            </div>
+          </form>
+
+          <div className="mt-5">
+            <p className="mb-2 text-sm font-bold text-slate-900">ความเคลื่อนไหวล่าสุด</p>
+            {walletTxs.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">
+                ยังไม่มีรายการเครดิตวอลเล็ต
+              </p>
+            ) : (
+              <Table headers={['วันที่', 'ประเภท', 'จำนวน', 'ยอดหลังรายการ', 'หมายเหตุ']}>
+                {walletTxs.map((tx: any) => (
+                  <TableRow key={tx.id}>
+                    <TableCell className="text-slate-500">{formatTimestamp(tx.createdAt)}</TableCell>
+                    <TableCell className="text-slate-700">{WALLET_TX_LABELS[tx.kind] || tx.kind}</TableCell>
+                    <TableCell className={`font-semibold ${Number(tx.amount) >= 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
+                      {Number(tx.amount) > 0 ? '+' : ''}{formatCurrency(Number(tx.amount) || 0)}
+                    </TableCell>
+                    <TableCell className="text-slate-700">{formatCurrency(Number(tx.balanceAfter) || 0)}</TableCell>
+                    <TableCell className="max-w-xs text-slate-500"><span className="line-clamp-2">{tx.note || '—'}</span></TableCell>
+                  </TableRow>
+                ))}
+              </Table>
+            )}
+          </div>
         </SectionCard>
       </div>
 
