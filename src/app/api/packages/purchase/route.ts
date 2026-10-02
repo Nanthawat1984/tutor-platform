@@ -9,12 +9,24 @@ import { createStripeCheckoutSession } from '@/lib/payments/stripe';
 import { generateQRDataUrl, buildMockPromptPayPayload } from '@/lib/payments/qr';
 import { PROMPTPAY_NUMBER } from '@/lib/payments/config';
 import { validateCoupon } from '@/lib/coupons';
+import { checkRateLimit, sweepRateLimitBuckets } from '@/lib/rate-limit';
 
 // POST /api/packages/purchase { packageId, studentId, method?, couponCode?, useWallet? }
 // สร้าง purchase (pending) + payment แล้วคืนช่องทางชำระ (Stripe URL / QR mock / bank details)
 export async function POST(request: Request) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  // 5 ครั้ง / 10 นาที ต่อผู้ใช้ — กันยิงรัวซื้อแพ็กเกจ/สร้าง payment (fail-open ถ้า limiter พัง)
+  sweepRateLimitBuckets();
+  const limit = checkRateLimit(`pkg_purchase:${session.uid}`, 5, 10 * 60_000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: 'rate_limited' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil(limit.resetAfterMs / 1000)) },
+    });
+  }
+
   const db = getServerDb();
   if (!db) return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
 

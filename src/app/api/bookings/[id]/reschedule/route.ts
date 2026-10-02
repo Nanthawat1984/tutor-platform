@@ -2,12 +2,24 @@ import { NextResponse } from 'next/server';
 import { getServerDb } from '@/lib/firebase/server';
 import { getSessionUser } from '@/lib/auth/session';
 import { rescheduleBooking } from '@/lib/booking-actions';
+import { checkRateLimit, sweepRateLimitBuckets } from '@/lib/rate-limit';
 
 // POST /api/bookings/[id]/reschedule { slot: { scheduleId, date, startTime, endTime } }
 // parent หรือ teacher ที่เป็นคู่สัญญาเรียกได้เอง — ไม่ต้องผ่านแอดมิน
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  // 15 ครั้ง / 10 นาที ต่อผู้ใช้ — กันยิงรัวเลื่อนคาบ (fail-open ถ้า limiter พัง)
+  sweepRateLimitBuckets();
+  const limit = checkRateLimit(`booking_reschedule:${session.uid}`, 15, 10 * 60_000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: 'rate_limited' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil(limit.resetAfterMs / 1000)) },
+    });
+  }
+
   const db = getServerDb();
   if (!db) return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
 

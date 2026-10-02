@@ -3,6 +3,7 @@ import { getServerDb } from '@/lib/firebase/server';
 import { getSessionUser } from '@/lib/auth/session';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
+import { checkRateLimit, sweepRateLimitBuckets } from '@/lib/rate-limit';
 
 // GET /api/referrals/me — my referral code + reward status.
 // POST /api/referrals/claim { code } — claim a referral at signup/first booking.
@@ -25,6 +26,17 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  // 10 ครั้ง / 10 นาที ต่อผู้ใช้ — กันยิงรัว claim โค้ดแนะนำ (fail-open ถ้า limiter พัง)
+  sweepRateLimitBuckets();
+  const limit = checkRateLimit(`referral_claim:${session.uid}`, 10, 10 * 60_000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: 'rate_limited' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil(limit.resetAfterMs / 1000)) },
+    });
+  }
+
   const db = getServerDb();
   if (!db) return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
 

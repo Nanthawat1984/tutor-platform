@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { getServerAuth, getServerDb } from '@/lib/firebase/server';
 import { verifyLineIdToken, LineTokenVerificationError } from '@/lib/line/liff';
 import { assignLineRichMenu } from '@/lib/line/rich-menu';
+import { checkRateLimit, sweepRateLimitBuckets } from '@/lib/rate-limit';
 import { COLLECTIONS } from '@/types/firestore';
 
 function getBearerToken(request: NextRequest): string | null {
@@ -28,6 +29,16 @@ export async function POST(request: NextRequest) {
     uid = (await auth.verifyIdToken(token)).uid;
   } catch {
     return NextResponse.json({ error: 'invalid_token' }, { status: 401 });
+  }
+
+  // 10 ครั้ง / 10 นาที ต่อผู้ใช้ — กันยิงรัวตรวจสอบโทเค็น (fail-open ถ้า limiter พัง)
+  sweepRateLimitBuckets();
+  const limit = checkRateLimit(`line_link:${uid}`, 10, 10 * 60_000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: 'rate_limited' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil(limit.resetAfterMs / 1000)) },
+    });
   }
 
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;

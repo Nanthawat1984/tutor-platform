@@ -5,6 +5,7 @@ import { COLLECTIONS } from '@/types/firestore';
 import { markPaymentPaid, markPaymentFailed } from '@/lib/payments/process';
 import { MOCK_MODE, BANK_ACCOUNT, generateRef } from '@/lib/payments/config';
 import { analyzePaymentSlip } from '@/lib/payments/slip-agent';
+import { checkRateLimit, sweepRateLimitBuckets } from '@/lib/rate-limit';
 
 /**
  * POST /api/payments/confirm
@@ -16,6 +17,16 @@ import { analyzePaymentSlip } from '@/lib/payments/slip-agent';
 export async function POST(request: NextRequest) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  // 10 ครั้ง / 10 นาที ต่อผู้ใช้ — กันยิงรัวยืนยันชำระ/อ่านสลิปด้วย LLM (fail-open ถ้า limiter พัง)
+  sweepRateLimitBuckets();
+  const limit = checkRateLimit(`pay_confirm:${session.uid}`, 10, 10 * 60_000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: 'rate_limited' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil(limit.resetAfterMs / 1000)) },
+    });
+  }
 
   const db = getServerDb();
   if (!db) return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });

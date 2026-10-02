@@ -15,6 +15,7 @@ import {
 import { createStripeCheckoutSession } from '@/lib/payments/stripe';
 import { generateQRDataUrl, buildMockPromptPayPayload } from '@/lib/payments/qr';
 import { getPaymentForBooking } from '@/lib/payments/process';
+import { checkRateLimit, sweepRateLimitBuckets } from '@/lib/rate-limit';
 
 const VALID_METHODS = PAYMENT_METHODS.map((method) => method.id) as PaymentMethod[];
 
@@ -35,6 +36,16 @@ function normalizeMethod(value: unknown): PaymentMethod | null {
 export async function POST(request: NextRequest) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  // 10 ครั้ง / 10 นาที ต่อผู้ใช้ — กันยิงรัวเพื่อสร้าง payment/Stripe session (fail-open ถ้า limiter พัง)
+  sweepRateLimitBuckets();
+  const limit = checkRateLimit(`pay_initiate:${session.uid}`, 10, 10 * 60_000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: 'rate_limited' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil(limit.resetAfterMs / 1000)) },
+    });
+  }
 
   const db = getServerDb();
   if (!db) return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
