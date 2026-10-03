@@ -38,7 +38,7 @@ import {
   type DocumentData,
 } from 'firebase/firestore';
 import { connectEmulators, getFirebaseAuth, getFirebaseDb, getFirebaseStorage } from '@/lib/firebase/client';
-import { isGoogleProviderUser } from '@/lib/auth/google';
+import { needsProfileSetup as computeNeedsProfileSetup, resolveProfileAction } from '@/lib/auth/profile-provisioning';
 import type {
   User, TeacherProfile, Course, Booking, Attendance,
   SessionReport, Review, Notification, Payment, Center, Schedule
@@ -166,10 +166,13 @@ interface AuthContextType {
   user: FirebaseUser | null;
   userProfile: User | null;
   loading: boolean;
+  /** ล็อกอินผ่าน Firebase แล้วแต่ยังไม่มีโปรไฟล์ใน Firestore — ต้องให้ผู้ใช้กรอกบทบาท + ยอมรับข้อตกลงก่อน */
+  needsProfileSetup: boolean;
   signIn: (email: string, password: string) => Promise<User | null>;
   signUp: (email: string, password: string, fullName: string, role: AuthRole, consent: RegistrationConsent) => Promise<void>;
-  signInWithGoogle: (role?: AuthRole, consent?: RegistrationConsent) => Promise<User>;
+  signInWithGoogle: (role?: AuthRole, consent?: RegistrationConsent) => Promise<User | null>;
   signInWithGoogleRedirect: (role?: AuthRole, consent?: RegistrationConsent) => Promise<void>;
+  completeProfileSetup: (role: AuthRole, consent: RegistrationConsent) => Promise<User>;
   sendPasswordReset: (email: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -187,13 +190,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     let isMounted = true;
 
+    // อ่านค่าค้างจาก Google redirect ครั้งเดียว — getRedirectResult กับ
+    // onAuthStateChanged รันพร้อมกัน ถ้าเรียก getPendingGoogle* สองครั้ง ครั้งที่สอง
+    // จะได้ค่า default แล้วทำให้ consent ที่ผู้ใช้เพิ่งยอมรับหายไป
+    const pendingRole = getPendingGoogleRole();
+    const pendingConsent = getPendingGoogleConsent();
+
+    /**
+     * โหลดโปรไฟล์เดิมก่อนเสมอ ถ้าไม่มีค่อยคิดว่าจะสร้างใหม่ได้หรือไม่
+     * ห้ามสร้างโดยไม่มี consent — เซิร์ฟเวอร์จะตอบ 400 consent_required
+     * แล้วผู้ใช้จะไม่มีโปรไฟล์ให้ใช้งานระบบเลย
+     */
+    async function loadOrCreateProfile(firebaseUser: FirebaseUser) {
+      const existingProfile = await fetchUserProfile(firebaseUser);
+      const action = resolveProfileAction({
+        existingProfile,
+        hasConsent: Boolean(pendingConsent),
+      });
+      if (action === 'reuse') return existingProfile;
+      if (action === 'create') return ensureUserProfile(firebaseUser, pendingRole, pendingConsent);
+      return null;
+    }
+
     void getRedirectResult(auth).then(async (result) => {
       if (!result?.user || !isMounted) return;
-      const profile = await ensureUserProfile(result.user, getPendingGoogleRole(), getPendingGoogleConsent());
       // Set the session cookie BEFORE exposing the profile so that any
       // navigation triggered by setUserProfile has the cookie ready.
       // (Fixes bounce-back to /login after Google redirect sign-in.)
       await setSessionCookie(result.user);
+      const profile = await loadOrCreateProfile(result.user);
       if (isMounted) setUserProfile(profile);
     }).catch((error) => {
       console.error('Google redirect sign-in error:', error);
@@ -207,9 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Always set the session cookie FIRST so the middleware lets the
           // user through even if profile creation/read fails below.
           await setSessionCookie(firebaseUser);
-          const profile = isGoogleProviderUser(firebaseUser.providerData)
-            ? await ensureUserProfile(firebaseUser, getPendingGoogleRole(), getPendingGoogleConsent())
-            : await fetchUserProfile(firebaseUser);
+          const profile = await loadOrCreateProfile(firebaseUser);
           if (profile) {
             setUserProfile(profile);
           }
@@ -247,15 +270,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     const auth = getFirebaseAuth();
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    let profile = await fetchUserProfile(cred.user);
-    if (!profile) {
-      // บัญชีมีใน Firebase Auth แต่ยังไม่มีโปรไฟล์ใน Firestore
-      // (เช่น user doc หาย / สร้างบัญชีทางอื่น) — สร้างโปรไฟล์ให้อัตโนมัติ
-      // default role = parent (ครูที่ doc หายสามารถแก้ role ได้ภายหลัง)
-      profile = await ensureUserProfile(cred.user, 'parent');
-    }
-    setUserProfile(profile);
+
+    // ตั้งคุกกี้ก่อนเสมอ เพื่อให้ middleware ไม่ดีดกลับ /login แม้โปรไฟล์จะยังไม่มี
     await setSessionCookie(cred.user);
+    const profile = await fetchUserProfile(cred.user);
+    setUserProfile(profile);
+    // profile = null → บัญชีนี้ยังไม่มีเอกสารใน Firestore ผู้ใช้ต้องกรอกบทบาท
+    // และยอมรับข้อตกลงก่อน (needsProfileSetup) ห้ามสร้างให้อัตโนมัติ
+    return profile;
+  }, []);
+
+  /**
+   * สร้างโปรไฟล์ให้ผู้ใช้ที่ล็อกอินผ่าน Firebase แล้วแต่ยังไม่มีเอกสารใน Firestore
+   * เรียกหลังผู้ใช้เลือกบทบาทและยอมรับข้อตกลงผู้ใช้บริการแล้วเท่านั้น
+   */
+  const completeProfileSetup = useCallback(async (role: AuthRole, consent: RegistrationConsent) => {
+    const firebaseUser = getFirebaseAuth().currentUser;
+    if (!firebaseUser) throw new Error('not_signed_in');
+
+    const profile = await ensureUserProfile(firebaseUser, role, consent);
+    setUserProfile(profile);
+    await setSessionCookie(firebaseUser);
     return profile;
   }, []);
 
@@ -284,12 +319,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // fallback ไป signInWithRedirect ซึ่ง route __/auth/handler ไม่มี → ระบบค้าง
     try {
       const result = await signInWithPopup(auth, createGoogleProvider());
-      const profile = await ensureUserProfile(result.user, role, consent);
       // Set the session cookie BEFORE exposing the profile so any navigation
       // triggered by setUserProfile has the cookie ready.
       await setSessionCookie(result.user);
-      setUserProfile(profile);
-      return profile;
+
+      const existingProfile = await fetchUserProfile(result.user);
+      const action = resolveProfileAction({ existingProfile, hasConsent: Boolean(consent) });
+      // หน้า login ไม่ได้ส่ง consent มา (ผู้ใช้กลับมาใช้บัญชีเดิม) → คืน null
+      // ให้ UI พาไปขั้นตอนกรอกโปรไฟล์ แทนที่จะยิง create แล้วโดนปฏิเสธ
+      if (action === 'reuse') {
+        setUserProfile(existingProfile);
+        return existingProfile;
+      }
+      if (action === 'create') {
+        const profile = await ensureUserProfile(result.user, role, consent);
+        setUserProfile(profile);
+        return profile;
+      }
+      return null;
     } catch (error) {
       console.error('Google sign-in error:', error);
       throw error;
@@ -314,8 +361,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearSessionCookie();
   }, []);
 
+  // ล็อกอินผ่าน Firebase ได้แต่ไม่มีเอกสารผู้ใช้ = ยังใช้งานระบบไม่ได้
+  // ต้องให้ผู้ใช้กรอกบทบาท + ยอมรับข้อตกลงก่อน
+  const needsProfileSetup = computeNeedsProfileSetup({
+    signedIn: Boolean(user),
+    loading,
+    profile: userProfile,
+  });
+
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, signIn, signUp, signInWithGoogle, signInWithGoogleRedirect, sendPasswordReset, logout }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, needsProfileSetup, signIn, signUp, signInWithGoogle, signInWithGoogleRedirect, completeProfileSetup, sendPasswordReset, logout }}>
       {children}
     </AuthContext.Provider>
   );

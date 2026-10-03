@@ -4,39 +4,17 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FirebaseError } from 'firebase/app';
-import { GraduationCap, Users, Sparkles } from 'lucide-react';
+import { GraduationCap, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from '@/hooks/useFirebase';
 import { getPreferredGoogleSignInMethod, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
 import { getPostLoginPath, getPostRegistrationPath, markPendingProfileSetup } from '@/lib/auth/redirects';
 import { ConsentGate } from '@/components/legal/consent-gate';
+import { RoleSelector, type SelectableRole } from '@/components/auth/role-selector';
 import { PRIVACY_VERSION, TERMS_VERSION, type RegistrationConsent } from '@/lib/legal/consent';
 
-type RegisterRole = 'parent' | 'teacher';
-
-const ROLES = [
-  {
-    value: 'parent',
-    icon: Users,
-    emoji: '👨‍👩‍👧',
-    title: 'ผู้ปกครอง',
-    desc: 'ค้นหาครูให้ลูกหลาน ติดตามผลการเรียน',
-    gradient: 'from-pink-500 to-rose-500',
-    ring: 'peer-checked:ring-pink-500 peer-checked:border-pink-500',
-    bg: 'peer-checked:bg-pink-50',
-  },
-  {
-    value: 'teacher',
-    icon: GraduationCap,
-    emoji: '📚',
-    title: 'ครูพิเศษ',
-    desc: 'เปิดสอน จัดการตาราง รับรายได้',
-    gradient: 'from-pink-500 to-rose-500',
-    ring: 'peer-checked:ring-pink-500 peer-checked:border-pink-500',
-    bg: 'peer-checked:bg-pink-50',
-  },
-];
+type RegisterRole = SelectableRole;
 
 function getAuthErrorMessage(error: unknown) {
   if (error instanceof FirebaseError) {
@@ -122,6 +100,9 @@ function RegisterFields() {
       }
 
       const profile = await signInWithGoogle(role, registrationConsent);
+      // null = ยังไม่มีโปรไฟล์ (เช่น sessionStorage หลุดระหว่าง popup) — ให้ AuthProvider
+      // พาไปขั้นตอนกรอกโปรไฟล์แทนการดันเข้าหน้าที่ยังใช้ไม่ได้
+      if (!profile) return;
       router.push(getPostRegistrationPath(profile.role));
       router.refresh();
     } catch (registerError) {
@@ -173,43 +154,7 @@ function RegisterFields() {
           )}
 
           {/* Role Selector */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-3">
-              <Sparkles className="inline h-4 w-4 text-pink-500 mr-1.5" />
-              สมัครในฐานะ
-            </label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {ROLES.map((role, idx) => {
-                const Icon = role.icon;
-                return (
-                  <label
-                    key={role.value}
-                    className="relative flex cursor-pointer flex-col gap-2 overflow-hidden rounded-3xl border-2 border-pink-100 bg-white/80 p-4 text-left transition-all has-[:checked]:border-pink-500 has-[:checked]:bg-pink-50 hover:border-pink-300 hover:bg-pink-50/60"
-                  >
-                    <input
-                      type="radio"
-                      name="role"
-                      value={role.value}
-                      defaultChecked={idx === 0}
-                      onChange={() => setRole(role.value as RegisterRole)}
-                      className="sr-only"
-                    />
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${role.gradient} shadow-sm`}>
-                      <Icon className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-800">{role.title}</p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{role.desc}</p>
-                    </div>
-                    {/* Check indicator */}
-                    <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border-2 border-pink-200 bg-white transition-all has-checked:border-pink-500">
-                      <div className="h-2.5 w-2.5 rounded-full bg-pink-500 opacity-0 [label:has(:checked)_&]:opacity-100" />
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
+          <RoleSelector value={role} onChange={setRole} disabled={isPending} />
 
           <p className="-mt-2 text-xs leading-relaxed text-slate-400">
             💡 มีบัญชีอยู่แล้ว? บทบาทของคุณจะใช้จากบัญชีเดิมโดยอัตโนมัติ (เช่น ผู้ดูแลระบบ) — เลือกบทบาทนี้สำหรับบัญชีใหม่เท่านั้น

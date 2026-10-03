@@ -8,6 +8,7 @@ import { Mail } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from '@/hooks/useFirebase';
+import { ProfileSetupPanel } from '@/components/auth/profile-setup-panel';
 import { getPreferredGoogleSignInMethod, isMobile, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
 import { consumePendingProfileSetup, getPostLoginPath, getPostRegistrationPath, getSafeRedirectPath } from '@/lib/auth/redirects';
 import { classifyPasswordResetError } from '@/lib/auth/password-reset';
@@ -26,6 +27,10 @@ function getAuthErrorMessage(error: unknown) {
     if (error.code === 'auth/user-not-found') return 'ไม่พบบัญชีผู้ใช้นี้';
   }
   if (error instanceof Error) {
+    if (error.message === 'consent_required') return 'กรุณาอ่านและยอมรับข้อตกลงก่อนดำเนินการต่อ';
+    if (error.message === 'profile-read-failed') return 'อ่านข้อมูลผู้ใช้ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+    if (error.message === 'profile-create-failed') return 'สร้างโปรไฟล์ผู้ใช้ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+    if (error.message === 'not_signed_in') return 'เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่อีกครั้ง';
     if (error.name === 'GooglePopupTimeoutError') return error.message;
   }
   return 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองอีกครั้ง';
@@ -45,7 +50,7 @@ function GoogleIcon() {
 
 function LoginFormFields() {
   const router = useRouter();
-  const { user, signIn, signInWithGoogle, signInWithGoogleRedirect, sendPasswordReset, userProfile, loading } = useAuth();
+  const { user, signIn, signInWithGoogle, signInWithGoogleRedirect, sendPasswordReset, userProfile, loading, needsProfileSetup } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [pendingMethod, setPendingMethod] = useState<'email' | 'google' | 'reset' | null>(null);
   const [showResetForm, setShowResetForm] = useState(false);
@@ -58,6 +63,9 @@ function LoginFormFields() {
 
   useEffect(() => {
     if (pendingMethod) return;
+    // ล็อกอิน Firebase ผ่านแล้วแต่ไม่มีโปรไฟล์ — ต้องให้ผู้ใช้กรอกข้อมูลก่อน
+    // ไม่ redirect ทิ้ง ไม่งั้นผู้ใช้จะถูกดีดกลับ /login วนไม่จบ
+    if (needsProfileSetup) return;
     // Once we have a profile, go to the role-based destination.
     if (userProfile) {
       const destination = consumePendingProfileSetup()
@@ -75,7 +83,7 @@ function LoginFormFields() {
       }, 1500);
       return () => clearTimeout(t);
     }
-  }, [pendingMethod, redirectTo, router, user, userProfile, loading]);
+  }, [pendingMethod, redirectTo, router, user, userProfile, loading, needsProfileSetup]);
 
   async function handleEmailLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,9 +95,9 @@ function LoginFormFields() {
       const email = normalizeLoginIdentifier(String(formData.get('email') || ''));
       const password = String(formData.get('password') || '');
       const profile = await signIn(email, password);
-      // signIn already calls setSessionCookie inside useFirebase
-      // fallback = /my-bookings (ปลอดภัยทุก role — /dashboard เป็นหน้าเฉพาะครู)
-      const destination = redirectTo || (profile ? getPostLoginPath(profile.role) : '/my-bookings');
+      // profile = null → ยังไม่มีโปรไฟล์ใน Firestore ให้หน้าจอกรอกข้อมูลต่อ
+      if (!profile) return;
+      const destination = redirectTo || getPostLoginPath(profile.role);
       router.push(destination);
       router.refresh();
     } catch (loginError) {
@@ -110,7 +118,8 @@ function LoginFormFields() {
       }
 
       const profile = await signInWithGoogle();
-      // signInWithGoogle already calls setSessionCookie inside useFirebase
+      // profile = null → ผู้ใช้ยังไม่เคยยอมรับข้อตกลง ให้หน้าจอกรอกข้อมูลต่อ
+      if (!profile) return;
       const destination = redirectTo || getPostLoginPath(profile.role);
       router.push(destination);
       router.refresh();
@@ -155,6 +164,11 @@ function LoginFormFields() {
 
   return (
     <div className="space-y-4">
+      {/* ยืนยันตัวตนผ่านแล้วแต่ไม่มีโปรไฟล์ — ซ่อนฟอร์มล็อกอินไม่ให้สับสน */}
+      {needsProfileSetup ? (
+        <ProfileSetupPanel />
+      ) : (
+        <>
       <form onSubmit={handleEmailLogin} className="form-card p-7 space-y-5">
       {/* Error */}
       {error && (
@@ -299,6 +313,8 @@ function LoginFormFields() {
             กลับเข้าสู่ระบบ
           </button>
         </form>
+      )}
+        </>
       )}
     </div>
   );
