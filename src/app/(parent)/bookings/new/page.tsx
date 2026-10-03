@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { DashboardLayout } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { StudentPicker } from '@/components/booking/student-picker';
+import { RecurringBookingForm } from '@/components/booking/recurring-booking-form';
 import { COLLECTIONS } from '@/types/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { formatCurrency } from '@/lib/utils';
@@ -53,7 +54,7 @@ function formatSlotLabel(date: string, startTime: string, endTime: string): stri
 export default async function NewBookingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ course_id?: string; error?: string }>;
+  searchParams: Promise<{ course_id?: string; error?: string; mode?: string }>;
 }) {
   const db = getServerDb();
   if (!db) return redirect('/login');
@@ -63,6 +64,7 @@ export default async function NewBookingPage({
 
   const params = await searchParams;
   const courseId = params.course_id;
+  const isRecurringMode = params.mode === 'recurring';
 
   if (!courseId) redirect('/explore');
   const resolvedCourseId = String(courseId);
@@ -325,6 +327,21 @@ export default async function NewBookingPage({
 
   return (
     <DashboardLayout title="จองเรียน" navItems={PARENT_NAV_ITEMS} role="parent"      userName={session.displayName || 'ผู้ปกครอง'}>
+      <div className="mb-4 inline-flex rounded-xl border border-pink-100 bg-white/85 p-1 shadow-card">
+        <Link
+          href={`/bookings/new?course_id=${encodeURIComponent(resolvedCourseId)}`}
+          className={`rounded-lg px-4 py-2 text-sm font-bold transition-all ${isRecurringMode ? 'text-slate-500 hover:text-pink-600' : 'bg-pink-500 text-white shadow-sm'}`}
+        >
+          จองครั้งเดียว
+        </Link>
+        <Link
+          href={`/bookings/new?course_id=${encodeURIComponent(resolvedCourseId)}&mode=recurring`}
+          className={`rounded-lg px-4 py-2 text-sm font-bold transition-all ${isRecurringMode ? 'bg-pink-500 text-white shadow-sm' : 'text-slate-500 hover:text-pink-600'}`}
+        >
+          จองแบบสัปดาห์ละครั้ง
+        </Link>
+      </div>
+
       <Card className="mb-6">
         <div className="flex items-start gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-100 to-rose-100 font-bold text-xl text-pink-700">
@@ -340,6 +357,16 @@ export default async function NewBookingPage({
         </div>
       </Card>
 
+      {isRecurringMode ? (
+        <RecurringBookingForm
+          courseId={resolvedCourseId}
+          courseTitle={course.title}
+          pricePerSession={Number(course.pricePerSession) || 0}
+          slots={availableSlots}
+          students={students}
+          errorCode={params.error}
+        />
+      ) : (
       <form action={createBooking} className="space-y-6">
         <Card className="space-y-4">
           <div className="flex items-center justify-between">
@@ -417,6 +444,7 @@ export default async function NewBookingPage({
           </Link>
         </div>
       </form>
+      )}
     </DashboardLayout>
   );
 }

@@ -45,6 +45,7 @@ export async function POST(request: Request) {
   }
 
   // Conflict check across all requested dates in one query batch.
+  const recurringGroup = `${courseId}_${Date.now()}`;
   const created: string[] = [];
   const skipped: { date: string; reason: string }[] = [];
   for (const slot of dates) {
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
       totalPrice: course.pricePerSession,
       notes: typeof body.notes === 'string' ? body.notes.slice(0, 500) : null,
       status: 'pending',
-      recurringGroup: `${courseId}_${Date.now()}`,
+      recurringGroup,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });

@@ -1,26 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getServerDb } from '@/lib/firebase/server';
 import { getSessionUser } from '@/lib/auth/session';
-import { COLLECTIONS } from '@/types/firestore';
-import { FieldValue } from 'firebase-admin/firestore';
 import { checkRateLimit, sweepRateLimitBuckets } from '@/lib/rate-limit';
+import { claimReferral, getReferralSummary } from '@/lib/referrals';
+import { logEvent } from '@/lib/log';
 
-// GET /api/referrals/me — my referral code + reward status.
-// POST /api/referrals/claim { code } — claim a referral at signup/first booking.
+// GET  /api/referrals — โค้ดของฉัน + สถิติคนที่ชวนมา
+// POST /api/referrals { code } — ใช้โค้ดของเพื่อน (ได้ครั้งเดียวต่อคน)
 export async function GET() {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const db = getServerDb();
   if (!db) return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
 
-  const mine = await db.collection('referrals').where('referrerId', '==', session.uid).limit(50).get();
-  const code = `TF-${session.uid.slice(0, 6).toUpperCase()}`;
-  return NextResponse.json({
-    ok: true,
-    code,
-    total: mine.size,
-    rewarded: mine.docs.filter((d: any) => d.data().status === 'rewarded').length,
-  });
+  const summary = await getReferralSummary(db, session.uid);
+  return NextResponse.json({ ok: true, ...summary });
 }
 
 export async function POST(request: Request) {
@@ -41,28 +35,19 @@ export async function POST(request: Request) {
   if (!db) return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
 
   const body = await request.json().catch(() => ({})) as { code?: string };
-  const code = String(body.code || '').trim().toUpperCase().slice(0, 16);
-  if (!code || !code.startsWith('TF-')) return NextResponse.json({ error: 'invalid_code' }, { status: 400 });
-  if (code === `TF-${session.uid.slice(0, 6).toUpperCase()}`) {
-    return NextResponse.json({ error: 'self_referral' }, { status: 400 });
+  const result = await claimReferral(db, {
+    uid: session.uid,
+    email: session.email,
+    code: String(body.code || ''),
+  });
+
+  if (!result.ok) {
+    const status = result.reason === 'already_claimed' ? 409 : 400;
+    return NextResponse.json({ error: result.reason }, { status });
   }
 
-  const existing = await db.collection('referrals')
-    .where('referredEmail', '==', session.email)
-    .limit(1)
-    .get();
-  if (!existing.empty) return NextResponse.json({ error: 'already_claimed' }, { status: 409 });
-
-  const ref = await db.collection('referrals').add({
-    referrerId: code,
-    referredEmail: session.email,
-    referredUid: session.uid,
-    code,
-    status: 'pending',
-    rewardAmount: 100,
-    createdAt: FieldValue.serverTimestamp(),
-  });
-  return NextResponse.json({ ok: true, id: ref.id });
+  logEvent('info', 'referral_claimed', { uid: session.uid });
+  return NextResponse.json({ ok: true, id: result.id, code: result.code });
 }
 
 export const runtime = 'nodejs';

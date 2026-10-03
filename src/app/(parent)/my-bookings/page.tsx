@@ -2,7 +2,7 @@ import { getServerDb } from '@/lib/firebase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { COLLECTIONS } from '@/types/firestore';
-import { BarChart3, CalendarCheck, CalendarDays, ClipboardList, GraduationCap, PenLine, Search, Star } from 'lucide-react';
+import { BarChart3, CalendarCheck, CalendarDays, ClipboardList, Gift, PenLine, Search, Star } from 'lucide-react';
 import { DashboardLayout, StatCard, EmptyState, SectionCard } from '@/components/layout/dashboard';
 import { PARENT_NAV_ITEMS } from '@/components/layout/nav';
 import { BookingStatusBadge } from '@/components/ui/badge';
@@ -112,7 +112,7 @@ export default async function ParentDashboard() {
               { icon: Search, label: 'ค้นหาครู', href: '/explore', gradient: 'from-pink-500 to-rose-600' },
               { icon: CalendarDays, label: 'การจอง', href: '/bookings', gradient: 'from-indigo-500 to-blue-600' },
               { icon: BarChart3, label: 'ผลการเรียน', href: '/progress', gradient: 'from-emerald-500 to-teal-600' },
-              { icon: GraduationCap, label: 'นักเรียนของฉัน', href: '/my-students', gradient: 'from-amber-500 to-orange-500' },
+              { icon: Gift, label: 'ชวนเพื่อน', href: '/referrals', gradient: 'from-amber-500 to-orange-500' },
             ].map((action) => {
               const Icon = action.icon;
               return (

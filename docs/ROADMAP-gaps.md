@@ -13,7 +13,7 @@
 | # | Endpoint | สถานะ | รายละเอียด |
 |---|---|---|---|
 | A1 | `POST /api/bookings/recurring` | **ไม่มี caller** | จองแบบสัปดาห์ละครั้งได้สูงสุด 8 ครั้งในทรานแซกชันเดียว, validate ทุก slot กับตารางครู — พร้อมแล้วแค่ไม่มีปุ่ม |
-| A2 | `GET /api/referrals` + `POST /api/referrals/claim` | **ไม่มี caller** | มี referral code + reward status ครบ แต่ผู้ใช้ไม่มีทางเห็นหรือใช้โค้ดแนะนำ |
+| A2 | `GET /api/referrals` + `POST /api/referrals` | ✅ **เสร็จแล้ว** | หน้า `/referrals` (โค้ดของฉัน + คัดลอก/แชร์ + ใช้โค้ดเพื่อน + สถิติรางวัล) — logic แยกเป็น `src/lib/referrals.ts` + 15 เทสต์ |
 | A3 | `GET /api/admin/ops-snapshot` | ✅ **เสร็จแล้ว** | การ์ด "คิวงานที่ต้องติดตาม" บน `/admin/dashboard` พร้อมระดับความเร่งด่วน 6 คิว + ลิงก์ไปหน้าที่เกี่ยวข้อง — ใช้ `src/lib/admin/ops-queues.ts` ตัวเดียวกับ API และ UAT ขั้น 10 |
 | A4 | `GET /api/coupons/mine` | มีแต่เรียกจาก server | หน้า payments เรียก `ensureFirstBookingCoupon` ตรงแทน → route นี้ยังไม่มีทางเข้า |
 
@@ -52,7 +52,7 @@
 |---|---|---|
 | D1 | **`pnpm test` ไม่ครบ + CI ลืมไฟล์เทสต์ใหม่** | ✅ แก้แล้ว (53 → 101 เทสต์) |
 | D2 | `booking-actions.ts` ไม่มีเทสต์เลย | โค้ดที่ซับซ้อนที่สุดของระบบเงิน (refund/dispute/resolve) ยังไม่มี unit test รองรับ |
-| D3 | E2E ครอบ 7 flow | package / session / payout-slip / reschedule-dispute / wallet / favorites / ops-snapshot — coupons, referrals ยังไม่มี |
+| D3 | E2E ครอบ 7 flow | package / session / payout-slip / reschedule-dispute / wallet / favorites / ops-snapshot — coupons, referrals ยังไม่มี (referrals มี unit test 15 เคสแล้วแต่ยังไม่มี E2E) |
 | D4 | `search.ts` มีเทสต์แค่ 3 เคส | เป็นโค้ดที่ผู้ใช้เรียกทุกครั้งที่เปิด `/explore` ควรมีเทสต์มากกว่านี้ |
 
 ---
@@ -64,7 +64,7 @@
 3. **A1 — ปุ่มจองแบบสัปดาห์ละครั้ง** (ผลกระทบผู้ใช้สูงสุด, API พร้อมแล้ว)
 4. **D2 — เทสต์ `booking-actions.ts`** (โค้ดเงินที่ซับซ้อนที่สุด ยังไม่มีเคราะห์)
 5. **C3 — รายงานภาษี PDF** (ครูต้องใช้จริงในการยื่นภาษี)
-6. **A2 — ระบบ referral ต่อ UI** (มี backend พร้อม)
+6. ✅ ~~A2 — ระบบ referral ต่อ UI~~ **(เสร็จแล้ว)**
 7. **B1 — ย้าย rate limiter ไป shared store** (ก่อน scale จริง)
 8. **C1 — ปุ่ม "ดูเพิ่มเติม"** (งานเล็ก ได้ผลดีหลายหน้า)
 9. **C4 — สรุปแพ็กเกจคงเหลือของผู้ปกครอง**

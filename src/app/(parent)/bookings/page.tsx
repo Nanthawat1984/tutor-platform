@@ -13,11 +13,18 @@ import { CalendarDays, Clock } from 'lucide-react';
 import { requireSessionUser } from '@/lib/auth/session';
 import { requireRole } from '@/lib/auth/guards';
 
-export default async function BookingsPage() {
+export default async function BookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ recurring?: string; count?: string; skipped?: string }>;
+}) {
   const db = getServerDb();
   if (!db) return redirect('/login');
   const session = await requireSessionUser();
   const parentId = session.uid;
+  const params = await searchParams;
+  const recurringCreated = Number(params.count) || 0;
+  const recurringSkipped = Number(params.skipped) || 0;
 
   const bookingsSnap = await db.collection(COLLECTIONS.BOOKINGS)
     .where('parentId', '==', parentId)
@@ -46,6 +53,20 @@ export default async function BookingsPage() {
       role="parent"
       userName={session.displayName || 'ผู้ปกครอง'}
     >
+      {params.recurring === 'created' && recurringCreated > 0 && (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <p className="text-sm font-bold text-emerald-800">
+            ✓ สร้างการจองแบบสัปดาห์ละครั้งแล้ว {recurringCreated} คาบ
+          </p>
+          <p className="mt-1 text-xs text-emerald-700">
+            กรุณาชำระเงินแต่ละคาบด้านล่างเพื่อยืนยันกับครู
+            {recurringSkipped > 0
+              ? ` • มีอีก ${recurringSkipped} คาบที่ช่วงเวลาซ้ำจึงถูกข้าม`
+              : ''}
+          </p>
+        </div>
+      )}
+
       <div>
         <h2 className="mb-4 text-lg font-bold text-slate-900">กำลังจะมาถึง / รอยืนยัน</h2>
         {upcoming.length === 0 ? (
