@@ -6,6 +6,12 @@ const assetDir = path.join(root, 'public', 'line');
 const roles = ['default', 'parent', 'teacher'];
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has('--dry-run');
+// LINE API ไม่มีการอัปเดต definition ใน ID เดิม (PUT /v2/bot/richmenu/{id} → 405)
+// การเปลี่ยน URL ปุ่มจึงต้อง "หมุน" เมนู: สร้างใหม่ + link default ให้ทุกคน แล้วเอา
+// ID ใหม่ไปตั้งใน apphosting.yaml (--replace)
+const replace = args.has('--replace');
+// ผูก role menu ให้ผู้ใช้ที่เชื่อม LINE ไว้แล้ว (อ่านจาก Firestore) — ใช้หลัง --replace
+const reassign = args.has('--reassign');
 const token = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim() || '';
 const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || '';
 const liffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID?.trim() || '';
@@ -56,13 +62,7 @@ async function lineJson(pathname, options = {}) {
 async function createRole(role) {
   const envName = `LINE_RICH_MENU_${role.toUpperCase()}_ID`;
   const existingId = process.env[envName]?.trim();
-  if (existingId) {
-    // ID เดิมมีอยู่แล้ว — อัปเดต definition ที่ ID เดิม (รวม URL ปุ่มที่เปลี่ยน)
-    // ไม่ต้องอัปโหลดรูปใหม่เพราะขนาด canvas ไม่เปลี่ยน ผู้ใช้ที่ผูก role menu ไว้
-    // แล้วได้ URL ใหม่ทันทีโดยไม่ต้อง assign menu ใหม่
-    await lineJson(`/v2/bot/richmenu/${existingId}`, { method: 'PUT', body: JSON.stringify(payload(role)) });
-    return existingId;
-  }
+  if (existingId && !replace) return existingId;
   const created = await lineJson('/v2/bot/richmenu', { method: 'POST', body: JSON.stringify(payload(role)) });
   const image = fs.readFileSync(path.join(assetDir, `rich-menu-${role}.png`));
   const upload = await fetch(`https://api-data.line.me/v2/bot/richmenu/${created.richMenuId}/content`, {
@@ -72,6 +72,39 @@ async function createRole(role) {
   });
   if (!upload.ok) throw new Error(`LINE Rich Menu image upload failed (${upload.status})`);
   return created.richMenuId;
+}
+
+async function reassignRoleMenus(ids) {
+  // ผู้ใช้ที่เชื่อม LINE ไว้แล้วถือ role menu ของ ID เก่า — ต้องผูกใหม่ให้ตรงบทบาท
+  const admin = require('firebase-admin');
+  const projectId = process.env.ADMIN_FIREBASE_PROJECT_ID?.trim() || 'tutor-platform-4e38f';
+  const clientEmail = process.env.ADMIN_FIREBASE_CLIENT_EMAIL?.trim() || '';
+  const privateKey = (process.env.ADMIN_FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+  if (!clientEmail || !privateKey) {
+    throw new Error('--reassign requires ADMIN_FIREBASE_CLIENT_EMAIL and ADMIN_FIREBASE_PRIVATE_KEY');
+  }
+  const app = admin.initializeApp({
+    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+  });
+  const db = admin.getFirestore(app, 'tutor');
+  const snap = await db.collection('users').where('lineUserId', '!=', null).get();
+  let linked = 0;
+  for (const doc of snap.docs) {
+    const { lineUserId, role } = doc.data();
+    const menuId = role === 'parent' ? ids.parent : role === 'teacher' ? ids.teacher : '';
+    if (!menuId || !lineUserId) continue;
+    const response = await fetch(
+      `https://api.line.me/v2/bot/user/${encodeURIComponent(lineUserId)}/richmenu/${encodeURIComponent(menuId)}`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) {
+      console.error(`reassign failed (role=${role}): HTTP ${response.status}`);
+      continue;
+    }
+    linked += 1;
+  }
+  await app.delete().catch(() => {});
+  console.log(JSON.stringify({ reassigned: linked }, null, 2));
 }
 
 async function main() {
@@ -91,6 +124,10 @@ async function main() {
     if (!response.ok) throw new Error(`LINE default Rich Menu assignment failed (${response.status})`);
   });
   console.log(JSON.stringify({ richMenuIds: ids }, null, 2));
+  if (reassign) await reassignRoleMenus(ids);
+  if (replace) {
+    console.log('next: put the new IDs in apphosting.yaml (LINE_RICH_MENU_*_ID) and redeploy');
+  }
 }
 
 main().catch((error) => {

@@ -118,18 +118,20 @@ env:
     availability:
       - RUNTIME
 
+  # หมุนเมนู 6 ต.ค. 2026 — URL ปุ่มทุก tile เปลี่ยนเป็น LIFF (liff.line.me/{id}{path})
+  # ให้ session cookie อยู่ครบทุกเมนู (LINE API ไม่มีการอัปเดต definition ใน ID เดิม)
   - variable: LINE_RICH_MENU_DEFAULT_ID
-    value: richmenu-3cf9c5f04f576556101124a588c76403
+    value: richmenu-09cac7a58ec6df0c740eaabea7d20497
     availability:
       - RUNTIME
 
   - variable: LINE_RICH_MENU_PARENT_ID
-    value: richmenu-f522652d3b42c6d7bba0f4dab52cccd4
+    value: richmenu-812e4ed23c956d5b3e6c70822f8c4740
     availability:
       - RUNTIME
 
   - variable: LINE_RICH_MENU_TEACHER_ID
-    value: richmenu-4685b7b1ac110fa14f644388256edff9
+    value: richmenu-c9d724470cce8c56c8dc713fd148308a
     availability:
       - RUNTIME
 
