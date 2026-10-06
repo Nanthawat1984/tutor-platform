@@ -7,8 +7,13 @@
 // อ้างอิง: Opening a LIFF app → Behaviors from accessing the LIFF URL to opening
 // the LIFF app (developers.line.biz)
 //
-// ถ้าไม่มีใครเรียก liff.init() ที่ primary redirect ผู้ใช้จะค้างอยู่ที่หน้า
+// ถ้าไม่มีใครย้ายผู้ใช้จาก primary redirect ไปหน้าจริง ผู้ใช้จะค้างอยู่ที่หน้า
 // Endpoint URL ทุกครั้งที่กดเมนู (บั๊กจริง 6 ต.ค. 2026 — ทุก tile พาไปหน้า /my-profile)
+//
+// แนวทางของแอป: อ่านค่า `liff.state` เองแล้ว redirect ที่ฝั่ง server (middleware)
+// แทนการปล่อยให้ LIFF SDK ย้ายหน้า เพราะ SDK จะต่อ path เข้ากับ Endpoint URL
+// (endpoint `/my-profile` + `/payments` = `/my-profile/payments` → 404) — ค่าใน
+// `liff.state` คือ path จริงที่ผู้ใช้กด จึงใช้ได้ไม่ว่า Console จะตั้ง Endpoint เป็นอะไร
 
 /**
  * อ่าน path เป้าหมายจาก `liff.state`
@@ -22,20 +27,25 @@ export function getLiffStatePath(search: string): string | null {
   // `//host` และ `/\host` ถูกเบราว์เซอร์ตีความเป็น URL ข้ามโดเมนได้
   if (path.startsWith('//') || path.startsWith('/\\')) return null;
   if (/[\\\r\n]/.test(path)) return null;
+  // เป้าหมายที่ยังมี liff.state อยู่ใน query จะทำให้ redirect วนซ้ำได้ — ปฏิเสธ
+  if (path.includes('liff.state')) return null;
   return path;
 }
 
 /**
- * หน้านี้คือ primary redirect ของ LIFF และต้องส่งต่อไปหน้าเมนูที่ผู้ใช้กดหรือไม่
+ * path ที่ต้อง redirect ทันทีฝั่ง server เมื่อ LIFF พามาที่ primary redirect
+ * คืน null เมื่อไม่ควร redirect (ไม่มีค่า / เป็น URL ข้ามโดเมน / มี auth response
+ * ของ LINE ที่ต้องให้ liff.init() แลกก่อน)
  *
- * primary redirect คือ Endpoint URL ที่ตั้งใน Console — ถ้าตั้งเป็น domain root
- * (`https://host/`) หน้าแรกที่เจอจะเป็น `/` เสมอ และ secondary redirect จะลงที่
- * หน้าเมนูที่กดพอดี แต่ถ้า Endpoint ยังชี้ไปหน้าอื่น (เช่น `/my-profile`) โค้ดของ
- * LIFF จะต่อ path เข้าด้วยกันได้ URL ผิด (เช่น `/my-profile/my-bookings` → 404)
- * จึงต้องปล่อยหน้านั้นไว้ตามเดิม ห้าม init/redirect ที่นี่
+ * เหตุผลที่อ่านค่าจาก `liff.state` เอง แทนที่จะให้ LIFF SDK ย้ายหน้า: LIFF จะต่อ path
+ * เข้ากับ Endpoint URL ใน Console (เช่น endpoint `/my-profile` + `/payments`
+ * = `/my-profile/payments` ที่ไม่มีหน้านี้) — ค่าใน `liff.state` คือ path จริง
+ * ที่ผู้ใช้กดจึงตรงกว่าและใช้ได้ไม่ว่า Endpoint จะตั้งเป็นอะไร
  */
-export function isLiffPrimaryRedirect(search: string, pathname: string): boolean {
-  return pathname === '/' && getLiffStatePath(search) !== null;
+export function getLiffStateRedirect(search: string): string | null {
+  // auth code/token ต้องถูกแลกด้วย liff.init() ก่อน — ห้าม redirect ทิ้ง
+  if (hasLineAuthResponse(search, '')) return null;
+  return getLiffStatePath(search);
 }
 
 const AUTH_RESPONSE_PARAMS = ['code', 'error', 'id_token', 'access_token'] as const;

@@ -1,73 +1,56 @@
 'use client';
 
-// ส่งผู้ใช้จาก primary redirect ของ LIFF ไปหน้าเมนูที่กดจริง
+// ตาข่ายนิรภัยสำหรับส่งผู้ใช้จาก primary redirect ของ LIFF ไปหน้าเมนูที่กดจริง
 //
-// Rich Menu ทุก tile เปิดผ่าน https://liff.line.me/{liffId}{path} แต่ LIFF จะพามา
-// ที่ Endpoint URL (domain root) ก่อนพร้อมค่า path จริงใน `liff.state` แล้วจะย้าย
-// ไปหน้าจริงก็ต่อเมื่อมีการเรียก `liff.init()` เท่านั้น (ดูรายละเอียดใน
-// src/lib/line/liff-state.ts) — ถ้าไม่มีใครเรียก ผู้ใช้จะค้างอยู่หน้าแรก
-// หรือหน้า Endpoint ทุกครั้งที่กดเมนู
+// กรณีปกติ `middleware` จัดการไปแล้วที่ฝั่ง server — component นี้เหลือหน้าที่สองอย่าง:
+//   1) เผื่อ URL หลุดจาก matcher ของ middleware ยังไปหน้าเป้าหมายได้
+//   2) เคสเดียวที่ server ห้ามแตะ: LIFF ส่ง auth code กลับมาพร้อม `liff.state`
+//      ซึ่งต้องให้ `liff.init()` แลกก่อนแล้วจึงย้ายหน้า
 //
-// mount ไว้ใน root layout (ตัวแรกสุด) เพื่อให้ทำงานก่อนหน้าอื่นแก้ URL
+// สำคัญ: ห้ามปล่อยให้ LIFF SDK เป็นคนย้ายหน้า เพราะ SDK ต่อ path เข้ากับ
+// Endpoint URL ใน Console (เช่น endpoint `/my-profile` + `/payments`
+// = `/my-profile/payments` ที่ไม่มีหน้านี้) — ค่าใน `liff.state` คือ path จริงที่กด
 
 import { useEffect } from 'react';
-import {
-  getLiffStatePath,
-  hasLineAuthResponse,
-  isLiffPrimaryRedirect,
-} from '@/lib/line/liff-state';
+import { getLiffStatePath, hasLineAuthResponse } from '@/lib/line/liff-state';
 
-// กันไม่ให้ init ซ้ำเมื่อ effect รันหลายครั้ง (เช่น React strict mode)
+// กันไม่ให้ทำงานซ้ำเมื่อ effect รันหลายครั้ง (เช่น React strict mode)
 let started = false;
-
-/** เผื่อ init ค้างโดยไม่ยอมย้ายหน้า — ถ้าครบเวลายังอยู่ที่เดิมให้ไปเอง */
-const FALLBACK_DELAY_MS = 4000;
 
 export function LiffStateRedirect() {
   useEffect(() => {
-    const { search, pathname, hash } = window.location;
-    if (!isLiffPrimaryRedirect(search, pathname)) return;
-
+    const { search, hash } = window.location;
     const target = getLiffStatePath(search);
     if (!target || started) return;
     started = true;
 
-    // LINE เพิ่งส่ง code/token กลับมาหลัง liff.login() — ต้องให้ liff.init() แลก
-    // token ก่อนเสมอ ห้ามรีบเปลี่ยนหน้าเอง และห้ามตั้ง timeout เด้ง เพราะอาจไป
-    // ขัดจังหวะ exchange ที่กำลังทำงานบน network ช้า
-    const authPending = hasLineAuthResponse(search, hash);
-    const stillPending = () => window.location.search.includes('liff.state');
-    const fallback = () => {
-      if (stillPending()) window.location.replace(target);
-    };
-
-    const liffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID?.trim() || '';
-    if (!liffId) {
-      fallback();
+    if (!hasLineAuthResponse(search, hash)) {
+      window.location.replace(target);
       return;
     }
 
-    let timer: number | undefined;
-    if (!authPending) {
-      timer = window.setTimeout(fallback, FALLBACK_DELAY_MS);
-    }
-    const clearTimer = () => {
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
+    // มี auth code ของ LINE ใน URL — ลบ `liff.state` ก่อน init เพื่อกันไม่ให้
+    // LIFF SDK ย้ายหน้าไป URL ที่ต่อ path กับ Endpoint แล้วค่อยไปหน้าเป้าหมายเอง
+    const params = new URLSearchParams(search);
+    params.delete('liff.state');
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}${hash}`,
+    );
 
     void (async () => {
       try {
-        const { default: liff } = await import('@line/liff');
-        await liff.init({ liffId });
-        // init สำเร็จแต่ไม่ย้ายหน้า (ไม่มี context ให้คำนวณ secondary redirect)
-        clearTimer();
-        fallback();
+        const liffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID?.trim() || '';
+        if (liffId) {
+          const { default: liff } = await import('@line/liff');
+          await liff.init({ liffId });
+        }
       } catch {
-        // ไม่ได้อยู่ใน LIFF browser / init ล้มเหลว — ไปหน้าเป้าหมายเอง
-        // (code ที่แลกไม่ได้ก็ไร้ประโยชน์อยู่แล้ว จึงไม่เสียอะไร)
-        clearTimer();
-        fallback();
+        // แลก token ไม่สำเร็จ — ยังไงก็ไปหน้าที่ผู้ใช้กดดีกว่าค้างไว้
       }
+      window.location.replace(target);
     })();
   }, []);
 

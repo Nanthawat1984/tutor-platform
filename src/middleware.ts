@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getLiffStateRedirect } from '@/lib/line/liff-state';
 
 // IMPORTANT: Firebase Hosting strips ALL cookies from incoming requests
 // EXCEPT the specially-named `__session` cookie. Using any other name means
@@ -29,6 +30,15 @@ const PROTECTED_ROUTES = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ลิงก์จาก LINE OA (Rich Menu ทุก tile) จะผ่าน primary redirect ของ LIFF มาก่อน
+  // พร้อม path จริงที่ผู้ใช้กดอยู่ใน `liff.state` — ย้ายไปหน้านั้นทันทีที่ฝั่ง server
+  // (ไม่ต้องรอ JS hydrate) และใช้ได้ไม่ว่า Endpoint URL ใน Console จะตั้งเป็นอะไร
+  const liffTarget = getLiffStateRedirect(request.nextUrl.search);
+  if (liffTarget) {
+    return NextResponse.redirect(new URL(liffTarget, request.url));
+  }
+
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const isLoggedIn = Boolean(sessionToken);
 

@@ -48,21 +48,21 @@ curl -s "https://liff.line.me/{liffId}/my-bookings" | grep liffFullUrlForBrowser
    ได้ `https://tutorfinder.pilotai.space/my-profile/my-bookings` (ไม่มีหน้านี้ → 404)
    ทดสอบจริงแล้ว: secondary redirect ที่ได้ตอนนี้คือ `/my-profile/{เมนูที่กด}`
 
-สิ่งที่ต้องทำให้ครบ (อันดับแรกทำใน Console ก่อน — ไม่มี API ให้สั่ง):
+แนวทางแก้ฝั่งโค้ด (ใช้งานแล้ว): **middleware อ่าน `liff.state` เองแล้ว redirect
+ไปหน้าที่กดทันทีที่ฝั่ง server** (`getLiffStateRedirect` ใน `src/lib/line/liff-state.ts`)
+จึงใช้ได้ไม่ว่า Endpoint ใน Console จะตั้งเป็นอะไร และไม่ปล่อยให้ LIFF SDK ต่อ path
+เป็น `/my-profile/{เมนู}` (404) — เคสที่มี auth code ของ LINE ปะปน ให้
+`LiffStateRedirect` (root layout) เรียก `liff.init()` แลกก่อนแล้วจึงย้ายหน้า
+มีเทสต์ครอบ 5 เคส (รวม open redirect และ redirect วนซ้ำ)
 
-1. LINE Developers Console → LINE Login channel → LIFF → ตั้ง **Endpoint URL =
-   `https://tutorfinder.pilotai.space/`** (domain root) — หลังตั้ง secondary redirect
-   จะเป็น `https://tutorfinder.pilotai.space/{เมนูที่กด}` พอดี
-2. deploy โค้ดที่มี `LiffStateRedirect` (`src/components/line/liff-state-redirect.tsx`
-   mount ไว้ใน root layout) — ตัวนี้เรียก `liff.init()` ที่ primary redirect
-   (อ่าน/ตรวจ `liff.state` ใน `src/lib/line/liff-state.ts` มีเทสต์ 4 เคส)
-   และ fallback ด้วย `location.replace` เองถ้า init ล้มเหลว
+ยังแนะนำให้ตั้ง **Endpoint URL = `https://tutorfinder.pilotai.space/`** ใน
+LINE Developers Console ตามเอกสาร LINE (กันคำเตือน `liff.init()` ว่า URL ไม่อยู่
+ใต้ endpoint) แต่เมนูไม่ได้ผูกกับการตั้งค่านี้อีกต่อไป
 
-ตรวจซ้ำหลังตั้งค่า — คำสั่งแรกต้องได้ `?liff.state=%2Fpayments` บน domain root
-(ไม่ใช่ `/my-profile?...`):
+ตรวจซ้ำด้วยคำสั่งนี้ — ต้องชี้ไป `/payments` เสมอ:
 
 ```bash
-curl -s "https://liff.line.me/{liffId}/payments" | grep liffFullUrlForBrowser
+curl -sI "https://tutorfinder.pilotai.space/my-profile?liff.state=%2Fpayments" | grep -i location
 ```
 
 ## Rollback (ปิดกลับทันที)
