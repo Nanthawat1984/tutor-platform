@@ -9,6 +9,7 @@ import {
   onIdTokenChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithCustomToken,
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
@@ -169,6 +170,8 @@ interface AuthContextType {
   /** ล็อกอินผ่าน Firebase แล้วแต่ยังไม่มีโปรไฟล์ใน Firestore — ต้องให้ผู้ใช้กรอกบทบาท + ยอมรับข้อตกลงก่อน */
   needsProfileSetup: boolean;
   signIn: (email: string, password: string) => Promise<User | null>;
+  /** เข้าสู่ระบบด้วยบัญชี LINE (สำหรับเบราว์เซอร์ในแอป LINE ที่ Google popup ใช้ไม่ได้) */
+  signInWithLine: () => Promise<User | null>;
   signUp: (email: string, password: string, fullName: string, role: AuthRole, consent: RegistrationConsent) => Promise<void>;
   signInWithGoogle: (role?: AuthRole, consent?: RegistrationConsent) => Promise<User | null>;
   signInWithGoogleRedirect: (role?: AuthRole, consent?: RegistrationConsent) => Promise<void>;
@@ -281,6 +284,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
+   * เข้าสู่ระบบด้วย LIFF ID token — ใช้เมื่อเปิดแอปในเบราว์เซอร์ในแอป LINE
+   * เซิร์ฟเวอร์ตรวจ token กับ LINE แล้วออก custom token ของบัญชีที่ผูกไว้
+   * คืน null เมื่อกำลังพาไปหน้า login ของ LINE (หน้าจะ reload กลับมาเอง)
+   */
+  const signInWithLine = useCallback(async (): Promise<User | null> => {
+    const liffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID?.trim() || '';
+    const { getLiffIdToken } = await import('@/lib/line/liff-auth');
+    const idToken = await getLiffIdToken(liffId);
+    // กำลัง redirect ไปหน้า login ของ LINE — หน้าจะถูก reload กลับมา ไม่ต้องทำอะไรต่อ
+    if (!idToken) return null;
+
+    const response = await fetch('/api/line/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    const data = await response.json().catch(() => ({})) as { customToken?: string; error?: string };
+    if (!response.ok || !data.customToken) {
+      throw new Error(data.error || 'line_signin_failed');
+    }
+
+    const cred = await signInWithCustomToken(getFirebaseAuth(), data.customToken);
+    await setSessionCookie(cred.user);
+    const profile = await fetchUserProfile(cred.user);
+    setUserProfile(profile);
+    return profile;
+  }, []);
+
+  /**
    * สร้างโปรไฟล์ให้ผู้ใช้ที่ล็อกอินผ่าน Firebase แล้วแต่ยังไม่มีเอกสารใน Firestore
    * เรียกหลังผู้ใช้เลือกบทบาทและยอมรับข้อตกลงผู้ใช้บริการแล้วเท่านั้น
    */
@@ -370,7 +402,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, needsProfileSetup, signIn, signUp, signInWithGoogle, signInWithGoogleRedirect, completeProfileSetup, sendPasswordReset, logout }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, needsProfileSetup, signIn, signInWithLine, signUp, signInWithGoogle, signInWithGoogleRedirect, completeProfileSetup, sendPasswordReset, logout }}>
       {children}
     </AuthContext.Provider>
   );

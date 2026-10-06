@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from '@/hooks/useFirebase';
 import { ProfileSetupPanel } from '@/components/auth/profile-setup-panel';
 import { getPreferredGoogleSignInMethod, isMobile, shouldFallbackToGoogleRedirect } from '@/lib/auth/google';
+import { isLineWebview } from '@/lib/line/liff-client';
 import { consumePendingProfileSetup, getPostLoginPath, getPostRegistrationPath, getSafeRedirectPath } from '@/lib/auth/redirects';
 import { classifyPasswordResetError } from '@/lib/auth/password-reset';
 import { normalizeLoginIdentifier } from '@/lib/auth/admin-login';
@@ -28,6 +29,9 @@ function getAuthErrorMessage(error: unknown) {
   }
   if (error instanceof Error) {
     if (error.message === 'consent_required') return 'กรุณาอ่านและยอมรับข้อตกลงก่อนดำเนินการต่อ';
+    if (error.message === 'line_not_linked') return 'บัญชี LINE นี้ยังไม่ได้เชื่อมกับ TutorPlatform — เปิดแอปใน Chrome/Safari เข้าสู่ระบบแล้วกดเชื่อมต่อ LINE ในหน้าโปรไฟล์ก่อน';
+    if (error.message === 'line_signin_failed' || error.message === 'line_verification_failed') return 'เข้าสู่ระบบด้วย LINE ไม่สำเร็จ กรุณาลองอีกครั้ง';
+    if (error.message === 'ยังไม่ได้ตั้งค่า LIFF ID' || error.message === 'LIFF ใช้ได้เฉพาะในเบราว์เซอร์ของ LINE') return error.message;
     if (error.message === 'profile-read-failed') return 'อ่านข้อมูลผู้ใช้ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
     if (error.message === 'profile-create-failed') return 'สร้างโปรไฟล์ผู้ใช้ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
     if (error.message === 'not_signed_in') return 'เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่อีกครั้ง';
@@ -50,9 +54,10 @@ function GoogleIcon() {
 
 function LoginFormFields() {
   const router = useRouter();
-  const { user, signIn, signInWithGoogle, signInWithGoogleRedirect, sendPasswordReset, userProfile, loading, needsProfileSetup } = useAuth();
+  const { user, signIn, signInWithLine, signInWithGoogle, signInWithGoogleRedirect, sendPasswordReset, userProfile, loading, needsProfileSetup } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [pendingMethod, setPendingMethod] = useState<'email' | 'google' | 'reset' | null>(null);
+  const [pendingMethod, setPendingMethod] = useState<'email' | 'google' | 'line' | 'reset' | null>(null);
+  const [inLineWebview, setInLineWebview] = useState(false);
   const [showResetForm, setShowResetForm] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetStatus, setResetStatus] = useState<'idle' | 'sent' | 'invalid_email' | 'rate_limited' | 'failed'>('idle');
@@ -60,6 +65,11 @@ function LoginFormFields() {
   // Get redirect parameter from URL (set by middleware when accessing protected routes)
   const searchParams = useSearchParams();
   const redirectTo = getSafeRedirectPath(searchParams?.get('redirect'));
+
+  // ในเบราว์เซอร์ของ LINE Google popup ถูกบล็อก — ซ่อนปุ่ม Google แล้วเสนอ LINE แทน
+  useEffect(() => {
+    setInLineWebview(isLineWebview());
+  }, []);
 
   useEffect(() => {
     if (pendingMethod) return;
@@ -96,6 +106,24 @@ function LoginFormFields() {
       const password = String(formData.get('password') || '');
       const profile = await signIn(email, password);
       // profile = null → ยังไม่มีโปรไฟล์ใน Firestore ให้หน้าจอกรอกข้อมูลต่อ
+      if (!profile) return;
+      const destination = redirectTo || getPostLoginPath(profile.role);
+      router.push(destination);
+      router.refresh();
+    } catch (loginError) {
+      setError(getAuthErrorMessage(loginError));
+    } finally {
+      setPendingMethod(null);
+    }
+  }
+
+  async function handleLineLogin() {
+    setError(null);
+    setPendingMethod('line');
+
+    try {
+      const profile = await signInWithLine();
+      // กำลังพาไปหน้า login ของ LINE — หน้าจะถูก reload กลับมาเอง
       if (!profile) return;
       const destination = redirectTo || getPostLoginPath(profile.role);
       router.push(destination);
@@ -177,10 +205,32 @@ function LoginFormFields() {
         </div>
       )}
 
+      {/* LINE Sign-in — เฉพาะในเบราว์เซอร์ในแอป LINE ที่ Google popup ใช้ไม่ได้ */}
+      {inLineWebview && (
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={handleLineLogin}
+          className="relative flex min-h-[48px] w-full items-center justify-center gap-3 rounded-xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all hover:brightness-105 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {pendingMethod === 'line' ? (
+            <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+          ) : (
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.252 1.058.577.121.301.079.773.038 1.077l-.171 1.027c-.053.301-.241 1.186.511.648 3.047-2.013 4.384-3.323 6.6-5.651 1.212-1.254 2.023-2.5 2.023-5.186z" />
+            </svg>
+          )}
+          เข้าสู่ระบบด้วย LINE
+        </button>
+      )}
+
       {/* Google Button */}
       <button
         type="button"
-        disabled={isPending}
+        disabled={isPending || inLineWebview}
         onClick={handleGoogleLogin}
         className="relative flex min-h-[48px] w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:-translate-y-0.5 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
       >
@@ -194,6 +244,12 @@ function LoginFormFields() {
         )}
         เข้าสู่ระบบด้วย Google
       </button>
+
+      {inLineWebview && (
+        <p className="text-center text-xs text-slate-500">
+          เปิดจาก LINE อยู่ — Google เข้าสู่ระบบไม่ได้ในหน้าต่างนี้ ใช้ปุ่ม LINE ด้านบน หรือเปิดลิงก์ใน Chrome/Safari
+        </p>
+      )}
 
       {/* Divider */}
       <div className="flex items-center gap-3">
