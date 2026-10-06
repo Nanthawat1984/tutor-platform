@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { SITE_URL } from '@/lib/seo/site';
 import ServiceWorkerRegister from '@/components/pwa/sw-register';
+import { LiffStateRedirect } from '@/components/line/liff-state-redirect';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -59,6 +60,9 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <ServiceWorkerRegister />
+        {/* ตัวแรกสุด: ส่งผู้ใช้จาก primary redirect ของ LIFF ไปหน้าเมนูที่กด
+            (ต้องทำงานก่อนหน้าอื่นแตะ URL) */}
+        <LiffStateRedirect />
         {children}
       </body>
     </html>

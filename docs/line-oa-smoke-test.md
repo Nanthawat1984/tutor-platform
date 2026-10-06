@@ -27,6 +27,44 @@ login ใหม่ทุกครั้งที่กด (บั๊กที่
 หลังแก้ URL ของเมนูใน repo ให้รัน `node scripts/setup-line-rich-menus.cjs`
 — script จะ `PUT` อัปเดต definition ที่ ID เดิมใน env ทันที (ไม่ต้องลบ/สร้างเมนูใหม่)
 
+### ผลตรวจสอบ 6 ต.ค. 2026 — Endpoint URL ใน Console ยังไม่ได้ตั้งเป็น domain root
+
+ตรวจได้จากภายนอกไม่ต้องใช้ token:
+
+```bash
+curl -s "https://liff.line.me/{liffId}/my-bookings" | grep liffFullUrlForBrowser
+# ได้ https://tutorfinder.pilotai.space/my-profile?liff.state=%2Fmy-bookings
+```
+
+สองข้อเท็จจริงที่ได้จากผลตรวจนี้ (ยืนยันด้วย LIFF SDK 2.31.1 ในเครื่อง):
+
+1. **Endpoint URL ยังเป็น `https://tutorfinder.pilotai.space/my-profile`** — LIFF จะพามา
+   ที่หน้านี้ก่อน (primary redirect) ทุก tile ทุกเมนู จึงเห็นหน้า `/my-profile`
+   (หน้าเชื่อมต่อ/โปรไฟล์) ทุกครั้งที่กด ส่วน path จริงที่ผู้ใช้กดถูกยัดไว้ใน
+   `liff.state` แล้วทิ้งไว้เฉย ๆ
+2. **การย้ายไปหน้าจริง (secondary redirect) เกิดเฉพาะตอนเรียก `liff.init()` เท่านั้น**
+   โค้ดเดิมไม่มีใครเรียกที่ primary redirect → ผู้ใช้จึงค้างอยู่หน้า endpoint
+   และถ้าเรียก init โดย endpoint ยังชี้ `/my-profile` LIFF จะต่อ path เข้าด้วยกัน
+   ได้ `https://tutorfinder.pilotai.space/my-profile/my-bookings` (ไม่มีหน้านี้ → 404)
+   ทดสอบจริงแล้ว: secondary redirect ที่ได้ตอนนี้คือ `/my-profile/{เมนูที่กด}`
+
+สิ่งที่ต้องทำให้ครบ (อันดับแรกทำใน Console ก่อน — ไม่มี API ให้สั่ง):
+
+1. LINE Developers Console → LINE Login channel → LIFF → ตั้ง **Endpoint URL =
+   `https://tutorfinder.pilotai.space/`** (domain root) — หลังตั้ง secondary redirect
+   จะเป็น `https://tutorfinder.pilotai.space/{เมนูที่กด}` พอดี
+2. deploy โค้ดที่มี `LiffStateRedirect` (`src/components/line/liff-state-redirect.tsx`
+   mount ไว้ใน root layout) — ตัวนี้เรียก `liff.init()` ที่ primary redirect
+   (อ่าน/ตรวจ `liff.state` ใน `src/lib/line/liff-state.ts` มีเทสต์ 4 เคส)
+   และ fallback ด้วย `location.replace` เองถ้า init ล้มเหลว
+
+ตรวจซ้ำหลังตั้งค่า — คำสั่งแรกต้องได้ `?liff.state=%2Fpayments` บน domain root
+(ไม่ใช่ `/my-profile?...`):
+
+```bash
+curl -s "https://liff.line.me/{liffId}/payments" | grep liffFullUrlForBrowser
+```
+
 ## Rollback (ปิดกลับทันที)
 
 แก้ทั้งสองตัวใน `apphosting.yaml` เป็น `"false"` แล้ว deploy — ใช้เวลาราว 3–5 นาที

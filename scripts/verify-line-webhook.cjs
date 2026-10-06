@@ -16,5 +16,6 @@ assert(source.includes("res.status(401).send('Invalid signature')"), 'Webhook mu
 assert(source.includes("event.type === 'follow'"), 'Webhook must handle follow onboarding');
 assert(!source.includes('functions.config().line?.channel_token'), 'Webhook must not use the legacy direct token path');
 assert(setup.includes('--dry-run'), 'Rich Menu setup must support dry-run');
-assert(setup.includes("'Content-Type': 'image/png'"), 'Rich Menu setup must upload PNG assets');
+assert(setup.includes("'Content-Type': 'image/jpeg'"), 'Rich Menu setup must upload JPEG assets (LINE caps rich menu images at 1MB)');
+assert(setup.includes('.jpg'), 'Rich Menu setup must read the generated JPEG assets');
 console.log('LINE webhook and Rich Menu checks passed');

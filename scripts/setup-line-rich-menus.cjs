@@ -31,7 +31,7 @@ function requireInputs() {
   if (!appUrl) throw new Error('NEXT_PUBLIC_APP_URL is required');
   if (!liffId) throw new Error('NEXT_PUBLIC_LINE_LIFF_ID is required');
   for (const role of roles) {
-    const image = path.join(assetDir, `rich-menu-${role}.png`);
+    const image = path.join(assetDir, `rich-menu-${role}.jpg`);
     if (!fs.existsSync(image)) throw new Error(`Missing Rich Menu image: ${image}`);
   }
   if (!dryRun && !token) throw new Error('LINE_CHANNEL_ACCESS_TOKEN is required unless --dry-run is used');
@@ -64,10 +64,13 @@ async function createRole(role) {
   const existingId = process.env[envName]?.trim();
   if (existingId && !replace) return existingId;
   const created = await lineJson('/v2/bot/richmenu', { method: 'POST', body: JSON.stringify(payload(role)) });
-  const image = fs.readFileSync(path.join(assetDir, `rich-menu-${role}.png`));
+  // JPEG เพราะ LINE จำกัดรูปเมนูไม่เกิน 1MB — PNG ของดีไซน์นี้หนัก ~1.7MB
+  // (ภาพถูกสร้างโดย scripts/build-line-rich-menu-assets.cjs ซึ่งบีบ ≤950KB ให้แล้ว)
+  const image = fs.readFileSync(path.join(assetDir, `rich-menu-${role}.jpg`));
+  if (image.length > 1_000_000) throw new Error(`Rich Menu image too large: rich-menu-${role}.jpg`);
   const upload = await fetch(`https://api-data.line.me/v2/bot/richmenu/${created.richMenuId}/content`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/png' },
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' },
     body: image,
   });
   if (!upload.ok) throw new Error(`LINE Rich Menu image upload failed (${upload.status})`);
@@ -76,17 +79,19 @@ async function createRole(role) {
 
 async function reassignRoleMenus(ids) {
   // ผู้ใช้ที่เชื่อม LINE ไว้แล้วถือ role menu ของ ID เก่า — ต้องผูกใหม่ให้ตรงบทบาท
-  const admin = require('firebase-admin');
+  // (firebase-admin v13 ต้อง import จาก subpath — admin.getFirestore ที่ root ไม่มีแล้ว)
+  const { initializeApp, cert, deleteApp } = require('firebase-admin/app');
+  const { getFirestore } = require('firebase-admin/firestore');
   const projectId = process.env.ADMIN_FIREBASE_PROJECT_ID?.trim() || 'tutor-platform-4e38f';
   const clientEmail = process.env.ADMIN_FIREBASE_CLIENT_EMAIL?.trim() || '';
   const privateKey = (process.env.ADMIN_FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
   if (!clientEmail || !privateKey) {
     throw new Error('--reassign requires ADMIN_FIREBASE_CLIENT_EMAIL and ADMIN_FIREBASE_PRIVATE_KEY');
   }
-  const app = admin.initializeApp({
-    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+  const app = initializeApp({
+    credential: cert({ projectId, clientEmail, privateKey }),
   });
-  const db = admin.getFirestore(app, 'tutor');
+  const db = getFirestore(app, 'tutor');
   const snap = await db.collection('users').where('lineUserId', '!=', null).get();
   let linked = 0;
   for (const doc of snap.docs) {
@@ -103,7 +108,7 @@ async function reassignRoleMenus(ids) {
     }
     linked += 1;
   }
-  await app.delete().catch(() => {});
+  await deleteApp(app).catch(() => {});
   console.log(JSON.stringify({ reassigned: linked }, null, 2));
 }
 
