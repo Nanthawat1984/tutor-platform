@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FirebaseError } from 'firebase/app';
@@ -70,6 +70,23 @@ function LoginFormFields() {
   useEffect(() => {
     setInLineWebview(isLineWebview());
   }, []);
+
+  // เดิมทีเปิดจาก Rich Menu/LIFF แล้ว session หมดอายุจะโดนดีดมาหน้านี้แล้วต้องกดใหม่เอง
+  // → เข้าสู่ระบบด้วย LINE ให้เอง เพื่อให้ทุกเมนูใน LINE OA ใช้งานต่อเนื่องไม่สะดุด
+  // (กัน loop: ถ้าเพิ่งพยายามไปไม่นาน ให้ผู้ใช้กดเองแทน)
+  const autoLineSignInRef = useRef(false);
+  useEffect(() => {
+    if (!inLineWebview || autoLineSignInRef.current) return;
+    if (loading || user) return;
+    autoLineSignInRef.current = true;
+    const lastAttempt = Number(window.sessionStorage.getItem('lineAutoSignInAt') || 0);
+    if (Date.now() - lastAttempt < 30_000) return;
+    window.sessionStorage.setItem('lineAutoSignInAt', String(Date.now()));
+    // ไม่ตั้ง pendingMethod — หลัง sign-in สำเร็จ effect ด้านบนต้อง redirect ต่อได้เอง
+    signInWithLine().catch((autoSignInError) => {
+      setError(getAuthErrorMessage(autoSignInError));
+    });
+  }, [inLineWebview, loading, user, signInWithLine]);
 
   useEffect(() => {
     if (pendingMethod) return;

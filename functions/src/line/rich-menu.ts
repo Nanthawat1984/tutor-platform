@@ -17,12 +17,21 @@ export async function assignRoleRichMenu(lineUserId: string, role: 'parent' | 't
 }
 
 export function buildRichMenuPayload(role: RichMenuRole, appUrl: string, liffId: string) {
-  const links = role === 'parent'
-    ? ['/bookings', '/my-bookings', '/progress', '/payments', `https://liff.line.me/${liffId}`, '/support']
+  // ทุก tile ต้องเปิดผ่าน LIFF (https://liff.line.me/{liffId}{path}) เสมอ —
+  // LIFF เปิดใน browser context เดียวกับตอน login เชื่อมบัญชี session cookie
+  // จึงอยู่ครบทุกเมนู ถ้าใช้ URL ตรงแบบ {appUrl}{path} จะเปิดใน webview ปกติ
+  // ของ LINE ที่แยก cookie ออกจาก LIFF (ชัดเจนบน iOS) ผู้ใช้ต้องเชื่อมต่อใหม่
+  // ทุกครั้งที่กด
+  //
+  // ข้อกำหนด: LIFF endpoint ใน LINE Developers Console ต้องตั้งเป็น domain root
+  // (เช่น https://tutorfinder.pilotai.space/) เพราะ path หลัง liff.line.me ต้อง
+  // อยู่ใต้ endpoint URL ถ้า endpoint ชี้ที่ /my-profile path อื่นจะถูกเมิน
+  const paths = role === 'parent'
+    ? ['/bookings', '/my-bookings', '/progress', '/payments', '/my-profile', '/support']
     : role === 'teacher'
       ? ['/bookings', '/schedule', '/attendance', '/locations', '/earnings', '/support']
-      : [`https://liff.line.me/${liffId}`, '/help', '/', '/bookings', '/schedule', '/support'];
-  const areas = links.map((uri, index) => ({
+      : ['/', '/help', '/', '/bookings', '/schedule', '/support'];
+  const areas = paths.map((path, index) => ({
     bounds: {
       x: (index % 3) * 833 + 18,
       y: Math.floor(index / 3) * 843 + 18,
@@ -31,7 +40,9 @@ export function buildRichMenuPayload(role: RichMenuRole, appUrl: string, liffId:
     },
     action: {
       type: 'uri',
-      uri: uri.startsWith('http') ? uri : `${appUrl}${uri}`,
+      uri: liffId
+        ? `https://liff.line.me/${liffId}${path}`
+        : `${appUrl}${path}`,
     },
   }));
 

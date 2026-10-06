@@ -10,9 +10,14 @@ const token = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim() || '';
 const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || '';
 const liffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID?.trim() || '';
 
+// ทุก tile เปิดผ่าน LIFF (https://liff.line.me/{liffId}{path}) เสมอ เพื่อให้อยู่
+// ใน browser context เดียวกับตอน login เชื่อมบัญชี — session cookie จึงอยู่ครบ
+// ทุกเมนู (URL ตรงแบบ {appUrl}{path} เปิดใน webview ปกติของ LINE ที่แยก cookie
+// ออกจาก LIFF บน iOS ผู้ใช้ต้อง login ใหม่ทุกครั้งที่กด)
+// ข้อกำหนด: LIFF endpoint ใน LINE Developers Console ต้องเป็น domain root
 const actions = {
   default: ['/', '/help', '/', '/bookings', '/schedule', '/support'],
-  parent: ['/bookings', '/my-bookings', '/progress', '/payments', `https://liff.line.me/${liffId}`, '/support'],
+  parent: ['/bookings', '/my-bookings', '/progress', '/payments', '/my-profile', '/support'],
   teacher: ['/bookings', '/schedule', '/attendance', '/locations', '/earnings', '/support'],
 };
 
@@ -34,7 +39,7 @@ function payload(role) {
     chatBarText: 'เปิดเมนู',
     areas: actions[role].map((target, index) => ({
       bounds: { x: (index % 3) * 833 + 18, y: Math.floor(index / 3) * 843 + 18, width: 797, height: 807 },
-      action: { type: 'uri', uri: target.startsWith('http') ? target : `${appUrl}${target}` },
+      action: { type: 'uri', uri: liffId ? `https://liff.line.me/${liffId}${target}` : `${appUrl}${target}` },
     })),
   };
 }
@@ -51,7 +56,13 @@ async function lineJson(pathname, options = {}) {
 async function createRole(role) {
   const envName = `LINE_RICH_MENU_${role.toUpperCase()}_ID`;
   const existingId = process.env[envName]?.trim();
-  if (existingId) return existingId;
+  if (existingId) {
+    // ID เดิมมีอยู่แล้ว — อัปเดต definition ที่ ID เดิม (รวม URL ปุ่มที่เปลี่ยน)
+    // ไม่ต้องอัปโหลดรูปใหม่เพราะขนาด canvas ไม่เปลี่ยน ผู้ใช้ที่ผูก role menu ไว้
+    // แล้วได้ URL ใหม่ทันทีโดยไม่ต้อง assign menu ใหม่
+    await lineJson(`/v2/bot/richmenu/${existingId}`, { method: 'PUT', body: JSON.stringify(payload(role)) });
+    return existingId;
+  }
   const created = await lineJson('/v2/bot/richmenu', { method: 'POST', body: JSON.stringify(payload(role)) });
   const image = fs.readFileSync(path.join(assetDir, `rich-menu-${role}.png`));
   const upload = await fetch(`https://api-data.line.me/v2/bot/richmenu/${created.richMenuId}/content`, {

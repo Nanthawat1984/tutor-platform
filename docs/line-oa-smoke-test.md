@@ -11,6 +11,22 @@
 > รายการด้านล่างจึงยังต้องทำ ไม่ใช่เพราะเปิด flag ไม่ได้ แต่เพราะตอนนี้มัน
 > ผลกระทบกับผู้ใช้จริงแล้ว ควรทีละข้อแล้วบันทึกผลกลับมาในไฟล์นี้
 
+## LIFF browser context — กฎที่ทุกลิงก์จาก LINE ต้องทำตาม
+
+ทุกลิงก์จาก LINE OA (Rich Menu ทุก tile + ข้อความต้อนรับ/ตอบกลับ) ต้องเปิดผ่าน LIFF
+(`https://liff.line.me/{liffId}{path}`) เสมอ เพราะ webview ปกติของ LINE แยก cookie
+ออกจาก LIFF browser (ชัดเจนบน iOS) — ถ้า tile ไหนใช้ URL ตรง ผู้ใช้ต้องเชื่อมต่อ/
+login ใหม่ทุกครั้งที่กด (บั๊กที่เกิดจริง 5 ต.ค. 2026)
+
+ข้อกำหนดที่ตั้งใน LINE Developers Console (LINE Login channel → LIFF):
+
+- **Endpoint URL = `NEXT_PUBLIC_APP_URL` (domain root)** — path หลัง `liff.line.me`
+  ต้องอยู่ใต้ endpoint URL ถ้า endpoint ชี้ที่ `/my-profile` path อื่น (เช่น `/my-bookings`)
+  จะถูกเมินแล้วเปิด endpoint เดิมแทน
+
+หลังแก้ URL ของเมนูใน repo ให้รัน `node scripts/setup-line-rich-menus.cjs`
+— script จะ `PUT` อัปเดต definition ที่ ID เดิมใน env ทันที (ไม่ต้องลบ/สร้างเมนูใหม่)
+
 ## Rollback (ปิดกลับทันที)
 
 แก้ทั้งสองตัวใน `apphosting.yaml` เป็น `"false"` แล้ว deploy — ใช้เวลาราว 3–5 นาที
@@ -56,6 +72,7 @@
 | --- | --- |
 | OA Basic ID | `@966mqfzj` |
 | LIFF ID | `2011204493-x3Zg7Ksl` |
+| LIFF endpoint | `https://tutorfinder.pilotai.space/` (domain root — ตั้งใน Console) |
 | Channel ID | `2011204232` |
 | Rich Menu (default/parent/teacher) | มี ID จริงทั้งสามชุดใน `apphosting.yaml` |
 

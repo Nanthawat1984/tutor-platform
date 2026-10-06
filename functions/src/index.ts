@@ -435,7 +435,11 @@ export const lineWebhook = lineRuntime().region('asia-southeast1').https.onReque
 
     const payload = JSON.parse(rawBody.toString('utf8')) as { events?: Array<any> };
     const events = Array.isArray(payload.events) ? payload.events : [];
-    const liffUrl = config.liffId ? `https://liff.line.me/${config.liffId}` : `${config.appUrl}/my-profile`;
+    // LIFF URL ต้องมี path ต่อท้ายเสมอ (endpoint ต้องตั้งเป็น domain root ใน Console)
+    // เพื่อให้เปิดหน้าเป้าหมายตรง ๆ ใน LIFF browser เดียวกับ session ที่ login ไว้
+    const liffPath = (path: string) =>
+      config.liffId ? `https://liff.line.me/${config.liffId}${path}` : `${config.appUrl}${path}`;
+    const liffUrl = config.liffId ? liffPath('/my-profile') : `${config.appUrl}/my-profile`;
 
     for (const event of events) {
       if (!event.replyToken) continue;
@@ -455,7 +459,7 @@ export const lineWebhook = lineRuntime().region('asia-southeast1').https.onReque
           : text.includes('เชื่อมบัญชี')
             ? `🔗 กดที่นี่เพื่อเชื่อมบัญชี TutorPlatform ค่ะ\n\n${liffUrl}`
             : text.includes('จอง')
-              ? `📅 เปิดดูการจองของคุณได้ที่นี่ค่ะ\n\n${config.appUrl}/bookings`
+              ? `📅 เปิดดูการจองของคุณได้ที่นี่ค่ะ\n\n${liffPath('/bookings')}`
               : 'สวัสดีค่ะ 💖 พิมพ์ “ช่วยเหลือ” หรือกด Rich Menu เพื่อเริ่มใช้งานนะคะ';
         messages = [{ type: 'text', text: reply }];
       }

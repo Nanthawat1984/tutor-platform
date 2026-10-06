@@ -95,7 +95,7 @@ Google Maps (สำหรับฟีเจอร์สถานที่สอ�
 การตั้งค่า LINE Developers:
 
 1. สร้าง Messaging API channel และเปิดใช้ webhook
-2. สร้าง LIFF app ใน channel เดียวกัน โดยตั้ง endpoint เป็น `NEXT_PUBLIC_APP_URL/my-profile`
+2. สร้าง LIFF app ใน channel เดียวกัน โดยตั้ง endpoint เป็น `NEXT_PUBLIC_APP_URL` (domain root — **จำเป็น**) เพราะลิงก์จาก LINE OA ทุกอันเปิดผ่าน `https://liff.line.me/{liffId}{path}` ซึ่ง path ต้องอยู่ใต้ endpoint URL และเปิดใน LIFF browser เดียวกัน ถึงจะไม่ต้อง login ซ้ำทุกครั้งที่กดเมนู
 3. ตั้ง webhook URL เป็น URL ของ Firebase Function `lineWebhook` ใน region `asia-southeast1`
 4. ตั้งค่าความลับใน Functions configuration หรือ Secret Manager โดยไม่ใส่ลง client bundle เช่น `LINE_CHANNEL_SECRET` และ `LINE_CHANNEL_ACCESS_TOKEN`
 5. ตรวจสอบ local payload ก่อนสร้างเมนูจริง:
