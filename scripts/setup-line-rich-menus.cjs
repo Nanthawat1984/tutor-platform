@@ -22,8 +22,8 @@ const liffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID?.trim() || '';
 // ออกจาก LIFF บน iOS ผู้ใช้ต้อง login ใหม่ทุกครั้งที่กด)
 // ข้อกำหนด: LIFF endpoint ใน LINE Developers Console ต้องเป็น domain root
 const actions = {
-  default: ['/', '/help', '/', '/bookings', '/schedule', '/support'],
-  parent: ['/bookings', '/my-bookings', '/progress', '/payments', '/my-profile', '/support'],
+  default: ['/', '/help', '/', '/bookings', '/dashboard', '/support'],
+  parent: ['/bookings', '/dashboard', '/progress', '/payments', '/my-profile', '/support'],
   teacher: ['/bookings', '/schedule', '/attendance', '/locations', '/earnings', '/support'],
 };
 

@@ -24,8 +24,16 @@ login ใหม่ทุกครั้งที่กด (บั๊กที่
   ต้องอยู่ใต้ endpoint URL ถ้า endpoint ชี้ที่ `/my-profile` path อื่น (เช่น `/my-bookings`)
   จะถูกเมินแล้วเปิด endpoint เดิมแทน
 
-หลังแก้ URL ของเมนูใน repo ให้รัน `node scripts/setup-line-rich-menus.cjs`
-— script จะ `PUT` อัปเดต definition ที่ ID เดิมใน env ทันที (ไม่ต้องลบ/สร้างเมนูใหม่)
+หลังแก้ URL ของเมนูใน repo ให้เลือกวิธีตามชนิดของการแก้:
+
+- **แก้เฉพาะ URI (ไม่แตะภาพ)** — รัน `node scripts/setup-line-rich-menus.cjs`
+  ตรง ๆ สคริปต์จะ `PUT` อัปเดต definition ที่ ID เดิมใน env ทันที (ไม่ต้องลบ/สร้างเมนูใหม่)
+- **แก้ข้อความ/ไอคอน (เปลี่ยนภาพเมนู)** — LINE ไม่อนุญาตอัปโหลดรูปทับเมนูที่มีรูปแล้ว
+  (HTTP 400 `An image has already been uploaded`) ต้องหมุนเมนูใหม่ทั้งรอบ:
+  `node scripts/build-line-rich-menu-assets.cjs` →
+  `node scripts/setup-line-rich-menus.cjs --replace --reassign` →
+  อัปเดต `LINE_RICH_MENU_*_ID` ใหม่ทั้ง `apphosting.yaml` และ `functions/.env`
+  → deploy App Hosting (push) + `firebase deploy --only functions`
 
 ### ผลตรวจสอบ 6 ต.ค. 2026 — Endpoint URL ใน Console ยังไม่ได้ตั้งเป็น domain root
 
@@ -64,6 +72,16 @@ LINE Developers Console ตามเอกสาร LINE (กันคำเต�
 ```bash
 curl -sI "https://tutorfinder.pilotai.space/my-profile?liff.state=%2Fpayments" | grep -i location
 ```
+
+### รอบที่ 3 — 7 ต.ค. 2026: ช่อง "ตารางเรียน" → "แดชบอร์ด"
+
+เปลี่ยน tile ที่เขียน "ตารางเรียน" เป็น "แดชบอร์ด" (ไอคอน grid) และลิงก์ชี้
+`/dashboard` ทั้งเมนู default (ช่องกลางแถวล่าง, เดิม `/schedule`) และ parent
+(ช่องที่สองแถวบน, เดิม `/my-bookings`) — เมนู teacher ใช้คำว่า "ตารางสอน" จึงคงเดิม
+หน้า `/dashboard` เป็นแดชบอร์ดของครูและมี role guard: parent โดนเด้งไป
+`/my-bookings`, admin ไป `/admin/dashboard` จึงปลอดภัยสำหรับทุก role
+หมุนเมนูแล้ว verified ผ่าน LINE API (URIs + รูป byte-match) — ID ใหม่อยู่ใน
+`apphosting.yaml` + `functions/.env`
 
 ## Rollback (ปิดกลับทันที)
 

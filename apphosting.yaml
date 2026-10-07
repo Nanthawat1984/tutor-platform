@@ -118,20 +118,20 @@ env:
     availability:
       - RUNTIME
 
-  # หมุนเมนู 6 ต.ค. 2026 (รอบ 2) — ดีไซน์ใหม่มีมิติ + ทุก tile เปิดผ่าน LIFF
+  # หมุนเมนู 7 ต.ค. 2026 (รอบ 3) — ช่อง "ตารางเรียน" เปลี่ยนเป็น "แดชบอร์ด" (/dashboard)
   # (LINE ไม่อนุญาตอัปโหลดรูปทับเมนูที่มีรูปแล้ว จึงต้องสร้าง ID ใหม่ทุกครั้งที่เปลี่ยนภาพ)
   - variable: LINE_RICH_MENU_DEFAULT_ID
-    value: richmenu-240e05e34af2072be53f6d2749e1f4ed
+    value: richmenu-43cf93e6ad6f00933e1d91e21e9717ef
     availability:
       - RUNTIME
 
   - variable: LINE_RICH_MENU_PARENT_ID
-    value: richmenu-8401322cac03215c3003a976aded604d
+    value: richmenu-4762061801abff0c2f1f57bb6ad5deb7
     availability:
       - RUNTIME
 
   - variable: LINE_RICH_MENU_TEACHER_ID
-    value: richmenu-f64a62db7dae40ff39178b876fd754c0
+    value: richmenu-245ece82b6dcba20ef5b147bc7d55339
     availability:
       - RUNTIME
 
