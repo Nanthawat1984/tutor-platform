@@ -12,6 +12,9 @@ const dryRun = args.has('--dry-run');
 const replace = args.has('--replace');
 // ผูก role menu ให้ผู้ใช้ที่เชื่อม LINE ไว้แล้ว (อ่านจาก Firestore) — ใช้หลัง --replace
 const reassign = args.has('--reassign');
+// ลบเมนูรอบเก่าที่ค้างใน OA — จับเฉพาะเมนูที่สคริปต์นี้สร้างเอง (ชื่อ "TutorPlatform *")
+// และเก็บไว้แค่ 3 ID ปัจจุบัน (จาก env หรือชุดที่เพิ่งสร้างเมื่อใช้คู่กับ --replace)
+const prune = args.has('--prune');
 const token = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim() || '';
 const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || '';
 const liffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID?.trim() || '';
@@ -112,8 +115,43 @@ async function reassignRoleMenus(ids) {
   console.log(JSON.stringify({ reassigned: linked }, null, 2));
 }
 
+async function pruneStaleMenus(keeperIds) {
+  // กันพลาด: ถ้า default ที่ผูกกับผู้ใช้ทุกคนไม่ใช่ชุดปัจจุบัน แปลว่า env เก่า/ไม่ตรง — หยุดก่อนลบ
+  const bound = await lineJson('/v2/bot/user/all/richmenu');
+  if (bound.richMenuId !== keeperIds.default) {
+    throw new Error(
+      `default rich menu (${bound.richMenuId}) is not the current keeper (${keeperIds.default}) — aborting prune`,
+    );
+  }
+  const list = await lineJson('/v2/bot/richmenu/list');
+  const keepers = new Set(Object.values(keeperIds));
+  const stale = list.richmenus.filter(
+    (menu) => /^TutorPlatform (default|parent|teacher)$/.test(menu.name) && !keepers.has(menu.richMenuId),
+  );
+  // ผู้ใช้ที่ยังผูกกับเมนูที่ถูกลบจะ fallback ไป default menu โดยอัตโนมัติ (LINE ตัดลิงก์ให้เอง)
+  for (const menu of stale) {
+    const response = await fetch(`https://api.line.me/v2/bot/richmenu/${menu.richMenuId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error(`LINE Rich Menu delete failed (${response.status}) for ${menu.richMenuId}`);
+    console.log(`pruned: ${menu.richMenuId} (${menu.name})`);
+  }
+  console.log(JSON.stringify({ pruned: stale.length }, null, 2));
+}
+
 async function main() {
   requireInputs();
+  if (prune && !replace) {
+    // ถ้าไม่มี ID ปัจจุบันใน env สคริปต์จะ "สร้างเมนูใหม่" แทนการ reuse — ไม่ปล่อยให้ --prune
+    // เดินลูกนี้เพราะจะลบเมนูเก่าทั้งหมดแล้วเหลือชุดที่เพิ่งสร้างโดยไม่ตั้งใจ
+    const missing = roles.filter((role) => !process.env[`LINE_RICH_MENU_${role.toUpperCase()}_ID`]?.trim());
+    if (missing.length > 0) {
+      throw new Error(
+        `--prune requires LINE_RICH_MENU_*_ID in env to know which menus to keep (missing: ${missing.join(', ')}); set them or run together with --replace`,
+      );
+    }
+  }
   const payloads = Object.fromEntries(roles.map((role) => [role, payload(role)]));
   if (dryRun) {
     console.log(JSON.stringify({ dryRun: true, roles, payloads }, null, 2));
@@ -130,6 +168,7 @@ async function main() {
   });
   console.log(JSON.stringify({ richMenuIds: ids }, null, 2));
   if (reassign) await reassignRoleMenus(ids);
+  if (prune) await pruneStaleMenus(ids);
   if (replace) {
     console.log('next: put the new IDs in apphosting.yaml (LINE_RICH_MENU_*_ID) and redeploy');
   }

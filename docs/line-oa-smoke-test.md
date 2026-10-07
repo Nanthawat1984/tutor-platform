@@ -34,6 +34,10 @@ login ใหม่ทุกครั้งที่กด (บั๊กที่
   `node scripts/setup-line-rich-menus.cjs --replace --reassign` →
   อัปเดต `LINE_RICH_MENU_*_ID` ใหม่ทั้ง `apphosting.yaml` และ `functions/.env`
   → deploy App Hosting (push) + `firebase deploy --only functions`
+  → เก็บกวาดเมนูรอบเก่า: ตั้ง ID ปัจจุบันใน env แล้วรัน
+  `node scripts/setup-line-rich-menus.cjs --prune` — ลบเฉพาะเมนูที่สคริปต์นี้สร้างเอง
+  (ชื่อ `TutorPlatform *`) ที่ไม่ใช่ 3 ID ปัจจุบัน; ผู้ใช้ที่ยังผูกกับเมนูที่ถูกลบ
+  จะ fallback ไป default menu เองโดย LINE ตัดลิงก์ให้
 
 ### ผลตรวจสอบ 6 ต.ค. 2026 — Endpoint URL ใน Console ยังไม่ได้ตั้งเป็น domain root
 
@@ -81,7 +85,8 @@ curl -sI "https://tutorfinder.pilotai.space/my-profile?liff.state=%2Fpayments" |
 หน้า `/dashboard` เป็นแดชบอร์ดของครูและมี role guard: parent โดนเด้งไป
 `/my-bookings`, admin ไป `/admin/dashboard` จึงปลอดภัยสำหรับทุก role
 หมุนเมนูแล้ว verified ผ่าน LINE API (URIs + รูป byte-match) — ID ใหม่อยู่ใน
-`apphosting.yaml` + `functions/.env`
+`apphosting.yaml` + `functions/.env` และเก็บกวาดเมนูรอบเก่าที่ค้าง 9 ชุดทิ้งด้วย
+`--prune` (เหลือเฉพาะ 3 ชุดที่ใช้งานจริง)
 
 ## Rollback (ปิดกลับทันที)
 
