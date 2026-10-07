@@ -11,7 +11,9 @@ allowBuilds:
   unrs-resolver: true
 overrides:
   postcss: 8.5.26
-  sharp: 0.35.0
+  # sharp 0.35.5 แก้ CVE ใน librsvg/libheif (GHSA-g89c-p67h-r497, CVE-2026-96889)
+  # และ next พึ่ง sharp ตอน image optimization จึงไม่ได้อยู่แค่ path ของ build script
+  sharp: 0.35.5
   websocket-driver: 0.7.5
   protobufjs: 7.6.5
   uuid: 11.1.1
