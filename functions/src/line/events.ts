@@ -6,7 +6,9 @@ import {
   bookingStatusMessage,
   paymentMessage,
   paymentReleasedMessage,
+  sessionReportMessage,
   teacherPaymentPaidMessage,
+  classReminderMessage,
   type BookingMessageData,
 } from './messages';
 import type { LineNotificationEvent } from './types';
@@ -23,7 +25,7 @@ function bookingMessageData(booking: Data, extra: Data = {}): BookingMessageData
     location: booking.locationName || booking.centerName || booking.location || (booking.isOnline ? 'เรียนออนไลน์' : undefined),
     attendeeCount: typeof extra.attendeeCount === 'number' ? extra.attendeeCount : undefined,
     maxStudents: typeof booking.maxStudents === 'number' ? booking.maxStudents : undefined,
-    amount: typeof extra.amount === 'number' ? extra.amount : undefined,
+    amount: typeof extra.amount === 'number' ? extra.amount : (typeof booking.price === 'number' ? booking.price : undefined),
     netAmount: typeof extra.netAmount === 'number' ? extra.netAmount : undefined,
   };
 }
@@ -31,11 +33,16 @@ function bookingMessageData(booking: Data, extra: Data = {}): BookingMessageData
 export function getBookingNotificationRecipients(
   status: string,
   booking: Data,
-): Array<{ recipientUid: string; eventType: LineNotificationEvent }> {
+): Array<{ recipientUid: string; eventType: LineNotificationEvent; role: 'parent' | 'teacher' }> {
   if (status !== 'confirmed' && status !== 'cancelled') return [];
-  return [booking.parentId, booking.teacherId]
-    .filter((uid): uid is string => typeof uid === 'string' && uid.length > 0)
-    .map((recipientUid) => ({ recipientUid, eventType: status === 'confirmed' ? 'booking.confirmed' : 'booking.cancelled' }));
+  const list: Array<{ recipientUid: string; eventType: LineNotificationEvent; role: 'parent' | 'teacher' }> = [];
+  if (typeof booking.parentId === 'string' && booking.parentId.length > 0) {
+    list.push({ recipientUid: booking.parentId, eventType: status === 'confirmed' ? 'booking.confirmed' : 'booking.cancelled', role: 'parent' });
+  }
+  if (typeof booking.teacherId === 'string' && booking.teacherId.length > 0) {
+    list.push({ recipientUid: booking.teacherId, eventType: status === 'confirmed' ? 'booking.confirmed' : 'booking.cancelled', role: 'teacher' });
+  }
+  return list;
 }
 
 export async function enqueueBookingCreated(db: Firestore, bookingId: string, booking: Data): Promise<void> {
@@ -66,7 +73,7 @@ export async function enqueueBookingStatusChanged(
       recipientUid: recipient.recipientUid,
       eventType: recipient.eventType,
       entityId: bookingId,
-      messages: [bookingStatusMessage(after.status, bookingMessageData(after))],
+      messages: [bookingStatusMessage(after.status, bookingMessageData(after), recipient.role)],
     });
   }
 }
@@ -126,7 +133,31 @@ export async function enqueueAttendanceChanged(
     messages: [attendanceMessage({
       studentName: String(after.studentName || booking.studentName || 'นักเรียน'),
       sessionDate: String(after.sessionDate || booking.bookingDate || '-'),
+      courseTitle: String(after.courseTitle || booking.courseTitle || ''),
       status: after.status,
+      note: after.note ? String(after.note) : undefined,
+    })],
+  });
+}
+
+export async function enqueueSessionReportCreated(
+  db: Firestore,
+  reportId: string,
+  report: Data,
+): Promise<void> {
+  if (!report.parentId) return;
+  await createLineOutbox(db, {
+    recipientUid: report.parentId,
+    eventType: 'report.created',
+    entityId: reportId,
+    messages: [sessionReportMessage({
+      studentName: String(report.studentName || 'นักเรียน'),
+      courseTitle: String(report.courseTitle || 'คอร์สเรียน'),
+      sessionDate: String(report.sessionDate || '-'),
+      summary: report.summary ? String(report.summary) : (report.content ? String(report.content) : undefined),
+      strengths: report.strengths ? String(report.strengths) : undefined,
+      improvements: report.improvements ? String(report.improvements) : undefined,
+      homework: report.homework ? String(report.homework) : undefined,
     })],
   });
 }
@@ -143,4 +174,58 @@ export async function enqueuePaymentReleased(db: Firestore, bookingId: string, p
       amount: Number(payment.payoutAmount ?? payment.netAmount) || 0,
     })],
   });
+}
+
+export async function enqueueClassReminder(
+  db: Firestore,
+  bookingId: string,
+  booking: Data,
+  options: { minutesRemaining?: number; daily?: boolean } = {}
+): Promise<void> {
+  const eventType: LineNotificationEvent = options.daily ? 'reminder.daily' : 'reminder.class';
+  const entityId = `${bookingId}:${options.daily ? 'daily' : `${options.minutesRemaining || 30}m`}`;
+
+  // Notify Parent
+  if (booking.parentId) {
+    await createLineOutbox(db, {
+      recipientUid: booking.parentId,
+      eventType,
+      entityId,
+      messages: [
+        classReminderMessage({
+          studentName: String(booking.studentName || 'นักเรียน'),
+          courseTitle: String(booking.courseTitle || 'คอร์สเรียน'),
+          bookingDate: String(booking.bookingDate || '-'),
+          startTime: String(booking.startTime || '-'),
+          endTime: String(booking.endTime || '-'),
+          location: booking.locationName || booking.centerName || booking.location,
+          meetingLink: booking.onlineMeetingUrl || booking.meetingLink,
+          minutesRemaining: options.minutesRemaining,
+          role: 'parent',
+        }),
+      ],
+    });
+  }
+
+  // Notify Teacher for class reminder
+  if (!options.daily && booking.teacherId) {
+    await createLineOutbox(db, {
+      recipientUid: booking.teacherId,
+      eventType,
+      entityId,
+      messages: [
+        classReminderMessage({
+          studentName: String(booking.studentName || 'นักเรียน'),
+          courseTitle: String(booking.courseTitle || 'คอร์สเรียน'),
+          bookingDate: String(booking.bookingDate || '-'),
+          startTime: String(booking.startTime || '-'),
+          endTime: String(booking.endTime || '-'),
+          location: booking.locationName || booking.centerName || booking.location,
+          meetingLink: booking.onlineMeetingUrl || booking.meetingLink,
+          minutesRemaining: options.minutesRemaining,
+          role: 'teacher',
+        }),
+      ],
+    });
+  }
 }

@@ -9,7 +9,9 @@ export type LineNotificationEvent =
   | 'payment.paid'
   | 'attendance.changed'
   | 'payment.released'
-  | 'report.created';
+  | 'report.created'
+  | 'reminder.class'
+  | 'reminder.daily';
 
 export interface LineNotificationOutbox {
   recipientUid: string;

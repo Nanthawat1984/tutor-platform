@@ -16,6 +16,8 @@ import {
   enqueueBookingStatusChanged,
   enqueuePaymentChanged,
   enqueuePaymentReleased,
+  enqueueSessionReportCreated,
+  enqueueClassReminder,
 } from './line/events';
 import { getLineServerConfig } from './line/config';
 import { replyLineMessages } from './line/client';
@@ -243,6 +245,8 @@ export const onSessionReportCreated = lineRuntime().region('asia-southeast1').fi
       isRead: false,
       createdAt: FieldValue.serverTimestamp(),
     });
+
+    await enqueueSessionReportCreated(db, context.params.reportId, data);
   });
 
 // 4. เมื่อ review ถูกสร้าง → แจ้งครู
@@ -514,9 +518,56 @@ export const dailyBookingReminder = lineRuntime().pubsub
         isRead: false,
         createdAt: FieldValue.serverTimestamp(),
       });
+
+      await enqueueClassReminder(db, doc.id, booking, { daily: true });
     }
 
     console.log(`Sent ${bookingsSnap.size} booking reminders`);
+  });
+
+// ทุก 15 นาที — ตรวจสอบและส่ง LINE Flex แจ้งเตือนก่อนเริ่มเรียน 30 นาที
+export const scheduledClassUpcomingReminder = lineRuntime().region('asia-southeast1').pubsub
+  .schedule('every 15 minutes')
+  .timeZone('Asia/Bangkok')
+  .onRun(async () => {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(now);
+    const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '';
+    const today = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+    const currentHour = parseInt(getPart('hour'), 10);
+    const currentMinute = parseInt(getPart('minute'), 10);
+    const currentTotalMinutes = currentHour * 60 + currentMinute;
+
+    const bookingsSnap = await db.collection('bookings')
+      .where('bookingDate', '==', today)
+      .where('status', '==', 'confirmed')
+      .get();
+
+    for (const doc of bookingsSnap.docs) {
+      const booking = doc.data();
+      if (!booking.startTime) continue;
+      const [startHourStr, startMinStr] = String(booking.startTime).split(':');
+      const startHour = parseInt(startHourStr, 10);
+      const startMin = parseInt(startMinStr, 10);
+      if (isNaN(startHour) || isNaN(startMin)) continue;
+
+      const classTotalMinutes = startHour * 60 + startMin;
+      const diffMinutes = classTotalMinutes - currentTotalMinutes;
+
+      // แจ้งเตือนช่วง 15 ถึง 45 นาทีล่วงหน้า (เป้าหมาย 30 นาที)
+      if (diffMinutes >= 15 && diffMinutes <= 45) {
+        await enqueueClassReminder(db, doc.id, booking, { minutesRemaining: diffMinutes, daily: false });
+      }
+    }
   });
 
 // ทุก 1 ชั่วโมง — อัปเดต teacher stats

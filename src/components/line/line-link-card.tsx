@@ -178,6 +178,27 @@ export function LineLinkCard({
           เพิ่มเพื่อน OA {config.officialAccountId} ก่อนเชื่อมบัญชี
         </a>
       )}
+
+      {/* สิทธิประโยชน์ที่ได้รับเมื่อเชื่อม LINE */}
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600 sm:grid-cols-4">
+        <div className="rounded-lg bg-white/80 p-2 border border-pink-100/60">
+          <span className="font-semibold text-slate-800">⏰ เตือนก่อนเรียน</span>
+          <p className="text-[11px] text-slate-500 mt-0.5">แจ้งเตือน 30 นาทีก่อนเริ่ม</p>
+        </div>
+        <div className="rounded-lg bg-white/80 p-2 border border-pink-100/60">
+          <span className="font-semibold text-slate-800">📋 เช็คชื่อทันที</span>
+          <p className="text-[11px] text-slate-500 mt-0.5">รู้ผลเข้าเรียนแบบ Real-time</p>
+        </div>
+        <div className="rounded-lg bg-white/80 p-2 border border-pink-100/60">
+          <span className="font-semibold text-slate-800">📝 สมุดพกการเรียน</span>
+          <p className="text-[11px] text-slate-500 mt-0.5">รับสรุปผลและรายงานครู</p>
+        </div>
+        <div className="rounded-lg bg-white/80 p-2 border border-pink-100/60">
+          <span className="font-semibold text-slate-800">💳 บิลและใบเสร็จ</span>
+          <p className="text-[11px] text-slate-500 mt-0.5">ยืนยันเงินเข้า/ออกชัดเจน</p>
+        </div>
+      </div>
+
       {error && <p className="mt-3 text-sm font-semibold text-rose-600" role="alert">{error}</p>}
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         {!linked ? (

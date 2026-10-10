@@ -10,10 +10,7 @@ import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { COLLECTIONS } from '@/types/firestore';
 import type { LineNotificationEvent } from '@/types/line';
 
-export interface OutboxMessage {
-  type: string;
-  text: string;
-}
+export type OutboxMessage = Record<string, unknown>;
 
 // ต้องตรงกับ readBoolean ใน functions/src/line/config.ts
 function readFlagEnabled(): boolean {
